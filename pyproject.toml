@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "duckdb-vectors"
 version = "0.1.0"
-description = "Embeddable semantic-search building block for agentic systems: an S3-Vectors-like interface over a local DuckDB database with hybrid vector + BM25 search."
+description = "Embeddable semantic-search building block for agentic systems: an S3-Vectors-like interface over a local DuckDB database with hybrid vector + exact-token BM25 search."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "Bernard Paques" }]
+authors = [{ name = "Bernard Paques", email = "bernard.paques@gmail.com" }]
 keywords = [
     "duckdb",
     "vectors",
@@ -23,9 +23,13 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Database",
+    "Typing :: Typed",
 ]
 dependencies = ["duckdb>=1.1", "pydantic>=2.6"]
 
@@ -41,6 +45,7 @@ duckdb-vectors = "duckdb_vectors.cli:app"
 [project.urls]
 Homepage = "https://github.com/bernard357/duckdb-vectors"
 Repository = "https://github.com/bernard357/duckdb-vectors"
+Documentation = "https://github.com/bernard357/duckdb-vectors/tree/main/documentation"
 Issues = "https://github.com/bernard357/duckdb-vectors/issues"
 
 [tool.hatch.build.targets.wheel]
