@@ -1,6 +1,6 @@
 help:
 	@echo "Common commands:"
-	@echo "# make setup     - Check prerequisites, create the venv, install tooling"
+	@echo "$$ make setup     - Check prerequisites, create the venv, install tooling"
 	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
 	@echo "$$ make format    - Format Python code with Ruff"
@@ -41,14 +41,20 @@ check-prerequisites:
 
 setup-python:
 	@echo "Creating virtual environment with uv..."
-	uv venv
+	uv venv --clear
 	@echo "Installing the package with all extras..."
-	uv pip install -e ".[local,bedrock,cli,dev]"
+	uv pip install --python .venv/bin/python -e ".[local,bedrock,cli,dev]"
 
 setup-markdownlint:
-	@echo "Installing markdownlint-cli..."
-	npm install markdownlint-cli -g
-	markdownlint --version
+	@command -v markdownlint >/dev/null && markdownlint --version || { \
+		echo "Installing markdownlint-cli via npm..."; \
+		npm install markdownlint-cli -g || { \
+			echo "npm global install failed (often a permissions issue)."; \
+			echo "Install markdownlint-cli yourself, e.g. 'npm install -g"; \
+			echo "markdownlint-cli' with a user-writable npm prefix. Needed"; \
+			echo "only for 'make lint-markdown'."; \
+		}; \
+	}
 
 setup-hadolint:
 	@command -v hadolint >/dev/null && hadolint --version || { \
