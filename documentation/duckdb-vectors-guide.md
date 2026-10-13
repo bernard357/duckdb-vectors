@@ -75,10 +75,11 @@ Two choices matter here:
 - __Chunking__ — the default `MarkdownChunker` splits on headings and windows
   long sections to about 300 words. Supply your own `Chunker` (any object with
   `chunk(text, source)`) for other formats or strategies.
-- __Embedding__ — `local` (fastembed, offline, 384 dims) is the default;
-  `hashing` needs no dependency and is ideal for tests; `bedrock:titan` embeds
-  through Amazon Bedrock. The backend identity is folded into each chunk's
-  ETag, so switching backends re-embeds everything correctly.
+- __Embedding__ — `local` (fastembed, offline, 384 dims) is the default and the
+  minimum viable setup for real relevance; `bedrock:titan` embeds through Amazon
+  Bedrock. (`hashing` exists as a deterministic, dependency-free fixture for
+  tests and CI — not for relevance.) The backend identity is folded into each
+  chunk's ETag, so switching backends re-embeds everything correctly.
 
 ## Search {#search}
 

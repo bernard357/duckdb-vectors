@@ -51,10 +51,11 @@ $ duckdb-vectors index ./docs --recursive --backend local
 - __Chunking options.__ The default `MarkdownChunker` splits on headings and
   windows long sections to ~300 words. Supply a custom `Chunker` (any object
   with `chunk(text, source)`) for other formats or sizes.
-- __Embedding options.__ `local` (fastembed, offline, 384 dims) is the default;
-  `hashing` needs no dependency and suits tests; `bedrock:titan` embeds through
-  Bedrock. Re-running the index only re-embeds changed chunks (ETag reuse) and
-  prunes chunks for deleted files.
+- __Embedding options.__ `local` (fastembed, offline, 384 dims) is the default
+  and the minimum viable setup for real relevance; `bedrock:titan` embeds
+  through Bedrock. (`hashing` is a deterministic, dependency-free fixture for
+  tests and CI, not for relevance.) Re-running the index only re-embeds changed
+  chunks (ETag reuse) and prunes chunks for deleted files.
 
 Confirm the result:
 

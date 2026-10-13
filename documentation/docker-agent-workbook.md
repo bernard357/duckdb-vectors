@@ -25,13 +25,14 @@ sense when the corpus changes faster than you redeploy. See
 
 ## Which embedding backend in a container? {#backend}
 
-- `hashing` — no dependency, no model, deterministic. Ideal for examples,
-  tests, and CI smoke runs. Not semantically meaningful.
-- `local` (fastembed) — ONNX, no torch, 384 dims. The usual production choice
-  for an offline container; the model is downloaded at build time and baked in.
+- `local` (fastembed) — ONNX, no torch, 384 dims. The default and the minimum
+  viable setup for real relevance; the model is downloaded at build time and
+  baked in, so the container runs offline.
 - `bedrock:titan` — embeds through Amazon Bedrock. The index stays local; only
   embedding calls go to AWS. Needs credentials at the step that embeds (build
   time if you index during build, run time if you index at startup).
+- `hashing` — no dependency, no model, deterministic, but not semantically
+  meaningful. Use it only for tests and CI smoke runs, not for a real agent.
 
 The backend identity is folded into each chunk's ETag, so an index built with
 one backend must be queried with the same backend.

@@ -2,10 +2,11 @@
 
 The agent indexes the project's own ``documentation/`` folder into a local
 DuckDB file at build time, then answers questions by retrieving the most
-relevant chunks. It deliberately uses the dependency-free ``hashing`` backend
-so the example runs offline with no model download — swap ``backend`` for
-``local`` (fastembed) or ``bedrock:titan`` for real semantic relevance, and
-hand the retrieved chunks to an LLM to generate prose answers.
+relevant chunks. It uses the ``local`` backend (fastembed ONNX, no torch) —
+the minimum viable setup for real semantic relevance, running fully offline
+once the model is baked into the image. Hand the retrieved chunks to an LLM to
+generate prose answers; swap ``backend`` for ``bedrock:titan`` for cloud
+embedding.
 
 Build-time:  python agent.py --index <docs-folder> --db <file>
 Query-time:  python agent.py --db <file> "your question"
@@ -15,7 +16,7 @@ import argparse
 
 from duckdb_vectors import VectorStore, index_folder
 
-BACKEND = "hashing"
+BACKEND = "local"
 
 
 def build_index(docs: str, db_path: str) -> None:

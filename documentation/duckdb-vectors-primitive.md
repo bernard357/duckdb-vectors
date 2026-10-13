@@ -31,9 +31,9 @@ flowchart TD
     App[Python harness] --> Store
     Store[VectorStore] --> Chunker[Chunker]
     Store --> Embedder[Embedder registry]
-    Embedder --> Hashing[hashing]
     Embedder --> Local[local: fastembed]
     Embedder --> Bedrock[bedrock:titan]
+    Embedder --> Hashing[hashing: tests only]
     Store --> DB[(DuckDB file)]
     DB --> Vec[vector scan: array_cosine_distance]
     DB --> FTS[BM25: match_bm25]
@@ -50,8 +50,10 @@ Each block is small and replaceable. You can use the defaults or swap any one.
   owns the schema, the write path (`put_vectors`, `add_texts`,
   `delete_vectors`), and the read path (`query`, `query_vectors`). Open it
   read-write to build an index, or read-only to serve a frozen one.
-- __Embedder registry__ — turns a backend string (`"local"`, `"hashing"`,
-  `"bedrock:titan"`) into an embedder. Three ship in the box; contributors add
+- __Embedder registry__ — turns a backend string into an embedder. `local`
+  (fastembed) is the default and the minimum viable setup for users;
+  `bedrock:titan` embeds in the cloud; `hashing` is a deterministic,
+  dependency-free fixture for tests and CI, not for relevance. Contributors add
   more with `register_embedder(name, factory)` without touching the core.
 - __Chunker__ — splits a source document into indexable chunks. The default
   `MarkdownChunker` uses the DuckDB `markdown` extension to split on headings.
@@ -89,7 +91,7 @@ The S3-Vectors-flavored write and read methods:
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="hashing")
+store = VectorStore(db_path="vectors.duckdb", backend="local")
 
 # Chunk-first convenience: upsert raw texts.
 store.add_texts(

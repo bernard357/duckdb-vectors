@@ -40,14 +40,15 @@ flowchart LR
 
 The agent is one small module. It has a build-time path that indexes a folder,
 and a query-time path that opens the index read-only and retrieves chunks. It
-uses the dependency-free `hashing` backend so the example runs offline; switch
-to `local` (fastembed) or `bedrock:titan` for real semantic relevance, and pass
-the retrieved chunks to an LLM to generate prose answers.
+uses the `local` backend (fastembed ONNX) — the minimum viable setup for real
+relevance, which runs fully offline once the model is baked into the image.
+Switch to `bedrock:titan` for cloud embedding, and pass the retrieved chunks to
+an LLM to generate prose answers.
 
 ```python
 from duckdb_vectors import VectorStore, index_folder
 
-BACKEND = "hashing"
+BACKEND = "local"
 
 
 def build_index(docs: str, db_path: str) -> None:
@@ -75,11 +76,12 @@ Point the agent at the documentation folder to build the index:
 
 ```shell
 $ python examples/docker-agent/agent.py --index ./documentation --db vectors.duckdb
-indexed 3 files, 26 chunks (26 embedded)
+indexed 12 files, 94 chunks (94 embedded)
 ```
 
 The counts reflect this repository's documentation at the time of writing;
-yours will differ as pages are added.
+yours will differ as pages are added. The first run downloads the fastembed
+model; later runs reuse the cached model.
 
 ## Step 3 — ask a question locally {#query}
 
@@ -96,13 +98,16 @@ a written answer; the retrieval step is what `duckdb-vectors` provides.
 
 ## Step 4 — the two-stage Dockerfile {#dockerfile}
 
-The build stage installs the package, copies the documentation, and indexes it.
-The runtime stage copies only the agent and the frozen index, so the serving
-image carries no build tooling.
+The build stage installs the `local` backend, downloads its model, copies the
+documentation, and indexes it. The runtime stage copies only the agent, the
+frozen index, and the model cache, so the serving image carries no build
+tooling and needs no network. The fastembed cache path is pinned so it can be
+copied between stages.
 
 ```dockerfile
 FROM python:3.12-slim AS builder
 WORKDIR /build
+ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 COPY examples/docker-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY examples/docker-agent/agent.py .
@@ -111,10 +116,12 @@ RUN python agent.py --index ./documentation --db /build/vectors.duckdb
 
 FROM python:3.12-slim AS runtime
 WORKDIR /app
+ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 COPY examples/docker-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY examples/docker-agent/agent.py .
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
+COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
 ENV DUCKDB_VECTORS_READ_ONLY=true
 ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]

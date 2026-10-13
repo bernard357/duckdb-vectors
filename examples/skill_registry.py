@@ -19,7 +19,7 @@ SKILLS = [
 
 def build_registry(db_path: str = "skills.duckdb") -> VectorStore:
     """Open a store and (idempotently) append the skill registry."""
-    store = VectorStore(db_path=db_path, backend="hashing")
+    store = VectorStore(db_path=db_path, backend="local")
     store.add_texts(
         ids=[skill_id for skill_id, _ in SKILLS],
         texts=[description for _, description in SKILLS],

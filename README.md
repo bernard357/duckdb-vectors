@@ -45,8 +45,8 @@ Start here and go deeper as you need:
 ## Install
 
 ```shell
-$ pip install duckdb-vectors            # core (dependency-free hashing backend)
-$ pip install duckdb-vectors[local]     # fastembed ONNX local embeddings
+$ pip install duckdb-vectors[local]     # recommended: fastembed ONNX local embeddings
+$ pip install duckdb-vectors            # core only (bring your own embedder)
 $ pip install duckdb-vectors[bedrock]   # Amazon Bedrock Titan embeddings
 $ pip install duckdb-vectors[cli]       # the duckdb-vectors CLI
 ```
@@ -56,7 +56,7 @@ $ pip install duckdb-vectors[cli]       # the duckdb-vectors CLI
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(backend="local")  # or "hashing", "bedrock:titan"
+store = VectorStore(backend="local")  # the default; or "bedrock:titan"
 store.add_texts(
     ids=["doc:0", "doc:1"],
     texts=[
@@ -90,9 +90,10 @@ Settings resolve with the precedence: explicit argument >
 
 ## Embedding backends
 
-Backends are resolved from a string: a bare name (`local`, `hashing`) or a
-`name:variant` pair (`bedrock:titan`). The registry is contributor-extensible —
-register open or closed, local or cloud backends without touching the core:
+Backends are resolved from a string: a bare name (`local`) or a `name:variant`
+pair (`bedrock:titan`). `local` is the default and the minimum viable setup for
+end users. The registry is contributor-extensible — register open or closed,
+local or cloud backends without touching the core:
 
 ```python
 from duckdb_vectors import register_embedder
@@ -100,11 +101,11 @@ from duckdb_vectors import register_embedder
 register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 ```
 
-| Backend | Spec | Extra | Dimensions |
-| --- | --- | --- | --- |
-| Hashing (deterministic, no deps) | `hashing` | — | 384 |
-| fastembed (ONNX, local) | `local` | `[local]` | 384 |
-| Bedrock Titan | `bedrock:titan` | `[bedrock]` | 1024 |
+| Backend | Spec | Extra | Dimensions | Use for |
+| --- | --- | --- | --- | --- |
+| fastembed (ONNX, local) | `local` | `[local]` | 384 | default; real relevance, offline |
+| Bedrock Titan | `bedrock:titan` | `[bedrock]` | 1024 | cloud embedding |
+| Hashing (deterministic, no deps) | `hashing` | — | 384 | tests and CI only, not relevance |
 
 ## Metadata-aware search (injectable ranking SQL)
 
