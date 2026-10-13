@@ -37,7 +37,7 @@ check-prerequisites:
 	@command -v uv >/dev/null || { echo "ERROR: uv not found — see https://docs.astral.sh/uv/"; exit 1; }
 	@command -v docker >/dev/null || echo "WARNING: docker not found — needed only for the example container agents"
 	@command -v npm >/dev/null || echo "WARNING: npm not found — needed for setup-markdownlint"
-	@command -v brew >/dev/null || echo "WARNING: brew not found — setup-hadolint uses it; install hadolint manually otherwise"
+	@command -v hadolint >/dev/null || echo "WARNING: hadolint not found — needed for lint-dockerfile; see https://github.com/hadolint/hadolint#install"
 
 setup-python:
 	@echo "Creating virtual environment with uv..."
@@ -51,9 +51,12 @@ setup-markdownlint:
 	markdownlint --version
 
 setup-hadolint:
-	@echo "Installing hadolint..."
-	brew install hadolint
-	hadolint --version
+	@command -v hadolint >/dev/null && hadolint --version || { \
+		echo "hadolint not found. It has no pip/npm package; install it for"; \
+		echo "your platform from https://github.com/hadolint/hadolint#install"; \
+		echo "(binary release, Docker image 'hadolint/hadolint', or a native"; \
+		echo "package). Needed only for 'make lint-dockerfile'."; \
+	}
 
 lint: lint-python lint-markdown lint-dockerfile
 

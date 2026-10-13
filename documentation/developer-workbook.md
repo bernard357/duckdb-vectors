@@ -53,7 +53,7 @@ and installs the rest.
 | [uv](https://docs.astral.sh/uv/) | Creates the venv, installs deps, builds | `curl -LsSf https://astral.sh/uv/install.sh \| sh` or `brew install uv` |
 | [Docker](https://docs.docker.com/get-docker/) | Builds and runs the example container agents | Docker Desktop, or your package manager |
 | [Node.js](https://nodejs.org/) + npm | Provides markdownlint-cli for Markdown linting | nodejs.org, nvm, or your package manager |
-| [hadolint](https://github.com/hadolint/hadolint) | Lints the example Dockerfiles | `brew install hadolint`; on Linux/Windows use the [release binary](https://github.com/hadolint/hadolint/releases) or the `hadolint/hadolint` Docker image |
+| [hadolint](https://github.com/hadolint/hadolint) | Lints the example Dockerfiles | Per your platform — see the [hadolint install guide](https://github.com/hadolint/hadolint#install) (binary release, `hadolint/hadolint` Docker image, or a native package) |
 
 Ruff and pytest are not prerequisites — `make setup` installs them into the
 virtual environment via the `[dev]` extra.
@@ -67,10 +67,12 @@ $ make setup   # checks prerequisites, creates the venv, installs tooling
 ```
 
 `make setup` runs `check-prerequisites`, then `setup-python` (uv venv + the
-package with all extras), `setup-markdownlint` (npm), and `setup-hadolint`
-(Homebrew). On a non-macOS machine, install markdownlint-cli and hadolint
-yourself (see [prerequisites](#prerequisites)), then run `make setup-python`
-for just the Python environment.
+package with all extras) and `setup-markdownlint` (npm). `setup-hadolint`
+checks whether hadolint is present and, if not, points you at the official
+install guide — hadolint has no pip or npm package, so install it for your
+platform (binary release, Docker image, or a native package). Run `make
+setup-python` for just the Python environment if you manage the linters
+yourself.
 
 ## What does each Makefile target do? {#makefile}
 
