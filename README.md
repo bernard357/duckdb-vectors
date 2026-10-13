@@ -41,6 +41,9 @@ Start here and go deeper as you need:
   [RAG answering machine](documentation/setup-rag-procedure.md),
   [LLM wiki to RAG](documentation/setup-llm-wiki-to-rag-procedure.md), or
   [semantic skills search](documentation/setup-skills-search-procedure.md).
+- Contributing or developing? Start with [CONTRIBUTING.md](CONTRIBUTING.md),
+  then the [developer workbook](documentation/developer-workbook.md) for
+  prerequisites, setup, and the full workflow.
 
 ## Install
 
