@@ -231,6 +231,12 @@ Note: a package named `rag007` was requested for this comparison but we could
 not locate a matching project on PyPI or GitHub at review time; if you meant a
 different name, open an issue and we will add it.
 
+## Contributing
+
+Contributions are welcome — adding an embedding backend or a chunker is a great
+first pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development
+setup, project principles, and pull-request guidelines.
+
 ## License
 
 MIT.
