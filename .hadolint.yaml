@@ -8,3 +8,11 @@ ignored:
   # DL3059: consecutive RUN instructions. The examples keep the install step and
   # the index-build step as separate, readable RUN lines on purpose.
   - DL3059
+  # DL3008: pin apt versions. The RAG example installs a build toolchain
+  # (build-essential, cmake) to compile llama-cpp-python; pinning apt versions
+  # in a throwaway test image is unnecessary ceremony.
+  - DL3008
+  # SC2086: word-splitting on the wheel glob. The examples install the single
+  # locally built wheel via `$(echo dist/*.whl)[extra]`; the glob is intentional
+  # and the paths have no spaces, so the word-splitting warning does not apply.
+  - SC2086
