@@ -28,12 +28,16 @@ class Settings(BaseModel):
     db_path: str
     backend: str
     read_only: bool = False
+    vector_sql: str | None = None
+    text_sql: str | None = None
 
     def __init__(
         self,
         db_path: str | None = None,
         backend: str | None = None,
         read_only: bool | None = None,
+        vector_sql: str | None = None,
+        text_sql: str | None = None,
     ) -> None:
         resolved_db = db_path or _env("DB_PATH") or DEFAULT_DB_PATH
         resolved_backend = backend or _env("BACKEND") or DEFAULT_BACKEND
@@ -50,4 +54,6 @@ class Settings(BaseModel):
             db_path=resolved_db,
             backend=resolved_backend,
             read_only=resolved_ro,
+            vector_sql=vector_sql or _env("VECTOR_SQL"),
+            text_sql=text_sql or _env("TEXT_SQL"),
         )

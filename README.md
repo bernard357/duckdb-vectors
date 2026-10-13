@@ -85,6 +85,53 @@ register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 | fastembed (ONNX, local) | `local` | `[local]` | 384 |
 | Bedrock Titan | `bedrock:titan` | `[bedrock]` | 1024 |
 
+## Metadata-aware search (injectable ranking SQL)
+
+Each ranking signal — vector and BM25 — runs a DuckDB `SELECT` that returns
+`chunk_id` best-first. The store collects the ids and fuses them with RRF. You
+can override either SELECT to restrict in-scope chunks (a `WHERE` over
+metadata) or to apply a decay factor on aging documents (a reshaped
+`ORDER BY`). When you provide no override, built-in defaults reproduce the
+standard behavior.
+
+Templates use these substituted tokens: `{table}`, `{distance}` (vector only),
+`{bm25}` (text only), `{top_k}`. The search text is available as the bound
+parameter `$q`. Standard columns are in scope: `metadata`, `source`, `title`,
+`stamped_at`, `text`.
+
+Overrides can be set once (shared across queries) via `Settings` or
+`DUCKDB_VECTORS_VECTOR_SQL` / `DUCKDB_VECTORS_TEXT_SQL`, or passed per call.
+Precedence is per-call > settings > default. A custom SELECT owns its own
+`WHERE` and supersedes the convenience `filter` dict for that signal.
+
+Restrict to in-scope chunks:
+
+```python
+scoped = (
+    "SELECT chunk_id FROM {table} "
+    "WHERE json_extract_string(metadata, '$.kind') = 'policy' "
+    "ORDER BY {distance} LIMIT {top_k}"
+)
+store.query("retention rules", vector_sql=scoped, text_sql=scoped)
+```
+
+Decay aging documents (older chunks sink; `age_days` lives in metadata):
+
+```python
+decayed = (
+    "SELECT chunk_id FROM {table} "
+    "ORDER BY {distance} "
+    "* (1 + CAST(json_extract_string(metadata, '$.age_days') AS DOUBLE) "
+    "/ 365.0) "
+    "LIMIT {top_k}"
+)
+store.query("latest guidance", hybrid=False, vector_sql=decayed)
+```
+
+The injected SELECT is caller-authored SQL run against your own database
+(opened read-only in the serving path); the query text and embedding are
+parameter-bound.
+
 ## Lifecycles
 
 - __Build-time indexing__: the CLI builds a `vectors.duckdb` at image build

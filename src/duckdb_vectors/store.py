@@ -24,6 +24,30 @@ from duckdb_vectors.models import Chunk, SearchResult
 
 RRF_K = 60
 
+# Built-in ranking templates. Each returns ``chunk_id`` best-first; the store
+# collects the ids and applies Reciprocal Rank Fusion. A caller may override
+# either template (via Settings or per-call) to add a WHERE for in-scope
+# filtering or reshape the ORDER BY for metadata-driven decay. Substituted
+# tokens: {table}, {distance} (vector only), {bm25} (text only), {top_k}.
+# Bound named parameters available to templates: $embedding (query vector),
+# $q (search text), $top_k.
+DEFAULT_VECTOR_SQL = """
+SELECT chunk_id
+FROM {table}
+ORDER BY {distance}
+LIMIT {top_k}
+"""
+
+DEFAULT_TEXT_SQL = """
+SELECT chunk_id FROM (
+    SELECT chunk_id, {bm25} AS score
+    FROM {table}
+)
+WHERE score IS NOT NULL
+ORDER BY score DESC
+LIMIT {top_k}
+"""
+
 
 class ReadOnlyError(RuntimeError):
     """Raised when a write is attempted on a read-only store."""
@@ -51,6 +75,8 @@ class VectorStore:
         self.embedder = embedder or resolve_embedder(self.settings.backend)
         self._dimensions = self.embedder.dimensions
         self._read_only = self.settings.read_only
+        self._vector_sql = self.settings.vector_sql
+        self._text_sql = self.settings.text_sql
         self._con = duckdb.connect(self.settings.db_path, read_only=self._read_only)
         if not self._read_only:
             self._ensure_schema()
@@ -216,49 +242,87 @@ class VectorStore:
         """Return the number of stored chunks."""
         return self._con.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
 
-    def _metadata_clause(self, filter: dict | None) -> tuple[str, list]:
+    def _metadata_clause(self, filter: dict | None) -> tuple[str, dict]:
+        """Build a named-parameter WHERE clause for the convenience filter.
+
+        Returns the SQL fragment and the named-parameter values. Keys are
+        namespaced (``f0``, ``f1``) to avoid colliding with the reserved
+        ``embedding`` / ``q`` / ``top_k`` names.
+        """
         if not filter:
-            return "", []
+            return "", {}
         clauses = []
-        params: list = []
-        for key, value in filter.items():
-            clauses.append("json_extract_string(metadata, ?) = ?")
-            params.extend([f"$.{key}", str(value)])
+        params: dict = {}
+        for index, (key, value) in enumerate(filter.items()):
+            path_name = f"f{index}p"
+            val_name = f"f{index}v"
+            clauses.append(f"json_extract_string(metadata, ${path_name}) = ${val_name}")
+            params[path_name] = f"$.{key}"
+            params[val_name] = str(value)
         return " WHERE " + " AND ".join(clauses), params
 
+    def _distance_expr(self) -> str:
+        return (
+            f"array_cosine_distance(embedding, $embedding::FLOAT[{self._dimensions}])"
+        )
+
+    def _render(self, template: str, **tokens: str) -> str:
+        """Substitute ``{token}`` placeholders in a ranking template."""
+        rendered = template
+        for name, value in tokens.items():
+            rendered = rendered.replace("{" + name + "}", value)
+        return rendered
+
     def _vector_ranking(
-        self, embedding: list[float], top_k: int, filter: dict | None
+        self,
+        embedding: list[float],
+        top_k: int,
+        filter: dict | None,
+        vector_sql: str | None,
     ) -> list[str]:
-        where, params = self._metadata_clause(filter)
-        rows = self._con.execute(
-            f"""
-            SELECT chunk_id
-            FROM chunks{where}
-            ORDER BY array_cosine_distance(
-                embedding, ?::FLOAT[{self._dimensions}]
-            )
-            LIMIT ?
-            """,
-            [*params, embedding, top_k],
-        ).fetchall()
+        template = vector_sql or self._vector_sql
+        params: dict = {"embedding": embedding, "top_k": top_k}
+        if template is None:
+            # Default path keeps the convenience ``filter`` dict active.
+            where, where_params = self._metadata_clause(filter)
+            params.update(where_params)
+            table = f"chunks{where}"
+        else:
+            # A custom SELECT owns its WHERE; the ``filter`` dict is ignored.
+            table = "chunks"
+        sql = self._render(
+            template or DEFAULT_VECTOR_SQL,
+            table=table,
+            distance=self._distance_expr(),
+            top_k="$top_k",
+        )
+        rows = self._con.execute(sql, params).fetchall()
         return [row[0] for row in rows]
 
-    def _text_ranking(self, text: str, top_k: int, filter: dict | None) -> list[str]:
-        where, params = self._metadata_clause(filter)
+    def _text_ranking(
+        self,
+        text: str,
+        top_k: int,
+        filter: dict | None,
+        text_sql: str | None,
+    ) -> list[str]:
+        bm25 = "fts_main_chunks.match_bm25(chunk_id, $q)"
+        template = text_sql or self._text_sql
+        params: dict = {"q": text, "top_k": top_k}
+        if template is None:
+            where, where_params = self._metadata_clause(filter)
+            params.update(where_params)
+            table = f"chunks{where}"
+        else:
+            table = "chunks"
+        sql = self._render(
+            template or DEFAULT_TEXT_SQL,
+            table=table,
+            bm25=bm25,
+            top_k="$top_k",
+        )
         try:
-            rows = self._con.execute(
-                f"""
-                SELECT chunk_id FROM (
-                    SELECT chunk_id,
-                           fts_main_chunks.match_bm25(chunk_id, ?) AS score
-                    FROM chunks{where}
-                )
-                WHERE score IS NOT NULL
-                ORDER BY score DESC
-                LIMIT ?
-                """,
-                [text, *params, top_k],
-            ).fetchall()
+            rows = self._con.execute(sql, params).fetchall()
         except duckdb.Error:
             # No FTS index yet (empty store or never written). Degrade to
             # vector-only by returning no lexical ranking.
@@ -270,9 +334,15 @@ class VectorStore:
         embedding: list[float],
         top_k: int = 10,
         filter: dict | None = None,
+        vector_sql: str | None = None,
     ) -> list[SearchResult]:
-        """Pure vector search by a precomputed query embedding."""
-        ranking = self._vector_ranking(embedding, top_k, filter)
+        """Pure vector search by a precomputed query embedding.
+
+        ``vector_sql`` overrides the ranking SELECT for this call (precedence:
+        per-call > ``Settings`` > built-in default). A custom SELECT owns its
+        own WHERE and supersedes the ``filter`` dict.
+        """
+        ranking = self._vector_ranking(embedding, top_k, filter, vector_sql)
         results = []
         for rank, chunk_id in enumerate(ranking, start=1):
             chunk = self.get_vectors([chunk_id])[0]
@@ -291,16 +361,27 @@ class VectorStore:
         top_k: int = 10,
         filter: dict | None = None,
         hybrid: bool = True,
+        vector_sql: str | None = None,
+        text_sql: str | None = None,
     ) -> list[SearchResult]:
         """Hybrid search from a query string (embeds internally).
 
         Fuses the vector ranking and the BM25 ranking with Reciprocal Rank
         Fusion. Set ``hybrid=False`` for vector-only search.
+
+        ``vector_sql`` / ``text_sql`` override each ranking SELECT for this
+        call (precedence: per-call > ``Settings`` > built-in default). A custom
+        SELECT owns its own WHERE and supersedes the ``filter`` dict for that
+        signal. Templates may reference the search text as the bound parameter
+        ``$q`` and use the tokens ``{table}``, ``{distance}``, ``{bm25}``,
+        ``{top_k}``.
         """
         embedding = self.embedder.embed([text])[0]
         fetch = max(top_k * 4, top_k)
-        vector_ranking = self._vector_ranking(embedding, fetch, filter)
-        text_ranking = self._text_ranking(text, fetch, filter) if hybrid else []
+        vector_ranking = self._vector_ranking(embedding, fetch, filter, vector_sql)
+        text_ranking = (
+            self._text_ranking(text, fetch, filter, text_sql) if hybrid else []
+        )
 
         vector_rank = {cid: i + 1 for i, cid in enumerate(vector_ranking)}
         text_rank = {cid: i + 1 for i, cid in enumerate(text_ranking)}
