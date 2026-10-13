@@ -6,6 +6,9 @@ help:
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make clean     - Remove build artifacts and caches"
+	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
+	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
+	@echo "$$ make ping-agentcore - End-to-end ping: deploy and invoke on Bedrock AgentCore"
 	@echo "$$ make push      - Rebase onto main and push commits to git remote"
 	@echo " ... and you have access to git, uv, ruff and pytest directly as well."
 
@@ -97,6 +100,22 @@ clean:
 	rm -rf dist build *.egg-info src/*.egg-info
 	rm -rf .ruff_cache .pytest_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+# End-to-end ping tests. Each runs a shell snippet from fixtures/shell/ that
+# builds a search agent from documentation/, runs the fixed query, and pipes
+# the result to the shared Python validator. The AWS pings create real,
+# billable resources and leave them running; use AWS_PROFILE to select the
+# account. The venv is put on PATH so the snippets' `python` is the project's.
+PING_ENV := PATH="$(PWD)/.venv/bin:$$PATH"
+
+ping-docker:
+	$(PING_ENV) bash fixtures/shell/ping-docker.sh
+
+ping-lambda:
+	$(PING_ENV) bash fixtures/shell/ping-lambda.sh
+
+ping-agentcore:
+	$(PING_ENV) bash fixtures/shell/ping-agentcore.sh
 
 rebase:
 	git pull --rebase origin main

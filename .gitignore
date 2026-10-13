@@ -22,6 +22,7 @@ venv/
 .bedrock_agentcore.yaml
 examples/agentcore-rag-agent/documentation/
 examples/*/duckdb_vectors-*.whl
+examples/*/requirements.txt.bak
 
 # OS
 .DS_Store
