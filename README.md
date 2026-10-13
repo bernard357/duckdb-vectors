@@ -22,6 +22,26 @@ AWS Strands, Pydantic AI, and Bedrock AgentCore.
 The bet is on boring technology — see
 [Choose Boring Technology](https://mcfunley.com/choose-boring-technology).
 
+## Documentation
+
+Start here and go deeper as you need:
+
+- New to the component? Read the [primitive](documentation/duckdb-vectors-primitive.md)
+  for the architecture and building blocks, then the
+  [guide](documentation/duckdb-vectors-guide.md) for the end-to-end workflow.
+- Working with DuckDB directly? See the [DuckDB workbook](documentation/duckdb-workbook.md).
+- Packaging an agent? See the [Docker agent guide](documentation/docker-agent-guide.md)
+  and its [FAQ](documentation/docker-agent-workbook.md).
+- Deploying on AWS? See the
+  [Bedrock AgentCore guide](documentation/aws-bedrock-agentcore-guide.md) and
+  [FAQ](documentation/aws-bedrock-agentcore-workbook.md), or the
+  [Lambda guide](documentation/aws-lambda-guide.md) and
+  [FAQ](documentation/aws-lambda-workbook.md).
+- Building a specific capability? Follow a step-by-step procedure:
+  [RAG answering machine](documentation/setup-rag-procedure.md),
+  [LLM wiki to RAG](documentation/setup-llm-wiki-to-rag-procedure.md), or
+  [semantic skills search](documentation/setup-skills-search-procedure.md).
+
 ## Install
 
 ```shell
@@ -168,9 +188,14 @@ default simply does not impose stemming on everyone.
 
 ## End-to-end use cases
 
-- Leverage an LLM-managed wiki into an agent.
-- Turn an existing markdown folder into a RAG agentic capability.
-- Add a registry of hundreds of skills selected by semantic search.
+Each use case has a step-by-step procedure under `documentation/`:
+
+- Turn an existing markdown folder into a RAG agentic capability —
+  [setup-rag-procedure.md](documentation/setup-rag-procedure.md).
+- Leverage an LLM-managed wiki into an agent —
+  [setup-llm-wiki-to-rag-procedure.md](documentation/setup-llm-wiki-to-rag-procedure.md).
+- Add a registry of hundreds of skills selected by semantic search —
+  [setup-skills-search-procedure.md](documentation/setup-skills-search-procedure.md).
 
 ## Related work and alternatives
 

@@ -57,6 +57,24 @@ $ uv venv
 $ uv pip install -e ".[local,bedrock,cli,dev]"
 ```
 
+## Documentation conventions
+
+Documentation lives in `documentation/`, authored in GitHub-Flavored Markdown
+with mermaid diagrams (no ASCII art), ATX sentence-case headers, and fenced
+code blocks. Two naming conventions keep the set expandable:
+
+- __Platform pages carry a provider prefix.__ Pages tied to a specific platform
+  are named after the provider — `aws-bedrock-agentcore-guide.md`,
+  `aws-lambda-workbook.md`. Contributions for other platforms are welcome and
+  should follow the same shape, prefixed with the provider name (for example
+  `gcp-`, `azure-`, `modal-`). Each platform typically gets a `-guide.md`
+  (teach-by-example) and a `-workbook.md` (FAQ) pair.
+- __Use-case pages are step-by-step procedures.__ Each use case is a single
+  page named `setup-{capability}-procedure.md` with numbered steps that read as
+  a concrete implementation procedure. One page per use case keeps the set
+  growing without inflating any single page. Add a new procedure rather than
+  expanding an existing one.
+
 ## Checks before you open a pull request
 
 ```shell
