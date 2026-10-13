@@ -74,6 +74,8 @@ lint-python:
 	.venv/bin/ruff check ${PYTHON_PATHS}
 	@echo "Running Ruff format check..."
 	.venv/bin/ruff format --check ${PYTHON_PATHS}
+	@echo "Running mypy type check..."
+	.venv/bin/mypy
 
 lint-markdown:
 	@echo "Validating Markdown files..."

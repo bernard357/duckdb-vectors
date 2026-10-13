@@ -80,7 +80,7 @@ yourself.
 Run `make` with no target to list them. The essentials:
 
 - `make setup` — check prerequisites, create the `.venv`, install tooling
-- `make lint` — Ruff, Markdown, and Dockerfile checks
+- `make lint` — Ruff, mypy, Markdown, and Dockerfile checks
 - `make test` — the pytest suite
 - `make format` — apply Ruff formatting
 - `make build` — build the wheel and sdist with uv
@@ -114,11 +114,13 @@ DuckDB fixtures, deterministic embeddings).
 ## What does the lint cover? {#lint}
 
 ```shell
-$ make lint        # ruff check + ruff format --check, markdownlint, hadolint
+$ make lint        # ruff check + ruff format --check + mypy, markdownlint, hadolint
 ```
 
-Three file types: Python (Ruff), Markdown (markdownlint via `.markdownlint.json`),
-and Dockerfiles (hadolint via `.hadolint.yaml`). Use `make format` to apply
+Python (Ruff lint and format, plus mypy type checking over `src/duckdb_vectors`
+via `[tool.mypy]`), Markdown (markdownlint via `.markdownlint.json`), and
+Dockerfiles (hadolint via `.hadolint.yaml`). mypy verifies the type annotations
+the package ships behind its `py.typed` marker. Use `make format` to apply
 Python formatting. All checks should pass before you open a pull request.
 
 ## What are good first contributions? {#first-contributions}

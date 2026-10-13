@@ -37,7 +37,7 @@ dependencies = ["duckdb>=1.1", "pydantic>=2.6"]
 local = ["fastembed>=0.3"]
 bedrock = ["boto3>=1.34"]
 cli = ["typer>=0.12"]
-dev = ["pytest>=8.0", "ruff>=0.6", "typer>=0.12"]
+dev = ["pytest>=8.0", "ruff>=0.6", "typer>=0.12", "mypy>=1.11"]
 
 [project.scripts]
 duckdb-vectors = "duckdb_vectors.cli:app"
@@ -61,3 +61,15 @@ select = ["E", "F", "I", "UP", "B", "W"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: tests that take more than 200ms"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/duckdb_vectors"]
+warn_unused_ignores = true
+
+# Optional-dependency backends ship no type stubs; their imports are lazy and
+# isolated behind the embedder registry, so ignore their missing stubs rather
+# than vendor third-party type packages.
+[[tool.mypy.overrides]]
+module = ["boto3", "fastembed", "llama_cpp"]
+ignore_missing_imports = true

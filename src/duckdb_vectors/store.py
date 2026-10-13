@@ -240,7 +240,8 @@ class VectorStore:
 
     def count(self) -> int:
         """Return the number of stored chunks."""
-        return self._con.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        row = self._con.execute("SELECT COUNT(*) FROM chunks").fetchone()
+        return int(row[0]) if row else 0
 
     def _metadata_clause(self, filter: dict | None) -> tuple[str, dict]:
         """Build a named-parameter WHERE clause for the convenience filter.
