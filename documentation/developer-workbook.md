@@ -11,6 +11,7 @@ For a quick fit-check and the welcome, see
 - [What are the prerequisites?](#prerequisites)
 - [How do I set up a development environment?](#setup)
 - [What does each Makefile target do?](#makefile)
+- [Where do the pings put build output?](#out)
 - [How do I run the tests?](#tests)
 - [What does the lint cover?](#lint)
 - [What are good first contributions?](#first-contributions)
@@ -83,8 +84,21 @@ Run `make` with no target to list them. The essentials:
 - `make test` — the pytest suite
 - `make format` — apply Ruff formatting
 - `make build` — build the wheel and sdist with uv
-- `make clean` — remove build artifacts and caches
+- `make clean` — remove build artifacts and caches (including `*.out`)
+- `make ping-docker` / `make ping-lambda` / `make ping-agentcore` —
+  end-to-end functional pings (see [Where do the pings put build output?](#out))
 - `make push` — rebase onto `main`, then push
+
+## Where do the pings put build output? {#out}
+
+Transient build output goes in `*.out` directories (for example
+`ping-agentcore.out/`), never in a tracked path. The AgentCore ping assembles
+its deployable agent — the entrypoint, the locally built wheel, the
+documentation copy, and the Titan-embedded index — into `ping-agentcore.out/`
+and deploys from there, so the committed `examples/agentcore-rag-agent/`
+template is never mutated. `*.out` is gitignored and removed by `make clean`.
+Use the same convention for any new transient output: name the directory
+`{name}.out` rather than writing scratch into a tracked folder.
 
 ## How do I run the tests? {#tests}
 

@@ -12,7 +12,10 @@ REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="duckdb-vectors-ping-agentcore"
 ROLE_NAME="duckdb-vectors-ping-agentcore-role"
 AGENT_NAME="duckdb_vectors_ping"
-AGENT_DIR="examples/agentcore-rag-agent"
+# examples/agentcore-rag-agent is the pristine template; the deployable agent
+# is assembled into a transient *.out directory so no tracked file is mutated.
+TEMPLATE_DIR="examples/agentcore-rag-agent"
+BUILD_DIR="ping-agentcore.out"
 QUERY="how is a search answered?"
 export AWS_DEFAULT_REGION="${REGION}"
 export AGENTCORE_SUPPRESS_RECOMMENDATION=1
@@ -39,28 +42,27 @@ ROLE_ARN="$(aws cloudformation describe-stacks --region "${REGION}" \
     --stack-name "${STACK_NAME}" \
     --query "Stacks[0].Outputs[?OutputKey=='RoleArn'].OutputValue" --output text)"
 
-echo "[agentcore] staging the agent (wheel + Titan index)..."
+echo "[agentcore] assembling the agent into ${BUILD_DIR}/ (transient)..."
 uv build
 WHEEL="$(ls -t dist/*.whl | head -1)"
-cp "${WHEEL}" "${AGENT_DIR}/"
-# Point the agent's requirements at the local wheel for the build, then restore
-# the committed file on exit so the working tree stays clean (the package is
-# not yet on PyPI, hence the wheel reference).
-cp "${AGENT_DIR}/requirements.txt" "${AGENT_DIR}/requirements.txt.bak"
-trap 'mv -f "${AGENT_DIR}/requirements.txt.bak" "${AGENT_DIR}/requirements.txt" 2>/dev/null || true' EXIT
-printf 'bedrock-agentcore\n./%s[bedrock]\n' "$(basename "${WHEEL}")" > "${AGENT_DIR}/requirements.txt"
-rm -rf "${AGENT_DIR}/documentation"
-cp -R documentation "${AGENT_DIR}/documentation"
-python scripts/ping_host_index.py "${AGENT_DIR}/documentation" "${AGENT_DIR}/vectors.duckdb"
+rm -rf "${BUILD_DIR}"
+mkdir -p "${BUILD_DIR}"
+cp "${TEMPLATE_DIR}/agent.py" "${BUILD_DIR}/"
+cp "${WHEEL}" "${BUILD_DIR}/"
+# The deployable requirements point at the local wheel (the package is not yet
+# on PyPI); this file lives only in the transient build dir, never in the tree.
+printf 'bedrock-agentcore\n./%s[bedrock]\n' "$(basename "${WHEEL}")" > "${BUILD_DIR}/requirements.txt"
+cp -R documentation "${BUILD_DIR}/documentation"
+python scripts/ping_host_index.py "${BUILD_DIR}/documentation" "${BUILD_DIR}/vectors.duckdb"
 
 echo "[agentcore] configure / deploy / invoke..."
-( cd "${AGENT_DIR}" && "${AGENTCORE}" configure -e agent.py -n "${AGENT_NAME}" \
+( cd "${BUILD_DIR}" && "${AGENTCORE}" configure -e agent.py -n "${AGENT_NAME}" \
     -er "${ROLE_ARN}" -r "${REGION}" --non-interactive )
-( cd "${AGENT_DIR}" && "${AGENTCORE}" deploy --auto-update-on-conflict )
-( cd "${AGENT_DIR}" && "${AGENTCORE}" invoke "{\"question\": \"${QUERY}\"}" ) \
+( cd "${BUILD_DIR}" && "${AGENTCORE}" deploy --auto-update-on-conflict )
+( cd "${BUILD_DIR}" && "${AGENTCORE}" invoke "{\"question\": \"${QUERY}\"}" ) \
     | python scripts/ping_validate.py agentcore
 
 echo "[agentcore] resources left running: stack '${STACK_NAME}' and runtime '${AGENT_NAME}'."
 echo "[agentcore] delete with:"
-echo "  ( cd ${AGENT_DIR} && ${AGENTCORE} destroy )"
+echo "  ( cd ${BUILD_DIR} && ${AGENTCORE} destroy )"
 echo "  aws cloudformation delete-stack --region ${REGION} --stack-name ${STACK_NAME}"

@@ -97,7 +97,7 @@ build:
 
 clean:
 	@echo "Removing build artifacts and caches..."
-	rm -rf dist build *.egg-info src/*.egg-info
+	rm -rf dist build *.egg-info src/*.egg-info *.out
 	rm -rf .ruff_cache .pytest_cache
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
