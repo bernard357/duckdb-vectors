@@ -3,12 +3,37 @@
 A FAQ for running `duckdb-vectors` inside an Amazon Bedrock AgentCore agent.
 For the walk-through, see the [AgentCore guide](aws-bedrock-agentcore-guide.md).
 
+- [Understand AgentCore deployment](#overview)
+- [Glossary](#glossary)
 - [Where does the index live?](#index-location)
 - [What permissions does duckdb-vectors need?](#permissions)
 - [Local index or runtime embedding?](#local-or-runtime)
 - [How do I refresh the index without redeploying?](#refresh)
 - [How does this differ from a plain container?](#vs-container)
 - [Follow-up](#follow-up)
+
+## Understand AgentCore deployment {#overview}
+
+[Amazon Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/)
+is a managed runtime for AI agents: you supply an entrypoint, and the service
+runs the harness loop, provides the execution role, memory, and observability,
+and hosts the deployed artifact. `duckdb-vectors` fits inside that artifact as
+a local, read-only search index — retrieval runs in-process, and the only cloud
+calls are the model calls the agent makes to generate answers. This workbook
+answers the questions specific to that deployment: where the index lives, how
+permissions reach it, and when to embed locally versus in the cloud.
+
+## Glossary {#glossary}
+
+- AgentCore Runtime — the managed service that hosts and invokes the agent
+- Entrypoint — the function (decorated with `@app.entrypoint`) AgentCore calls
+  per request
+- Execution role — the IAM role whose permissions the running container
+  inherits
+- Starter toolkit — the `agentcore` CLI that configures, deploys, and invokes
+  the agent
+- Local index — a `duckdb-vectors` DuckDB file baked into the artifact, read
+  read-only at runtime
 
 ## Where does the index live? {#index-location}
 

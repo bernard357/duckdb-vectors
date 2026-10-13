@@ -3,12 +3,37 @@
 A FAQ for the non-agentic Lambda pattern — question in, grounded answer out.
 For the walk-through, see the [Lambda guide](aws-lambda-guide.md).
 
+- [Understand the Lambda pattern](#overview)
+- [Glossary](#glossary)
 - [Why container image, not a zip?](#image)
 - [Where does the index live, and is /tmp needed?](#index-location)
 - [How do I keep cold starts low?](#cold-start)
 - [What permissions are required?](#permissions)
 - [When should I use Lambda instead of AgentCore?](#vs-agentcore)
 - [Follow-up](#follow-up)
+
+## Understand the Lambda pattern {#overview}
+
+[AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) runs a
+function in response to an event and scales to zero when idle. For
+`duckdb-vectors` this is the simplest useful shape: a stateless function that
+takes a question, retrieves grounding chunks from a baked-in index, makes one
+direct Bedrock call to generate an answer, and returns it — no agentic loop, no
+session. The index ships inside the function's container image and is opened
+read-only. This workbook answers the practical questions of packaging and
+operating that function.
+
+## Glossary {#glossary}
+
+- Container-image Lambda — a function packaged as an OCI image rather than a zip
+- Execution environment — the reused sandbox a warm invocation runs in; module
+  scope persists across warm calls
+- Cold start — the first invocation in a new execution environment, which pays
+  one-time setup such as the model load
+- Grounding — the retrieved chunks passed to the model so the answer is based on
+  your corpus
+- Execution role — the IAM role whose permissions the function inherits (for the
+  Bedrock call)
 
 ## Why container image, not a zip? {#image}
 

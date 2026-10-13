@@ -3,6 +3,8 @@
 A FAQ for packaging `duckdb-vectors` into a container agent. For the full
 walk-through, see the [Docker agent guide](docker-agent-guide.md).
 
+- [Understand docker-agent integration](#overview)
+- [Glossary](#glossary)
 - [Why bake the index into the image?](#why-bake)
 - [Which embedding backend in a container?](#backend)
 - [How do I keep the image small?](#image-size)
@@ -10,6 +12,31 @@ walk-through, see the [Docker agent guide](docker-agent-guide.md).
 - [Can the container write at runtime?](#runtime-write)
 - [What about cold start and latency?](#latency)
 - [Follow-up](#follow-up)
+
+## Understand docker-agent integration {#overview}
+
+Packaging an agent as a [Docker](https://docs.docker.com/) image means the
+agent code, the `duckdb-vectors` dependency, and the search index all ship as
+one immutable artifact. The index is built during `docker build` and opened
+read-only at run time, so the running container answers from a baked-in file
+with no external vector database and no network dependency. This is the
+build-then-freeze lifecycle, and it is the most common way to deploy
+`duckdb-vectors` into a containerized harness. This workbook answers the
+practical questions that come up when you do it.
+
+## Glossary {#glossary}
+
+- Image — the immutable container artifact bundling code, dependency, and index
+- Build stage — the first stage of a multi-stage build, where the index is
+  created; its tooling is left behind
+- Runtime stage — the final stage that ships, carrying only the agent and the
+  frozen index
+- Build-then-freeze — build the index at image-build time, open it read-only at
+  run time
+- Runtime append — open the store read-write at startup to add entries, then
+  serve
+- Model cache — the fastembed ONNX model files, baked in so the container needs
+  no network
 
 ## Why bake the index into the image? {#why-bake}
 
