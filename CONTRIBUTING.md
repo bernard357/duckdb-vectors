@@ -48,13 +48,13 @@ Contributions land fastest when they fit the project's shape:
 
 ## Development setup
 
-The project uses [uv](https://docs.astral.sh/uv/), ruff, and pytest.
+The project uses [uv](https://docs.astral.sh/uv/), ruff, and pytest, with a
+`Makefile` wrapping the common tasks. Run `make` with no target to see them.
 
 ```shell
 $ git clone https://github.com/bernard357/duckdb-vectors.git
 $ cd duckdb-vectors
-$ uv venv
-$ uv pip install -e ".[local,bedrock,cli,dev]"
+$ make setup   # uv venv + uv pip install -e ".[local,bedrock,cli,dev]"
 ```
 
 ## Documentation conventions
@@ -78,14 +78,14 @@ code blocks. Two naming conventions keep the set expandable:
 ## Checks before you open a pull request
 
 ```shell
-$ uv run ruff format .        # format
-$ uv run ruff check .         # lint
-$ uv run pytest -q            # tests
+$ make lint    # ruff check + ruff format --check
+$ make test    # pytest -q
 ```
 
-All three should pass. Add a test for any behavior you change or add — the
-suite under `tests/` shows the patterns (temp-file DuckDB fixtures, the
-dependency-free `hashing` backend so tests need no model download).
+Use `make format` to apply formatting. Both checks should pass. Add a test for
+any behavior you change or add — the suite under `tests/` shows the patterns
+(temp-file DuckDB fixtures, the dependency-free `hashing` backend so tests need
+no model download).
 
 ## Pull request guidelines
 
