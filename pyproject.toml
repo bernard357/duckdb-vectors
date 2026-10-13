@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "duckdb-vectors"
+version = "0.1.0"
+description = "Embeddable semantic-search building block for agentic systems: an S3-Vectors-like interface over a local DuckDB database with hybrid vector + BM25 search."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Bernard Paques" }]
+keywords = [
+    "duckdb",
+    "vectors",
+    "embeddings",
+    "semantic-search",
+    "rag",
+    "bm25",
+    "agents",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Database",
+]
+dependencies = ["duckdb>=1.1", "pydantic>=2.6"]
+
+[project.optional-dependencies]
+local = ["fastembed>=0.3"]
+bedrock = ["boto3>=1.34"]
+cli = ["typer>=0.12"]
+dev = ["pytest>=8.0", "ruff>=0.6", "typer>=0.12"]
+
+[project.scripts]
+duckdb-vectors = "duckdb_vectors.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/bernard357/duckdb-vectors"
+Repository = "https://github.com/bernard357/duckdb-vectors"
+Issues = "https://github.com/bernard357/duckdb-vectors/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/duckdb_vectors"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: tests that take more than 200ms"]
