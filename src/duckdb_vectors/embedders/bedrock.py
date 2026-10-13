@@ -7,6 +7,7 @@ for credential and region control; otherwise the default session is used.
 """
 
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 DEFAULT_MODEL_ID = "amazon.titan-embed-text-v2:0"
@@ -38,7 +39,13 @@ class BedrockEmbedder:
     ) -> None:
         self._model_id = _MODEL_IDS.get(model, model)
         self._session = session
-        self._region_name = region_name
+        # Fall back to the ambient region (AWS_REGION is always set inside
+        # Lambda; AWS_DEFAULT_REGION is the botocore convention elsewhere).
+        self._region_name = (
+            region_name
+            or os.environ.get("AWS_REGION")
+            or os.environ.get("AWS_DEFAULT_REGION")
+        )
         self._max_workers = max_workers
         self._client = None
         self._dimensions = _MODEL_DIMENSIONS.get(self._model_id)

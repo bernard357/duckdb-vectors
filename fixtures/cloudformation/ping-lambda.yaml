@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  End-to-end ping resources for duckdb-vectors on AWS Lambda: an ECR
+  repository, an execution role with Bedrock invoke permissions, and the
+  image-based Lambda function. Created and left running by ping_lambda.py.
+
+Parameters:
+  ImageUri:
+    Type: String
+    Description: ECR image URI (with tag) for the Lambda function.
+  FunctionName:
+    Type: String
+    Default: duckdb-vectors-ping-lambda
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${FunctionName}-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: bedrock-invoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  # Titan Embed, the Nova Pro inference profile, and the
+                  # regional model ARNs the profile routes to.
+                  - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+                  - !Sub "arn:aws:bedrock:*::foundation-model/amazon.nova-pro-v1:0"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-pro-v1:0"
+
+  PingFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      MemorySize: 2048
+
+Outputs:
+  FunctionName:
+    Value: !Ref PingFunction
+  RoleArn:
+    Value: !GetAtt LambdaExecutionRole.Arn
