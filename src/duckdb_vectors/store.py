@@ -409,7 +409,16 @@ class VectorStore:
         return results
 
     def _rebuild_fts(self) -> None:
-        """Rebuild the BM25 full-text index over the chunk text and title."""
+        """Rebuild the BM25 index over the chunk text and title.
+
+        The index is built with ``stemmer='none'`` and ``stopwords='none'`` on
+        purpose. Semantic (vector) search already covers meaning and synonyms
+        across languages; the lexical signal is kept only for what vectors miss
+        — exact short tokens such as acronyms, codes, and single-keyword
+        queries. Stemming and stopword removal would tie this to one language
+        and blur exact tokens without improving relevance, so BM25 here is a
+        language-agnostic exact-token match.
+        """
         self._con.execute("INSTALL fts")
         self._con.execute("LOAD fts")
         if self.count() == 0:
@@ -422,7 +431,7 @@ class VectorStore:
             """
             PRAGMA create_fts_index(
                 'chunks', 'chunk_id', 'text', 'title',
-                stemmer = 'porter', stopwords = 'english', overwrite = 1
+                stemmer = 'none', stopwords = 'none', overwrite = 1
             )
             """
         )

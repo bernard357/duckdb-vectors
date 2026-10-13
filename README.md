@@ -2,7 +2,8 @@
 
 Embeddable semantic-search building block for agentic systems: an
 S3-Vectors-like interface over a local DuckDB database, with hybrid
-vector + BM25 retrieval, pluggable embedding and chunking, and a CLI.
+vector + exact-token BM25 retrieval, pluggable embedding and chunking,
+and a CLI.
 
 One DuckDB file is one index. Bake it into a container image and answer
 semantic-search requests in tens of milliseconds — no external vector
@@ -131,6 +132,30 @@ store.query("latest guidance", hybrid=False, vector_sql=decayed)
 The injected SELECT is caller-authored SQL run against your own database
 (opened read-only in the serving path); the query text and embedding are
 parameter-bound.
+
+## Design note: lexical search without stemming
+
+Hybrid search here fuses semantic (vector) retrieval with a BM25 lexical
+signal, but the BM25 index is built deliberately with `stemmer = 'none'` and
+`stopwords = 'none'`. This is a considered choice, not an oversight.
+
+Semantic search already covers meaning, paraphrase, and synonyms, and it does
+so across languages. Traditional stemmed full-text search (Porter stemming
+plus a per-language stopword list) adds compute and storage, ties the index to
+one language, and — in our prior benchmarks on comparable corpora — did not
+improve relevance enough to justify that cost once semantic retrieval was in
+place.
+
+What vectors do *not* handle well is exact short tokens: acronyms, product
+codes, identifiers, and single-keyword queries. That is precisely where a
+lexical signal earns its keep. So the BM25 index is kept, but as a
+language-agnostic exact-token match: `ESRS` finds `ESRS`, while `run` does not
+conflate with `running`. The two signals are complementary — vectors for
+meaning, exact-token BM25 for the literal strings vectors miss.
+
+A developer who wants classic stemmed full-text behavior can still have it:
+build their own FTS index and supply a custom `text_sql` (see above). The
+default simply does not impose stemming on everyone.
 
 ## Lifecycles
 
