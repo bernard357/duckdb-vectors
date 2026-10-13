@@ -172,6 +172,65 @@ default simply does not impose stemming on everyone.
 - Turn an existing markdown folder into a RAG agentic capability.
 - Add a registry of hundreds of skills selected by semantic search.
 
+## Related work and alternatives
+
+`duckdb-vectors` is not the only way to put vectors in DuckDB. The projects
+below overlap with it; each is a reasonable choice if its shape fits your
+need better than ours. Our goal is narrow on purpose: a small, framework-
+agnostic, read-mostly utility that bakes an index into a container image and
+answers in tens of milliseconds, with pluggable embedding and chunking and an
+S3-Vectors-flavored surface. Where a project pulls in a framework, a service,
+or a broader scope, we point you to it rather than compete with it.
+
+- [llama-index-vector-stores-duckdb](https://pypi.org/project/llama-index-vector-stores-duckdb/)
+  — the official LlamaIndex integration that stores embeddings in DuckDB. Great
+  if you are already building on LlamaIndex, because it plugs into that data
+  model, retrievers, and query engines. We stay framework-agnostic: no
+  LlamaIndex `Node`/`Document` types to adopt and no framework runtime to carry
+  into the container.
+- [vectorwrap](https://pypi.org/project/vectorwrap/)
+  — a universal wrapper that switches one vector API across Postgres, MySQL,
+  SQLite, DuckDB, and ClickHouse. Pick it when backend portability is the
+  point. We go the opposite way: one backend (DuckDB), chosen deliberately, so
+  we can lean on DuckDB-specific features (ARRAY columns, injectable ranking
+  SQL) instead of a lowest-common-denominator API. It also expects you to bring
+  your own embedding function; we ship pluggable embedders and markdown
+  chunking.
+- [microrag](https://pypi.org/project/microrag/)
+  — the closest neighbour: a universal RAG library with ONNX-backed embeddings
+  and DuckDB storage. If you want an end-to-end RAG library, it is a strong
+  fit. We are not a RAG library — we deliberately stop at retrieval (store,
+  index, search) and leave generation, prompting, and LLM orchestration to the
+  harness, so the component composes into any framework rather than owning the
+  pipeline.
+- [duckdb `ai` community extension](https://duckdb.org/community_extensions/extensions/ai.html)
+  — an extension that calls embedding and chat providers from inside SQL. Reach
+  for it when you want embeddings generated in the database and don't mind the
+  provider wiring living in SQL. We keep embedding in Python behind a small
+  registry (local fastembed by default, cloud on demand), so the same code runs
+  offline in CI and against a cloud provider in production without SQL-level
+  credentials.
+- [sqlrooms-rag](https://pypi.org/project/sqlrooms-rag/)
+  — prepares and queries DuckDB-stored embeddings for RAG, primarily for the
+  SQLRooms framework (usable standalone too). A good fit inside that ecosystem;
+  outside it, our standalone, dependency-light surface and container lifecycle
+  are a closer match.
+- [raghilda](https://posit-dev.github.io/raghilda/)
+  — a DuckDB-backed RAG store (from Posit) that can run fully in memory and
+  search with BM25 when no embedding model is configured. Pleasant for quick
+  local experiments. Our focus is the frozen, read-only, image-baked serving
+  path and an S3-Vectors-flavored API rather than an in-memory exploration
+  store.
+- [dvs](https://github.com/allen2c/dvs)
+  — a DuckDB + OpenAI vector similarity search service. Choose it if an
+  OpenAI-tied service is what you want. We default to local, offline embeddings
+  and treat cloud providers as an opt-in, keeping the base install slim and
+  CI-friendly.
+
+Note: a package named `rag007` was requested for this comparison but we could
+not locate a matching project on PyPI or GitHub at review time; if you meant a
+different name, open an issue and we will add it.
+
 ## License
 
 MIT.
