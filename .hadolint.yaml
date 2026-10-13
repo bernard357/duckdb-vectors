@@ -1,0 +1,10 @@
+# hadolint configuration for the example Dockerfiles.
+# These are teaching examples where clarity is favored over production pinning.
+ignored:
+  # DL3013: pin pip versions. The examples install `duckdb-vectors` by name to
+  # show the simplest form; the package is not yet on PyPI, so a pinned version
+  # here would be misleading. Pin in your own production image.
+  - DL3013
+  # DL3059: consecutive RUN instructions. The examples keep the install step and
+  # the index-build step as separate, readable RUN lines on purpose.
+  - DL3059

@@ -1,7 +1,7 @@
 help:
 	@echo "Common commands:"
 	@echo "# make setup     - Create the virtual environment and install dependencies"
-	@echo "$$ make lint      - Run Ruff lint and format checks"
+	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
@@ -24,18 +24,44 @@ DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 PYTHONPATH ?= .
 # source locations for static analysis
 PYTHON_PATHS := src/ tests/ examples/
+# markdown files for static analysis
+MARKDOWN_FILES := README.md CONTRIBUTING.md $(shell find documentation -name '*.md')
+# Dockerfiles for static analysis
+DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
-setup:
+setup: setup-python setup-markdownlint setup-hadolint
+
+setup-python:
 	@echo "Creating virtual environment with uv..."
 	uv venv
 	@echo "Installing the package with all extras..."
 	uv pip install -e ".[local,bedrock,cli,dev]"
 
-lint:
+setup-markdownlint:
+	@echo "Installing markdownlint-cli..."
+	npm install markdownlint-cli -g
+	markdownlint --version
+
+setup-hadolint:
+	@echo "Installing hadolint..."
+	brew install hadolint
+	hadolint --version
+
+lint: lint-python lint-markdown lint-dockerfile
+
+lint-python:
 	@echo "Running Ruff linter..."
 	.venv/bin/ruff check ${PYTHON_PATHS}
 	@echo "Running Ruff format check..."
 	.venv/bin/ruff format --check ${PYTHON_PATHS}
+
+lint-markdown:
+	@echo "Validating Markdown files..."
+	markdownlint ${MARKDOWN_FILES}
+
+lint-dockerfile:
+	@echo "Validating Dockerfiles..."
+	hadolint ${DOCKERFILES}
 
 format:
 	@echo "Formatting Python code with Ruff..."
