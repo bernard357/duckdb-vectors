@@ -1,6 +1,6 @@
 help:
 	@echo "Common commands:"
-	@echo "# make setup     - Create the virtual environment and install dependencies"
+	@echo "# make setup     - Check prerequisites, create the venv, install tooling"
 	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
 	@echo "$$ make format    - Format Python code with Ruff"
@@ -29,7 +29,15 @@ MARKDOWN_FILES := README.md CONTRIBUTING.md $(shell find documentation -name '*.
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
-setup: setup-python setup-markdownlint setup-hadolint
+setup: check-prerequisites setup-python setup-markdownlint setup-hadolint
+
+check-prerequisites:
+	@echo "Checking prerequisites (see CONTRIBUTING.md)..."
+	@command -v python3 >/dev/null || { echo "ERROR: python3 not found — install Python 3.12+"; exit 1; }
+	@command -v uv >/dev/null || { echo "ERROR: uv not found — see https://docs.astral.sh/uv/"; exit 1; }
+	@command -v docker >/dev/null || echo "WARNING: docker not found — needed only for the example container agents"
+	@command -v npm >/dev/null || echo "WARNING: npm not found — needed for setup-markdownlint"
+	@command -v brew >/dev/null || echo "WARNING: brew not found — setup-hadolint uses it; install hadolint manually otherwise"
 
 setup-python:
 	@echo "Creating virtual environment with uv..."
