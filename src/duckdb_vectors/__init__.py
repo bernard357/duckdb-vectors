@@ -14,8 +14,6 @@ from duckdb_vectors.indexer import IndexReport, index_folder
 from duckdb_vectors.models import Chunk, SearchResult
 from duckdb_vectors.store import VectorStore
 
-__version__ = "0.1.0"
-
 __all__ = [
     "Chunk",
     "Chunker",
@@ -25,7 +23,6 @@ __all__ = [
     "SearchResult",
     "Settings",
     "VectorStore",
-    "__version__",
     "compute_etag",
     "index_folder",
     "register_embedder",

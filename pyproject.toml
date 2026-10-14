@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "duckdb-vectors"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Embeddable semantic-search building block for agentic systems: an S3-Vectors-like interface over a local DuckDB database with hybrid vector + exact-token BM25 search."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -47,6 +47,12 @@ Homepage = "https://github.com/bernard357/duckdb-vectors"
 Repository = "https://github.com/bernard357/duckdb-vectors"
 Documentation = "https://github.com/bernard357/duckdb-vectors/tree/main/documentation"
 Issues = "https://github.com/bernard357/duckdb-vectors/issues"
+
+# Version is derived from the latest git tag (e.g. a v0.1.0 tag yields 0.1.0).
+# Between tags, hatch-vcs appends a dev/commit suffix. There is no version
+# string to bump by hand: tag the release and the build picks it up.
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/duckdb_vectors"]
