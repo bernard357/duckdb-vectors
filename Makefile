@@ -46,7 +46,7 @@ setup-python:
 	@echo "Creating virtual environment with uv..."
 	uv venv --clear $(if $(PYTHON_VERSION),--python $(PYTHON_VERSION),)
 	@echo "Installing the package with all extras..."
-	uv pip install --python .venv/bin/python -e ".[local,bedrock,cli,dev]"
+	uv pip install --python .venv/bin/python -e ".[bedrock,dev]"
 
 setup-markdownlint:
 	@command -v markdownlint >/dev/null && markdownlint --version || { \
