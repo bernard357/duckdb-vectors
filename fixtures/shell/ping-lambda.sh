@@ -5,7 +5,7 @@
 # builds and pushes the image to ECR, deploys the CloudFormation stack, invokes
 # the function, and pipes the result to the shared validator. Resources are
 # created and left running. Run from the repository root (via `make ping-lambda`)
-# with AWS credentials (AWS_PROFILE=bernard357).
+# with configured AWS credentials (an AWS_PROFILE or the default chain).
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"

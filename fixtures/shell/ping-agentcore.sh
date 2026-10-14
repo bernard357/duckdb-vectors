@@ -5,7 +5,8 @@
 # into the agent directory, then configures, deploys, and invokes the agent via
 # the agentcore starter-toolkit CLI, piping the result to the shared validator.
 # Resources are created and left running. Run from the repository root
-# (via `make ping-agentcore`) with AWS credentials (AWS_PROFILE=bernard357).
+# (via `make ping-agentcore`) with configured AWS credentials (an AWS_PROFILE
+# or the default chain).
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
