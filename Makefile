@@ -26,7 +26,7 @@ DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 # default Python path for imports
 PYTHONPATH ?= .
 # source locations for static analysis
-PYTHON_PATHS := src/ tests/ examples/
+PYTHON_PATHS := src/ tests/ examples/ scripts/
 # markdown files for static analysis
 MARKDOWN_FILES := README.md CONTRIBUTING.md $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
@@ -44,7 +44,7 @@ check-prerequisites:
 
 setup-python:
 	@echo "Creating virtual environment with uv..."
-	uv venv --clear
+	uv venv --clear $(if $(PYTHON_VERSION),--python $(PYTHON_VERSION),)
 	@echo "Installing the package with all extras..."
 	uv pip install --python .venv/bin/python -e ".[local,bedrock,cli,dev]"
 

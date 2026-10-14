@@ -41,8 +41,7 @@ def assert_sources_contain_expected(sources: list[str]) -> None:
     ]
     if not matched:
         raise AssertionError(
-            f"expected one of {EXPECTED_SOURCES} in retrieved sources, "
-            f"got: {sources}"
+            f"expected one of {EXPECTED_SOURCES} in retrieved sources, got: {sources}"
         )
 
 
