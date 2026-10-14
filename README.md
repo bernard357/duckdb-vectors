@@ -1,84 +1,108 @@
 # duckdb-vectors
 
-Embeddable semantic-search building block for agentic systems: an
-S3-Vectors-like interface over a local DuckDB database, with hybrid
-vector + exact-token BM25 retrieval, pluggable embedding and chunking,
-and a CLI.
+A python package that facilitates the implementation of semantic search into any kind of agentic system, in 3 steps:
 
-One DuckDB file is one index. Bake it into a container image and answer
-semantic-search requests in tens of milliseconds — no external vector
-database required.
+1. chunk documents and store their embeddings in a DuckDB database
+2. bake the database into the container that packages your agent
+3. search semantically using vector distances and BM25 in tens of milliseconds
 
-## Why
+## Use cases
 
-Specialized agents commonly need semantic search over only a few thousand
-markdown pages or a few hundred tools and skills, yet most solutions assume a
-heavy external vector database. `duckdb-vectors` is a nimble, composable
-component that does one thing well: efficient semantic search for common
-agentic workloads. It starts with local embedding and evolves to cloud
-embedding where needed, and stays framework-agnostic across Docker agents,
-AWS Strands, Pydantic AI, and Bedrock AgentCore.
+`duckdb-vectors` is a nimble building block that has been designed for following use cases:
 
-The bet is on boring technology — see
-[Choose Boring Technology](https://mcfunley.com/choose-boring-technology).
+- __Retrieval-Augmented Generation (RAG) powered by thousands of static documents__ — You do not see the need for an external vector store or knowledge base. You prefer a composable toolchain over fat frameworks. You are looking for extremely fast responses. [Turn an existing markdown folder into a RAG agentic capability](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md).
 
-## Documentation
+- __Select skills exposed to your agents__ — The toolbox of your agent is growing exponentially. Create a tool for selecting appropriate skills instead of exposing all of them. In addition, each tool comes with attributes that should be considered during the search.
+  [Add a registry of hundreds of skills selected by semantic search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
 
-Start here and go deeper as you need:
+- __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md).
 
-- New to the component? Read the [primitive](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-primitive.md)
-  for the architecture and building blocks, then the
-  [guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-guide.md) for the end-to-end workflow.
-- Working with DuckDB directly? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
-- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md)
-  and its [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-workbook.md).
-- Deploying on AWS? See the
-  [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md) and
-  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-workbook.md), or the
-  [Lambda guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-guide.md) and
-  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-workbook.md).
-- Building a specific capability? Follow a step-by-step procedure:
-  [RAG answering machine](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md),
-  [LLM wiki to RAG](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md), or
-  [semantic skills search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
-- Contributing or developing? Start with [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md),
-  then the [developer workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/developer-workbook.md) for
-  prerequisites, setup, and the full workflow.
+## Quick start
 
-## Install
+Get `duckdb-vectors` from the PyPI repository:
 
 ```shell
-$ pip install duckdb-vectors[local]     # recommended: fastembed ONNX local embeddings
-$ pip install duckdb-vectors            # core only (bring your own embedder)
-$ pip install duckdb-vectors[bedrock]   # Amazon Bedrock Titan embeddings
-$ pip install duckdb-vectors[cli]       # the duckdb-vectors CLI
+$ pip install duckdb-vectors             # install once, batteries included
 ```
 
-## Quickstart
-
-```python
-from duckdb_vectors import VectorStore
-
-store = VectorStore(backend="local")  # the default; or "bedrock:titan"
-store.add_texts(
-    ids=["doc:0", "doc:1"],
-    texts=[
-        "DuckDB is an in-process analytical database.",
-        "Vectors capture semantic similarity between texts.",
-    ],
-    metadatas=[{"source": "intro"}, {"source": "intro"}],
-)
-for hit in store.query("how does an embedded database work?", top_k=3):
-    print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
-```
-
-## CLI
+Index a set of Markdown pages into a single DuckDB file:
 
 ```shell
 $ duckdb-vectors index ./docs            # index a folder of markdown
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
 ```
+
+Then perform semantic search from within your python code:
+
+```python
+from duckdb_vectors import VectorStore
+
+store = VectorStore()
+
+for hit in store.query("how does an embedded database work?", top_k=3):
+    print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
+```
+
+## Customization
+
+The default configuration of `duckdb-vectors` makes it workable out of the box. But you do have multiple options for adapting it to your specific requirements:
+
+- Choose your harnessing framework, or create your own. `duckdb-vectors` focuses on semantic search. Pass a string, and it returns matching chunks. Use them as you want.
+
+- Frontmatter headers of Markdown pages are injected as JSON objects. Each attribute can be considered in SELECT statements in addition to semantic search. Metadata is returned along with each chunk.
+
+- Use a local embedding model, or a remote one. Titan from Amazon Bedrock is built-in. You can expect the registry of available embeddings to grow over time.
+
+- Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown files. You may have other kinds of documents to ingest.
+
+## Why
+
+You are right, trillions of solutions exist for semantic search. So, why bother?
+
+Because we are frugal.
+
+- We won't embrace a fat framework, but limit our code base and dependencies to the strict minimum.
+
+- We won't delegate via the network a search across some thousands of items. A local function call is by far the fastest path to relevant answers.
+
+- We won't use stemming search at all. Semantic search for sentences and exact matches for keywords cover our needs.
+
+- We won't externalize a read-only vector database or knowledge store for some thousands of items. This should be baked into the file system of the agent itself.
+
+- We won't introduce separate packaging for the code and for data, since modern agents rely on Docker images anyway.
+
+- We won't invest on non-differentiating features. Trusted harnessing will come from [boring technologies](https://mcfunley.com/choose-boring-technology).
+
+We did our homework, as reflected in the [Alternatives](#alternatives) section. It appears, in the end, that no python package was available to cover our frugal needs.
+
+## Documentation
+
+Start here and go deeper as you need:
+
+- New to `duckdb-vectors`? Read the [primitive](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-primitive.md)
+  for the architecture and building blocks, then the
+  [guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-guide.md) for the end-to-end workflow.
+
+- Building a specific capability? Follow a step-by-step procedure:
+  [RAG answering machine](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md),
+  [LLM wiki to RAG](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md), or
+  [semantic skills search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
+
+- New to DuckDB? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
+
+- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md)
+  and its [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-workbook.md).
+
+- Deploying on AWS? See the
+  [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md) and
+  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-workbook.md), or the
+  [Lambda guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-guide.md) and
+  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-workbook.md).
+
+- Contributing or developing? Start with [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md),
+  then the [developer workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/developer-workbook.md) for
+  prerequisites, setup, and the full workflow.
 
 ## Configuration
 
@@ -104,11 +128,11 @@ from duckdb_vectors import register_embedder
 register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 ```
 
-| Backend | Spec | Extra | Dimensions | Use for |
-| --- | --- | --- | --- | --- |
-| fastembed (ONNX, local) | `local` | `[local]` | 384 | default; real relevance, offline |
-| Bedrock Titan | `bedrock:titan` | `[bedrock]` | 1024 | cloud embedding |
-| Hashing (deterministic, no deps) | `hashing` | — | 384 | tests and CI only, not relevance |
+| Backend | Spec | Dimensions | Use for |
+| --- | --- | --- | --- |
+| fastembed (ONNX, local) | `local` | 384 | default; real relevance, offline |
+| Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
+| Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
 
 ## Metadata-aware search (injectable ranking SQL)
 
@@ -190,18 +214,7 @@ default simply does not impose stemming on everyone.
   a registry of tools or skills. See
   [`examples/skill_registry.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/skill_registry.py).
 
-## End-to-end use cases
-
-Each use case has a step-by-step procedure under `documentation/`:
-
-- Turn an existing markdown folder into a RAG agentic capability —
-  [setup-rag-procedure.md](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md).
-- Leverage an LLM-managed wiki into an agent —
-  [setup-llm-wiki-to-rag-procedure.md](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md).
-- Add a registry of hundreds of skills selected by semantic search —
-  [setup-skills-search-procedure.md](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
-
-## Related work and alternatives
+## Alternatives
 
 `duckdb-vectors` is not the only way to put vectors in DuckDB. The projects
 below overlap with it; each is a reasonable choice if its shape fits your
@@ -217,6 +230,7 @@ or a broader scope, we point you to it rather than compete with it.
   model, retrievers, and query engines. We stay framework-agnostic: no
   LlamaIndex `Node`/`Document` types to adopt and no framework runtime to carry
   into the container.
+
 - [vectorwrap](https://pypi.org/project/vectorwrap/)
   — a universal wrapper that switches one vector API across Postgres, MySQL,
   SQLite, DuckDB, and ClickHouse. Pick it when backend portability is the
@@ -225,6 +239,7 @@ or a broader scope, we point you to it rather than compete with it.
   SQL) instead of a lowest-common-denominator API. It also expects you to bring
   your own embedding function; we ship pluggable embedders and markdown
   chunking.
+
 - [microrag](https://pypi.org/project/microrag/)
   — the closest neighbour: a universal RAG library with ONNX-backed embeddings
   and DuckDB storage. If you want an end-to-end RAG library, it is a strong
@@ -232,6 +247,7 @@ or a broader scope, we point you to it rather than compete with it.
   index, search) and leave generation, prompting, and LLM orchestration to the
   harness, so the component composes into any framework rather than owning the
   pipeline.
+
 - [duckdb `ai` community extension](https://duckdb.org/community_extensions/extensions/ai.html)
   — an extension that calls embedding and chat providers from inside SQL. Reach
   for it when you want embeddings generated in the database and don't mind the
@@ -239,26 +255,25 @@ or a broader scope, we point you to it rather than compete with it.
   registry (local fastembed by default, cloud on demand), so the same code runs
   offline in CI and against a cloud provider in production without SQL-level
   credentials.
+
 - [sqlrooms-rag](https://pypi.org/project/sqlrooms-rag/)
   — prepares and queries DuckDB-stored embeddings for RAG, primarily for the
   SQLRooms framework (usable standalone too). A good fit inside that ecosystem;
   outside it, our standalone, dependency-light surface and container lifecycle
   are a closer match.
+
 - [raghilda](https://posit-dev.github.io/raghilda/)
   — a DuckDB-backed RAG store (from Posit) that can run fully in memory and
   search with BM25 when no embedding model is configured. Pleasant for quick
   local experiments. Our focus is the frozen, read-only, image-baked serving
   path and an S3-Vectors-flavored API rather than an in-memory exploration
   store.
+
 - [dvs](https://github.com/allen2c/dvs)
   — a DuckDB + OpenAI vector similarity search service. Choose it if an
   OpenAI-tied service is what you want. We default to local, offline embeddings
   and treat cloud providers as an opt-in, keeping the base install slim and
   CI-friendly.
-
-Note: a package named `rag007` was requested for this comparison but we could
-not locate a matching project on PyPI or GitHub at review time; if you meant a
-different name, open an issue and we will add it.
 
 ## Contributing
 
