@@ -2,6 +2,7 @@
 
 import pytest
 
+from duckdb_vectors.config import DEFAULT_BACKEND, Settings
 from duckdb_vectors.models import Chunk
 from duckdb_vectors.store import ReadOnlyError, VectorStore
 
@@ -110,3 +111,14 @@ def test_hybrid_fusion_beats_single_signal(db_path):
     top = results[0]
     assert top.vector_rank is not None or top.text_rank is not None
     store.close()
+
+
+def test_default_backend_is_local():
+    assert DEFAULT_BACKEND == "local"
+    assert Settings().backend == "local"
+
+
+def test_cli_app_imports_without_extras():
+    from duckdb_vectors.cli import app
+
+    assert app is not None

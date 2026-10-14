@@ -14,12 +14,40 @@ import os
 import tempfile
 
 import duckdb
+import yaml
 
 from duckdb_vectors.models import Chunk
 
 DEFAULT_TARGET_WORDS = 300
 DEFAULT_OVERLAP_WORDS = 40
 MIN_CHARS = 1
+FRONTMATTER_FENCE = "---"
+
+
+def _split_frontmatter(text: str) -> tuple[dict, str]:
+    """Split a leading YAML frontmatter block from the body.
+
+    Returns the parsed mapping and the body with the block stripped. If there
+    is no block, the mapping is empty and the body is the original text. A
+    block that fails to parse or does not yield a mapping is treated as
+    ordinary body text (empty mapping, original text) so one malformed page
+    never breaks indexing.
+    """
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].rstrip("\r\n") != FRONTMATTER_FENCE:
+        return {}, text
+    for index in range(1, len(lines)):
+        if lines[index].rstrip("\r\n") != FRONTMATTER_FENCE:
+            continue
+        block = "".join(lines[1:index])
+        try:
+            parsed = yaml.safe_load(block)
+        except yaml.YAMLError:
+            return {}, text
+        if not isinstance(parsed, dict):
+            return {}, text
+        return parsed, "".join(lines[index + 1 :])
+    return {}, text
 
 
 class MarkdownChunker:
@@ -96,13 +124,20 @@ class MarkdownChunker:
         return windows
 
     def chunk(self, text: str, source: str) -> list[Chunk]:
-        """Return heading-scoped, size-bounded chunks for one document."""
+        """Return heading-scoped, size-bounded chunks for one document.
+
+        A leading YAML frontmatter block is parsed and merged into every
+        chunk's metadata; the reserved ``section_path`` key always wins over
+        frontmatter keys of the same name.
+        """
+        frontmatter, body_text = _split_frontmatter(text)
         chunks: list[Chunk] = []
         position = 0
-        for section_path, title, body in self._sections(text):
+        for section_path, title, body in self._sections(body_text):
             if not body:
                 continue
             for window in self._windows(body):
+                metadata = {**frontmatter, "section_path": section_path}
                 chunks.append(
                     Chunk(
                         chunk_id=f"{source}:{position}",
@@ -110,7 +145,7 @@ class MarkdownChunker:
                         source=source,
                         position=position,
                         title=title or section_path,
-                        metadata={"section_path": section_path},
+                        metadata=metadata,
                     )
                 )
                 position += 1

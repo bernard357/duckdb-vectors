@@ -1,7 +1,12 @@
 """Folder indexer: all-embed, zero-reembed, single-change, prune."""
 
+import shutil
+from pathlib import Path
+
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 DOC_A = "# Alpha\n\nAlpha body content here.\n\n## Sub\n\nSub body text.\n"
 DOC_B = "# Beta\n\nBeta body content here.\n"
@@ -48,6 +53,21 @@ def test_editing_one_file_reembeds_only_its_chunks(tmp_path):
     report = index_folder(store, docs)
     assert report.embedded >= 1
     assert report.reused >= 1
+    store.close()
+
+
+def test_frontmatter_flows_through_query(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    shutil.copy(FIXTURES / "with_frontmatter.md", docs / "policy.md")
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    results = store.query("authenticate restricted documents", top_k=3)
+    assert results
+    hit = results[0]
+    assert hit.chunk.metadata["kind"] == "policy"
+    assert hit.chunk.metadata["owner"] == "alice"
+    assert "section_path" in hit.chunk.metadata
     store.close()
 
 
