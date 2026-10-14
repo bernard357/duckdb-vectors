@@ -19,7 +19,7 @@ jobs:
       # (lint-dockerfile). Installing them here keeps CI running the exact same
       # `make lint` / `make test` a developer runs locally — one source of truth.
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - name: Install markdownlint-cli
         run: npm install -g markdownlint-cli
       - name: Install hadolint
