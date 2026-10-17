@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "duckdb-vectors"
 dynamic = ["version"]
-description = "Embeddable semantic-search building block for agentic systems: an S3-Vectors-like interface over a local DuckDB database with hybrid vector + exact-token BM25 search."
+description = "Frugal, embeddable semantic-search building block for agentic systems — hybrid vector + exact-token search over a local DuckDB file, no external vector database."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
