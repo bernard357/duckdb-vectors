@@ -1,6 +1,6 @@
 # duckdb-vectors
 
-TODO: criticize positively this document since it targets 4 different audiences: humans reading it from github, agents reading from github, humans reading it at PyPI, and agents reading it at PyPI. All of these have to grasp quickly: what is this, how differentiating it is, how to use it, how to contribute.
+__A frugal, embeddable semantic-search building block for agentic systems — hybrid vector + exact-token search over a local DuckDB file, no external vector database.__
 
 A python package that facilitates the implementation of small-scale semantic search into any kind of agentic system, in 3 steps:
 
@@ -48,11 +48,11 @@ for hit in store.query("how does an embedded database work?", top_k=3):
     print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
 ```
 
-TODO: add here a list of follow-up links to more concrete usages, so that guys can play with the package by themselves. 
+Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, or add a semantic skills registry, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
 
 ## Customization
 
-TODO: this section describes the boundaries of the package. it is important to match expectations from builders, who can contribute to it.
+This section marks the boundaries of the package: what you can adapt out of the box, and where the extension points are for builders who want to contribute.
 
 The default configuration of `duckdb-vectors` makes it workable out of the box. But you do have multiple options for adapting it to your specific requirements:
 
@@ -64,11 +64,11 @@ The default configuration of `duckdb-vectors` makes it workable out of the box. 
 
 - Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown files. You may have other kinds of documents to ingest.
 
-TODO: add here a call for action, so that builders are invited to contribute
+Adding an embedding backend or a chunker is a great first contribution — the registries are built for it. See [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md) to get started.
 
 ## Documentation
 
-TODO: keep the compact router here, but make it a bit more friendly to different readers
+Pick the entry point that matches where you are:
 
 Start here and go deeper as you need:
 
