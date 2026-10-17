@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.chunkers.registry import register_chunker, resolve_chunker
 from duckdb_vectors.models import Chunk
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -92,3 +95,20 @@ def test_malformed_frontmatter_does_not_raise():
     assert chunks
     for chunk in chunks:
         assert set(chunk.metadata) == {"section_path"}
+
+
+def test_registry_round_trip():
+    register_chunker("dummy", lambda variant: _CustomChunker())
+    chunker = resolve_chunker("dummy")
+    assert isinstance(chunker, _CustomChunker)
+
+
+def test_registry_raises_on_unknown():
+    with pytest.raises(ValueError, match="Unknown chunker") as excinfo:
+        resolve_chunker("nope")
+    assert "markdown" in str(excinfo.value)
+
+
+def test_registry_resolves_markdown_default():
+    chunker = resolve_chunker("markdown")
+    assert isinstance(chunker, MarkdownChunker)

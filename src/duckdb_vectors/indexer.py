@@ -14,7 +14,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from duckdb_vectors.chunkers.base import Chunker
-from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.chunkers.registry import resolve_chunker
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.models import Chunk
 from duckdb_vectors.store import VectorStore
@@ -45,8 +45,11 @@ def index_folder(
 
     Only chunks whose etag is new or changed are embedded; unchanged chunks
     reuse their stored vector. Chunks for files that disappeared are pruned.
+
+    An explicit ``chunker`` instance wins; otherwise the chunker is resolved
+    from the store's ``settings.chunker`` string (``"markdown"`` by default).
     """
-    chunker = chunker or MarkdownChunker()
+    chunker = chunker or resolve_chunker(store.settings.chunker)
     folder = Path(folder)
     model_id = store.embedder.model_identifier
     dimension = store.dimensions

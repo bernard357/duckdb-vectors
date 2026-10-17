@@ -113,6 +113,7 @@ Settings resolve with the precedence: explicit argument >
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `local` |
+| Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ## Embedding backends
@@ -133,6 +134,23 @@ register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 | fastembed (ONNX, local) | `local` | 384 | default; real relevance, offline |
 | Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
 | Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
+
+## Chunking backends
+
+A chunker is resolved from a string: a bare name (`markdown`) or a
+`name:variant` pair. `markdown` is the default and the minimum viable setup for
+end users. The registry is contributor-extensible — register your own splitter
+without touching the core:
+
+```python
+from duckdb_vectors import register_chunker
+
+register_chunker("mychunker", lambda variant: MyChunker(variant))
+```
+
+| Chunker | Spec | Use for |
+| --- | --- | --- |
+| MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
 
 ## Metadata-aware search (injectable ranking SQL)
 

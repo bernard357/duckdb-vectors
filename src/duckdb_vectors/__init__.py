@@ -6,6 +6,7 @@ database with hybrid vector + BM25 retrieval. One DuckDB file is one index.
 
 from duckdb_vectors.chunkers.base import Chunker
 from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.chunkers.registry import register_chunker, resolve_chunker
 from duckdb_vectors.config import Settings
 from duckdb_vectors.embedders.base import Embedder
 from duckdb_vectors.embedders.registry import register_embedder, resolve_embedder
@@ -25,6 +26,8 @@ __all__ = [
     "VectorStore",
     "compute_etag",
     "index_folder",
+    "register_chunker",
     "register_embedder",
+    "resolve_chunker",
     "resolve_embedder",
 ]
