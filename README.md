@@ -105,6 +105,7 @@ Settings resolve with the precedence: explicit argument >
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `local` |
+| Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ## Embedding backends
@@ -127,7 +128,20 @@ Here is the list of embeddings that are currently available:
 
 ## Chunking backends
 
-TODO: document the registry of chunkers, the default values, similarly to what was done for embedders.
+A chunker is resolved from a string: a bare name (`markdown`) or a
+`name:variant` pair. `markdown` is the default and the minimum viable setup for
+end users. The registry is contributor-extensible — register your own splitter
+without touching the core:
+
+```python
+from duckdb_vectors import register_chunker
+
+register_chunker("mychunker", lambda variant: MyChunker(variant))
+```
+
+| Chunker | Spec | Use for |
+| --- | --- | --- |
+| MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
 
 ## Metadata-aware search (injectable ranking SQL)
 
@@ -138,7 +152,6 @@ For example:
 - Adapt the search to a given audience. You want to serve both customers and your staff from the same agent. The distinction is carried by the JWT token that reaches the agent. The searching code can extract either "customer" or "staff" from the token, and inject this in the SQL statement, so that only the matching set of pages is considered.
 
 - Tweak the ranking algorithm. You want to decay progressively the aging documentation pages, so that fresh content gets better ranking than oldies. The searching code can integrate the modification date from meta-attributes and decay the basic ranking accordingly.
-
 
 Each ranking signal — vector and BM25 — runs a DuckDB `SELECT` that returns `chunk_id` best-first. The store collects the ids and fuses them with RRF. You can override either SELECT to restrict in-scope chunks (a `WHERE` over metadata) or to apply a decay factor on aging documents (a reshaped `ORDER BY`). When you provide no override, built-in defaults reproduce the standard behavior.
 
