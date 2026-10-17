@@ -10,6 +10,36 @@
 
 ### Removed
 
+## v261017
+
+Make the published package match the README: a batteries-included install
+(local embedding and the CLI work with no extras), Markdown frontmatter now
+flows into chunk metadata, and chunkers gain a registry mirroring the one for
+embedders. The CI pipeline now runs the same `make` targets developers use.
+
+### Added
+
+- chunker registry (`register_chunker`/`resolve_chunker`) selectable by string
+  or `DUCKDB_VECTORS_CHUNKER`, mirroring the embedder registry (#11)
+- parse Markdown YAML frontmatter into every chunk's metadata, preserving the
+  reserved `section_path` and failing safe on malformed blocks (#10)
+
+### Changed
+
+- batteries-included install: `fastembed`, `typer`, and `pyyaml` are core
+  dependencies, so a bare `pip install duckdb-vectors` runs the CLI and the
+  local backend; `bedrock` stays an optional extra (#10)
+- restructure the README around use cases, resolve review TODOs, and use
+  absolute GitHub links so they render on PyPI (#1)
+- run `make setup`/`lint`/`test` in CI to match the local toolchain, and bump
+  the Node 24 action majors (#5)
+
+### Metrics
+
+- tests: 52 passed, 1 skipped
+- python: 2725 lines (38 files)
+- markdown: 3998 lines (36 files)
+
 ## v261014
 
 First public release of duckdb-vectors: an embeddable, S3-Vectors-flavored
