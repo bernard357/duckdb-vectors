@@ -2,7 +2,7 @@
 
 __A frugal, embeddable semantic-search building block for agentic systems — hybrid vector + exact-token search over a local DuckDB file, no external vector database.__
 
-A python package that facilitates the implementation of small-scale semantic search into any kind of agentic system, in 3 steps:
+`duckdb-vectors` is a python package that facilitates the implementation of small-scale semantic search into any kind of agentic system, in 3 steps:
 
 1. chunk items and store their embeddings in a DuckDB database
 2. bake the database into the container that packages your agent
@@ -69,8 +69,6 @@ Adding an embedding backend or a chunker is a great first contribution — the r
 ## Documentation
 
 Pick the entry point that matches where you are:
-
-Start here and go deeper as you need:
 
 - New to `duckdb-vectors`? Read the [primitive](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-primitive.md)
   for understanding the architecture and building blocks, then the
