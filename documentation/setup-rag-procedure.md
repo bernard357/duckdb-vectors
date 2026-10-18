@@ -95,7 +95,7 @@ ENV DUCKDB_VECTORS_READ_ONLY=true
 ```
 
 The container now holds the database and answers read-only with no external
-service. See the [Docker agent guide](docker-agent-guide.md) for a complete,
+service. See the [containerized agent guide](containerized-agent-guide.md) for a complete,
 runnable version.
 
 ## Step 6 — release a container with the agent and the database {#step-6}

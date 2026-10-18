@@ -1,6 +1,6 @@
 # AWS Bedrock AgentCore guide
 
-A teach-by-example walk-through: build an agent that answers questions about `duckdb-vectors`, bake the documentation index into it, and deploy it on Amazon Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the [Docker agent guide](docker-agent-guide.md) but targets the managed AgentCore runtime instead of a plain container.
+A teach-by-example walk-through: build an agent that answers questions about `duckdb-vectors`, bake the documentation index into it, and deploy it on Amazon Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the [containerized agent guide](containerized-agent-guide.md) but targets the managed AgentCore runtime instead of a plain container.
 
 ## Understand AgentCore deployment {#overview}
 
@@ -8,7 +8,7 @@ A teach-by-example walk-through: build an agent that answers questions about `du
 
 ## How does this differ from a plain container? {#vs-container}
 
-The `duckdb-vectors` usage is identical — open read-only, `query`, feed the model. What differs is the harness and deployment: AgentCore provides the managed runtime, the entrypoint contract (`@app.entrypoint`), the execution role, memory options, and observability, and the toolkit builds and deploys the artifact for you. A plain container (see the [Docker agent guide](docker-agent-guide.md)) gives you more control and runs anywhere, at the cost of operating the runtime yourself.
+The `duckdb-vectors` usage is identical — open read-only, `query`, feed the model. What differs is the harness and deployment: AgentCore provides the managed runtime, the entrypoint contract (`@app.entrypoint`), the execution role, memory options, and observability, and the toolkit builds and deploys the artifact for you. A plain container (see the [containerized agent guide](containerized-agent-guide.md)) gives you more control and runs anywhere, at the cost of operating the runtime yourself.
 
 ## What you will build {#what}
 

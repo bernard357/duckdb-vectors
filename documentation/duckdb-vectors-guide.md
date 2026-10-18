@@ -188,7 +188,7 @@ $ duckdb-vectors search "how do retries work?" --json      # structured output
 
 ## How to integrate into a harness? {#integrate}
 
-Inside an agent, retrieval becomes context. The pattern is: open the store at startup, then call `query` per user turn and feed the chunks to the model. This is framework-agnostic: the same store drops into a Docker agent, AWS Strands, Pydantic AI, etc. The examples below are basic snippets to be adapted to your own use case.
+Inside an agent, retrieval becomes context. The pattern is: open the store at startup, then call `query` per user turn and feed the chunks to the model. This is framework-agnostic: the same store drops into a container, AWS Strands, Pydantic AI, etc. The examples below are basic snippets to be adapted to your own use case.
 
 ```python
 from duckdb_vectors import VectorStore
@@ -214,7 +214,7 @@ def retrieve_context(question: str, k: int = 5) -> str:
     return "\n\n".join(blocks)
 ```
 
-See the [Docker agent guide](docker-agent-guide.md) for building an agentic harness from a configuration file.
+See the [containerized agent guide](containerized-agent-guide.md) for building a self-contained agent image.
 
 ## How to build a container image? {#container}
 
@@ -243,7 +243,7 @@ CMD ["what is duckdb-vectors?"]
 Once the `Dockerfile` has been built, it contains both the database and the agent to query it in-process:
 
 ```shell
-$ docker build -f examples/docker-agent/Dockerfile -t duckdb-vectors-agent .
+$ docker build -f examples/containerized-agent/Dockerfile -t duckdb-vectors-agent .
 $ docker run --rm duckdb-vectors-agent "how is a search answered?"
 ```
 

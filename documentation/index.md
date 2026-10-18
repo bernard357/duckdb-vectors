@@ -87,7 +87,7 @@ Pick the entry point that matches where you are:
 
 - New to DuckDB? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
 
-- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md).
+- Packaging an agent? See the [Containerized agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/containerized-agent-guide.md).
 
 - Deploying on AWS? See the
   [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md), or the

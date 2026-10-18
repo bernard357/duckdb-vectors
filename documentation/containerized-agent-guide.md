@@ -1,11 +1,11 @@
-# Docker agent guide
+# Containerized agent guide
 
 A teach-by-example walk-through: package a small agent in a container that
 answers questions about `duckdb-vectors` itself. The agent indexes this very
 `documentation/` folder at build time and serves answers from a frozen,
 read-only index — the canonical build-then-freeze lifecycle.
 
-The runnable assets live in [`examples/docker-agent/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples/docker-agent):
+The runnable assets live in [`examples/containerized-agent/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples/containerized-agent):
 `agent.py`, `requirements.txt`, and a `Dockerfile`.
 
 ## What you will build {#what}
@@ -59,7 +59,7 @@ def answer(question: str, db_path: str, top_k: int = 5):
         store.close()
 ```
 
-See [`examples/docker-agent/agent.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/agent.py) for
+See [`examples/containerized-agent/agent.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/containerized-agent/agent.py) for
 the full module with a small CLI.
 
 ## Step 2 — index the documentation {#index}
@@ -67,7 +67,7 @@ the full module with a small CLI.
 Point the agent at the documentation folder to build the index:
 
 ```shell
-$ python examples/docker-agent/agent.py --index ./documentation --db vectors.duckdb
+$ python examples/containerized-agent/agent.py --index ./documentation --db vectors.duckdb
 indexed 12 files, 94 chunks (94 embedded)
 ```
 
@@ -78,7 +78,7 @@ model; later runs reuse the cached model.
 ## Step 3 — ask a question locally {#query}
 
 ```shell
-$ python examples/docker-agent/agent.py --db vectors.duckdb "how is a search answered?"
+$ python examples/containerized-agent/agent.py --db vectors.duckdb "how is a search answered?"
 0.0320  duckdb-vectors-primitive.md  1. The query string is embedded once ...
 0.0315  duckdb-workbook.md           Opening read-only is the serving mode ...
 ...
@@ -100,18 +100,18 @@ copied between stages.
 FROM python:3.12-slim AS builder
 WORKDIR /build
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
-COPY examples/docker-agent/requirements.txt .
+COPY examples/containerized-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY examples/docker-agent/agent.py .
+COPY examples/containerized-agent/agent.py .
 COPY documentation/ ./documentation/
 RUN python agent.py --index ./documentation --db /build/vectors.duckdb
 
 FROM python:3.12-slim AS runtime
 WORKDIR /app
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
-COPY examples/docker-agent/requirements.txt .
+COPY examples/containerized-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY examples/docker-agent/agent.py .
+COPY examples/containerized-agent/agent.py .
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
@@ -120,15 +120,15 @@ ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]
 CMD ["what is duckdb-vectors?"]
 ```
 
-See [`examples/docker-agent/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/Dockerfile).
+See [`examples/containerized-agent/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/containerized-agent/Dockerfile).
 
 ## Step 5 — build and run the container {#run}
 
 Build from the repository root (the build context must include both
-`examples/docker-agent/` and `documentation/`):
+`examples/containerized-agent/` and `documentation/`):
 
 ```shell
-$ docker build -f examples/docker-agent/Dockerfile -t duckdb-vectors-agent .
+$ docker build -f examples/containerized-agent/Dockerfile -t duckdb-vectors-agent .
 $ docker run --rm duckdb-vectors-agent "how is a search answered?"
 ```
 
