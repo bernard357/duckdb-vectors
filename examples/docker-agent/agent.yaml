@@ -1,0 +1,24 @@
+version: "15"
+
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-6
+
+agents:
+  root:
+    model: claude
+    description: Answers questions about duckdb-vectors from a baked index.
+    instruction: |
+      You answer questions about duckdb-vectors.
+      Always call the `search` tool to retrieve relevant documentation chunks
+      before answering, and ground your answer in the returned text. Use the
+      `report` tool when asked what the index contains.
+    toolsets:
+      - type: mcp
+        command: duckdb-vectors
+        args: ["mcp"]
+        tools: ["search", "report"]
+        env:
+          DUCKDB_VECTORS_DB_PATH: ${env.DUCKDB_VECTORS_DB_PATH}
+          DUCKDB_VECTORS_READ_ONLY: "true"

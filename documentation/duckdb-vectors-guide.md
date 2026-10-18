@@ -34,7 +34,7 @@ As usual, you can also use `uv` for the installation, and you can also add `duck
 The install brings the `duckdb-vectors` command. Run it with no arguments, or with `--help`, to list the verbs and their options:
 
 ```shell
-$ duckdb-vectors --help          # list the index, report, and search verbs
+$ duckdb-vectors --help          # list the index, report, search, and mcp verbs
 $ duckdb-vectors index --help    # options for a specific verb
 ```
 
@@ -184,6 +184,12 @@ For a quick check from the shell, the `search` verb runs the same hybrid query a
 ```shell
 $ duckdb-vectors search "how do retries work?" --top-k 5
 $ duckdb-vectors search "how do retries work?" --json      # structured output
+```
+
+The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
+
+```shell
+$ duckdb-vectors mcp                     # serve retrieval over stdio
 ```
 
 ## How to integrate into a harness? {#integrate}

@@ -82,6 +82,20 @@ def report(
 
 
 @app.command()
+def mcp(
+    db: str | None = typer.Option(None, "--db", help="DuckDB file path."),
+    backend: str | None = typer.Option(
+        None, "--backend", help="Embedding backend spec."
+    ),
+) -> None:
+    """Serve retrieval as an MCP server over stdio."""
+    from duckdb_vectors.config import Settings
+    from duckdb_vectors.mcp_server import run_stdio
+
+    run_stdio(Settings(db_path=db, backend=backend, read_only=True))
+
+
+@app.command()
 def search(
     query: str = typer.Argument(..., help="Query text."),
     db: str | None = typer.Option(None, "--db", help="DuckDB file path."),

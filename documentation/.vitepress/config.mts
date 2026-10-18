@@ -62,6 +62,7 @@ export default withMermaid(
           text: 'Harnessing guides',
           items: [
             { text: 'Containerized agent', link: '/containerized-agent-guide' },
+            { text: 'Docker Agent', link: '/docker-agent-guide' },
           ],
         },
         {

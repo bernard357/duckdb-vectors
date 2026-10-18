@@ -37,6 +37,7 @@ dependencies = [
     "fastembed>=0.3",
     "typer>=0.12",
     "pyyaml>=6",
+    "mcp>=2.3",
 ]
 
 [project.optional-dependencies]
@@ -81,5 +82,5 @@ warn_unused_ignores = true
 # isolated behind the embedder registry, so ignore their missing stubs rather
 # than vendor third-party type packages.
 [[tool.mypy.overrides]]
-module = ["boto3", "fastembed", "llama_cpp", "yaml"]
+module = ["boto3", "fastembed", "llama_cpp", "mcp.*", "yaml"]
 ignore_missing_imports = true

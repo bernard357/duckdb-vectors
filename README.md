@@ -33,7 +33,10 @@ Indexing a set of Markdown pages directly from the command-line. This produces a
 $ duckdb-vectors index ./docs            # index a folder of markdown
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
+$ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
 ```
+
+The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md) for a complete integration.
 
 You can also index content dynamically from the harnessing code. This is required if the agent gets new skills dynamically for example.
 

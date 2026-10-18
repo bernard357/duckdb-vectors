@@ -12,6 +12,7 @@ from duckdb_vectors.embedders.base import Embedder
 from duckdb_vectors.embedders.registry import register_embedder, resolve_embedder
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.indexer import IndexReport, index_folder
+from duckdb_vectors.mcp_server import build_server
 from duckdb_vectors.models import Chunk, SearchResult
 from duckdb_vectors.store import VectorStore
 
@@ -24,6 +25,7 @@ __all__ = [
     "SearchResult",
     "Settings",
     "VectorStore",
+    "build_server",
     "compute_etag",
     "index_folder",
     "register_chunker",
