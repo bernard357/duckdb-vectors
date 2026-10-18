@@ -25,3 +25,8 @@ venv/
 
 # OS
 .DS_Store
+
+# Documentation site (VitePress)
+node_modules/
+documentation/.vitepress/dist/
+documentation/.vitepress/cache/

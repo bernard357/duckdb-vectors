@@ -1,0 +1,245 @@
+/* Boring steps — brand tokens over the VitePress default theme.
+   Single muted-green accent; values mirror documentation/identity.md. */
+
+:root {
+  /* Accent — single muted green, used for links and the brand mark.
+     Contrast on the light background (#f7f8fa): brand-1 5.03:1, brand-2 6.84:1. */
+  --vp-c-brand-1: #1f7a45;
+  --vp-c-brand-2: #19633a;
+  --vp-c-brand-3: #1f7a45;
+  --vp-c-brand-soft: rgba(31, 122, 69, 0.14);
+
+  /* Neutrals */
+  --vp-c-bg: #f7f8fa;
+  --vp-c-bg-alt: #eef1f4;
+  --vp-c-bg-soft: #f0f2f5;
+  --vp-c-text-1: #1a2733;
+  --vp-c-text-2: #5b6b7a;
+
+  /* Type: one serif family for both body and headings (unified). */
+  --vp-font-family-base: Georgia, Cambria, 'Times New Roman', serif;
+  --vp-font-family-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Shape */
+  --vp-border-radius: 8px;
+
+  /* Home hero brand gradient — kept subtle, within the one-accent rule. */
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+
+/* Headings use the body serif family (inherited from --vp-font-family-base);
+   no separate heading/nav font override. */
+
+.dark {
+  /* Contrast on the dark background (#15191e): brand-1 7.61:1, brand-2 8.98:1. */
+  --vp-c-brand-1: #5bbd84;
+  --vp-c-brand-2: #7cc99a;
+  --vp-c-brand-3: #5bbd84;
+  --vp-c-brand-soft: rgba(91, 189, 132, 0.16);
+
+  --vp-c-bg: #15191e;
+  --vp-c-bg-alt: #1e242b;
+  --vp-c-bg-soft: #1b2127;
+  --vp-c-text-1: #d6dde4;
+  --vp-c-text-2: #9aa7b4;
+}
+
+/* Home intro header (replaces the default H1 so no heading rule shows). */
+.home-intro {
+  padding-top: 1rem;
+}
+
+.home-lede {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+  max-width: 46rem;
+  margin: 0;
+}
+
+/* Blog post list (home page). Dividers sit only between items. */
+.post-list {
+  margin-top: 1.5rem;
+}
+
+.post-item {
+  padding: 1.5rem 0;
+}
+
+.post-item + .post-item {
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.post-title {
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+.post-title::before {
+  display: none;
+}
+
+.post-title a {
+  color: var(--vp-c-text-1);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.post-title a:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.post-meta {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.post-tags {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.post-tag {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.post-excerpt {
+  margin: 0;
+  color: var(--vp-c-text-2);
+  line-height: 1.6;
+}
+
+.post-empty {
+  color: var(--vp-c-text-2);
+}
+
+/* Home redirect placeholder (shown briefly before the client redirect). */
+.home-redirect {
+  padding-top: 2rem;
+  color: var(--vp-c-text-2);
+}
+
+/* Previous/next bar below a post. */
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.post-nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 48%;
+  text-decoration: none;
+}
+
+.post-nav-newer {
+  margin-left: auto;
+  text-align: right;
+}
+
+.post-nav-empty {
+  visibility: hidden;
+}
+
+.post-nav-dir {
+  font-size: 0.8rem;
+  color: var(--vp-c-text-2);
+}
+
+.post-nav-title {
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+}
+
+.post-nav-link:hover .post-nav-title {
+  text-decoration: underline;
+}
+
+/* --- Chrome: centered nav, content container, footer, pre-header --- */
+
+/* Constrain the top nav to the content column instead of full-bleed. */
+:root {
+  --content-max: 48rem;
+  --content-pad: 24px;
+}
+
+/* Pre-header: a colored uppercase keyword above the page title. */
+.page-keyword {
+  display: block;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vp-c-brand-1);
+}
+
+/* Two-part footer: tagline left, privacy link right. */
+.site-footer {
+  max-width: var(--content-max);
+  margin: 3rem auto 0;
+  padding: 1.25rem;
+  border-top: 1px solid var(--vp-c-divider);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+}
+
+.site-footer a {
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: var(--vp-c-brand-1);
+}
+
+/* Author photo on the About page — floated to the side, links to GitHub. */
+.author-photo-link {
+  float: right;
+  margin: 0.25rem 0 1rem 1.5rem;
+}
+
+.author-photo {
+  display: block;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--vp-c-divider);
+  transition: border-color 0.15s ease;
+}
+
+.author-photo-link:hover .author-photo {
+  border-color: var(--vp-c-brand-1);
+}
+
+/* H2: drop the default theme's separating rule ABOVE the heading, and use a
+   thin full-width underline BELOW the title text instead. The h2 is block-level
+   so the border spans the whole content column, not just the text. */
+.vp-doc h2 {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 2.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+}

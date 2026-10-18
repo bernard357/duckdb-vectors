@@ -1,0 +1,100 @@
+import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
+
+// https://vitepress.dev/reference/site-config
+//
+// A documentation site over the existing documentation/ pages — a curated
+// sidebar, local search, and the duckdb-vectors house skin. No blog
+// machinery: no state filter, no Atom feed, no post components.
+export default withMermaid(
+  defineConfig({
+    title: 'duckdb-vectors',
+    description:
+      'A frugal, embeddable semantic-search building block for agentic systems.',
+    // Served from the project Pages URL bernard357.github.io/duckdb-vectors/.
+    // If a custom domain is added later, this flips to '/'.
+    base: '/duckdb-vectors/',
+    lang: 'en-US',
+    cleanUrls: true,
+    lastUpdated: true,
+    // Several pages link to repo files that are not part of the site —
+    // ../README, ../CONTRIBUTING, and ../examples/* (code the reader clones).
+    // These resolve on GitHub/PyPI but are not built pages, so allow them
+    // rather than rewrite the authored prose.
+    ignoreDeadLinks: [/\.\.\/README$/, /\.\.\/CONTRIBUTING$/, /\.\.\/examples\//],
+    // Pre-bundle Mermaid's CommonJS dependencies so the Vite dev server
+    // resolves their ESM interop; without this the dev page can render blank.
+    // The production (Rollup) build already handles this.
+    vite: {
+      optimizeDeps: {
+        include: ['mermaid', 'dayjs', 'fastdom', 'cytoscape'],
+      },
+    },
+    themeConfig: {
+      // https://vitepress.dev/reference/default-theme-config
+      nav: [
+        { text: 'PyPI', link: 'https://pypi.org/project/duckdb-vectors/' },
+        {
+          text: 'GitHub',
+          link: 'https://github.com/bernard357/duckdb-vectors',
+        },
+      ],
+      sidebar: [
+        {
+          text: 'Overview',
+          items: [
+            { text: 'The primitive', link: '/duckdb-vectors-primitive' },
+            { text: 'User guide', link: '/duckdb-vectors-guide' },
+          ],
+        },
+        {
+          text: 'Guides',
+          items: [
+            { text: 'Docker agent', link: '/docker-agent-guide' },
+            { text: 'AWS Lambda', link: '/aws-lambda-guide' },
+            {
+              text: 'AWS Bedrock AgentCore',
+              link: '/aws-bedrock-agentcore-guide',
+            },
+          ],
+        },
+        {
+          text: 'Workbooks',
+          items: [
+            { text: 'DuckDB', link: '/duckdb-workbook' },
+            { text: 'Developer', link: '/developer-workbook' },
+            { text: 'Docker agent', link: '/docker-agent-workbook' },
+            { text: 'AWS Lambda', link: '/aws-lambda-workbook' },
+            {
+              text: 'AWS Bedrock AgentCore',
+              link: '/aws-bedrock-agentcore-workbook',
+            },
+          ],
+        },
+        {
+          text: 'Procedures',
+          items: [
+            { text: 'Set up a RAG agent', link: '/setup-rag-procedure' },
+            {
+              text: 'Turn an LLM wiki into RAG',
+              link: '/setup-llm-wiki-to-rag-procedure',
+            },
+            {
+              text: 'Search over skills',
+              link: '/setup-skills-search-procedure',
+            },
+          ],
+        },
+      ],
+      search: {
+        provider: 'local',
+      },
+      socialLinks: [
+        {
+          icon: 'github',
+          link: 'https://github.com/bernard357/duckdb-vectors',
+        },
+      ],
+    },
+  }),
+)

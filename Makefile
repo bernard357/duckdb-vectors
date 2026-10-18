@@ -9,6 +9,8 @@ help:
 	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
 	@echo "$$ make ping-agentcore - End-to-end ping: deploy and invoke on Bedrock AgentCore"
+	@echo "$$ make docs-serve - Serve the VitePress documentation site locally"
+	@echo "$$ make docs-build - Build the VitePress documentation site"
 	@echo "$$ make push      - Rebase onto main and push commits to git remote"
 	@echo " ... and you have access to git, uv, ruff and pytest directly as well."
 
@@ -118,6 +120,29 @@ ping-lambda:
 
 ping-agentcore:
 	$(PING_ENV) bash fixtures/shell/ping-agentcore.sh
+
+# Documentation site (VitePress). Node-only targets, namespaced to avoid any
+# collision with the Python toolbox above. The site sources live in
+# documentation/ and build to documentation/.vitepress/dist.
+docs-setup:
+	@echo "Installing documentation site dependencies..."
+	npm ci
+
+docs-serve:
+	@echo "Serving the documentation site locally..."
+	npm run dev
+
+docs-build:
+	@echo "Building the documentation site..."
+	npm run build
+
+docs-preview:
+	@echo "Previewing the built documentation site..."
+	npm run preview
+
+docs-clean:
+	@echo "Removing documentation site build output and cache..."
+	rm -rf documentation/.vitepress/dist documentation/.vitepress/cache
 
 rebase:
 	git pull --rebase origin main
