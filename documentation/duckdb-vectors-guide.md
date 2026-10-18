@@ -75,17 +75,7 @@ Indexing chunks each document, embeds the chunks, and writes them to a DuckDB fi
 
 You can use either the CLI or the python interface.
 
-Two choices matter for the indexation of the content:
-
-- __Chunking__ — the default `MarkdownChunker` splits on headings and windows
-  long sections to about 300 words. Supply your own `Chunker` (any object with
-  `chunk(text, source)`) for other formats or strategies.
-
-- __Embedding__ — `local` (fastembed, offline, 384 dims) is the default and the
-  minimum viable setup for real relevance; `bedrock:titan` embeds through Amazon
-  Bedrock. (`hashing` exists as a deterministic, dependency-free fixture for
-  tests and CI — not for relevance.) The backend identity is folded into each
-  chunk's ETag, so switching backends re-embeds everything correctly.
+Two choices matter for indexing: the __chunker__ that splits documents and the __embedding backend__ that vectorises the chunks. Both default sensibly (`markdown` chunker, `local` embedder) and both are selectable by string — see [Chunkers](#chunkers) and [Embedding backends](#embedding-backends) below. The embedding backend identity is folded into each chunk's ETag, so switching backends re-embeds everything correctly.
 
 Here is an example of indexing with python:
 
@@ -102,11 +92,51 @@ store.close()
 
 - `db_path` — the DuckDB file (default `vectors.duckdb`).
 - `backend` — the embedding backend spec, e.g. `local` or `bedrock:titan` (default `local`).
+- `chunker` — the chunker spec, e.g. `markdown` (default `markdown`).
 - `read_only` — open the file without writing; the serving default (default `false`).
 - `embedder` — pass a ready `Embedder` instance to bypass backend resolution.
 - `settings` — pass a fully-built `Settings` object instead of the individual arguments.
 
-Each argument resolves with the precedence explicit argument > `DUCKDB_VECTORS_*` environment variable > default, so `DUCKDB_VECTORS_DB_PATH`, `DUCKDB_VECTORS_BACKEND`, and `DUCKDB_VECTORS_READ_ONLY` configure the same settings without code changes — handy in a container.
+Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*` environment variable > default, so the same configuration works from code or from the environment — handy in a container:
+
+| Setting | Argument | Environment variable | Default |
+| --- | --- | --- | --- |
+| Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
+| Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `local` |
+| Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
+| Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
+
+### Embedding backends
+
+A backend is resolved from a string — a bare name (`local`) or a `name:variant` pair (`bedrock:titan`). `local` is the default and the minimum viable setup; the registry is contributor-extensible, so you can register an open or closed, local or cloud backend without touching the core:
+
+```python
+from duckdb_vectors import register_embedder
+
+register_embedder("mybackend", lambda variant: MyEmbedder(variant))
+```
+
+| Backend | Spec | Dimensions | Use for |
+| --- | --- | --- | --- |
+| fastembed (ONNX, local) | `local` | 384 | default; real relevance, offline |
+| Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
+| Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
+
+### Chunkers
+
+A chunker is resolved from a string the same way — a bare name (`markdown`) or a `name:variant` pair — selectable by the `chunker` argument or the `DUCKDB_VECTORS_CHUNKER` environment variable. `markdown` is the default. The registry is contributor-extensible, so you can register your own splitter for other formats or strategies without touching the core:
+
+```python
+from duckdb_vectors import register_chunker
+
+register_chunker("mychunker", lambda variant: MyChunker(variant))
+```
+
+| Chunker | Spec | Use for |
+| --- | --- | --- |
+| MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
+
+See the README's [Embedding backends](https://github.com/bernard357/duckdb-vectors#embedding-backends) and [Chunking backends](https://github.com/bernard357/duckdb-vectors#chunking-backends) sections for the same tables at a glance.
 
 Or from the shell:
 
@@ -134,8 +164,7 @@ for hit in store.query("how do retries work?", top_k=5):
     print(f"{hit.score:.4f}  {hit.chunk.source}  {hit.chunk.title}")
 ```
 
-Restrict scope or decay by age with an injected `SELECT` — the ranking SQL
-owns its own `WHERE` and `ORDER BY`:
+Each ranking signal — vector and BM25 — runs a DuckDB `SELECT` that returns `chunk_id` best-first; the store collects the ids and fuses them with RRF. Restrict scope or decay by age by injecting your own `SELECT` — the ranking SQL owns its own `WHERE` and `ORDER BY`:
 
 ```python
 scoped = (
@@ -145,6 +174,10 @@ scoped = (
 )
 hits = store.query("refund window", vector_sql=scoped, text_sql=scoped)
 ```
+
+An injected template uses these substituted tokens: `{table}`, `{distance}` (vector signal only), `{bm25}` (text signal only), and `{top_k}`. The search text is available as the bound parameter `$q`, and these columns are in scope: `metadata`, `source`, `title`, `stamped_at`, `text`.
+
+Overrides can be set once — shared across queries — via `Settings` or the `DUCKDB_VECTORS_VECTOR_SQL` / `DUCKDB_VECTORS_TEXT_SQL` environment variables, or passed per call as above. Precedence is per-call > settings > default; a custom `SELECT` owns its own `WHERE` and supersedes the convenience `filter` dict for that signal. See the README's [Metadata-aware search](https://github.com/bernard357/duckdb-vectors#metadata-aware-search-injectable-ranking-sql) section for more worked examples.
 
 For a quick check from the shell, the `search` verb runs the same hybrid query and prints the ranked hits:
 
