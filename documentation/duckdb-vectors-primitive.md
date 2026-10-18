@@ -1,8 +1,8 @@
 # Technical design
 
 This page explains how `duckdb-vectors` is built: the architecture, the
-building blocks it exposes, and the two surfaces you drive it through — the
-Python API and the command-line interface. 
+building blocks it exposes, and the three surfaces you drive it through — the
+Python SDK, the command-line interface, and an MCP server for agents.
 
 ## Understand container lifecycle {#docker}
 
@@ -49,7 +49,8 @@ The whole component is a thin, deliberate layer over DuckDB:
 ```mermaid
 flowchart TD
     CLI[CLI: index / report / search] --> Store
-    App[Python harness] --> Store
+    App[Python harness: SDK] --> Store
+    MCP[MCP server: stdio] --> Store
     Store[VectorStore] --> Chunker[Chunker]
     Store --> Embedder[Embedder registry]
     Embedder --> Local[local: fastembed]
@@ -67,7 +68,7 @@ flowchart TD
 
 Each block is small and replaceable. You can use the defaults or swap any one.
 
-- __VectorStore__ — the public API. One instance maps to one DuckDB file. It
+- __VectorStore__ — the SDK surface. One instance maps to one DuckDB file. It
   owns the schema, the write path (`put_vectors`, `add_texts`,
   `delete_vectors`), and the read path (`query`, `query_vectors`). Open it
   read-write to build an index, or read-only to serve a frozen one.
@@ -83,7 +84,7 @@ Each block is small and replaceable. You can use the defaults or swap any one.
   and embeds only the chunks whose content changed since the last run (ETag
   reuse), then prunes chunks for files that disappeared.
 - __CLI__ — a thin wrapper over the store and indexer: `index`, `report`,
-  `search`.
+  `search`, and `mcp` (serve retrieval over stdio to an agent).
 
 ## The data model {#data-model}
 
@@ -103,9 +104,9 @@ The store keeps one table, `chunks`, with a fixed-size embedding column:
 
 The `Chunk` and `SearchResult` models are Pydantic classes; a `SearchResult` carries the chunk, the fused score, and the per-signal ranks (`vector_rank`, `text_rank`).
 
-## The API surface {#api-surface}
+## The SDK surface {#sdk-surface}
 
-The S3-Vectors-flavored write and read methods:
+The Python library (SDK) exposes the S3-Vectors-flavored write and read methods. Import `VectorStore` and drive it in-process:
 
 ```python
 from duckdb_vectors import VectorStore
@@ -151,6 +152,47 @@ $ duckdb-vectors search "how do retries work?" --top-k 5
 
 Common options: `--db` (file path), `--backend` (embedder spec), `--top-k`,
 `--recursive` (on `index`), and `--json` (machine-readable output).
+
+## The MCP surface {#mcp-surface}
+
+The third surface turns retrieval into a tool an agent can call over the
+[Model Context Protocol](https://modelcontextprotocol.io). `duckdb-vectors mcp`
+starts a Model Context Protocol server over stdio: it reads JSON-RPC from
+stdin and writes to stdout, so any MCP client — Docker Agent, Claude Desktop,
+Claude Code, Cursor — spawns it as a local subprocess and talks to it
+in-process, with no network and no port. It is the same read-only serving path
+as the SDK and CLI, exposed as callable tools.
+
+```shell
+$ duckdb-vectors mcp                       # serve over stdio (reads a baked index)
+```
+
+The server exposes two read-only tools, backed by a read-only `VectorStore`
+resolved from the usual configuration (`--db` / `--backend` or the
+`DUCKDB_VECTORS_*` environment variables):
+
+| Tool | Does |
+| --- | --- |
+| `search` | Hybrid search for a query string; returns ranked chunks |
+| `report` | Read-only introspection: database path, backend, dimensions, chunk count, sources |
+
+A client wires it in by command, not by discovery. For example, a Docker Agent
+`mcp` toolset points at the command directly:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: duckdb-vectors
+    args: ["mcp"]
+    env:
+      DUCKDB_VECTORS_DB_PATH: /app/vectors.duckdb
+      DUCKDB_VECTORS_READ_ONLY: "true"
+```
+
+See the [Docker Agent guide](docker-agent-guide.md) for a complete, runnable
+integration. Transport is stdio today, which fits the co-located
+subprocess model; a networked (HTTP) transport is a possible future addition
+for cross-container use.
 
 ## How a search is answered {#search-flow}
 
