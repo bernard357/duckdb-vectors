@@ -68,28 +68,7 @@ Adding an embedding backend or a chunker is a great first contribution — the r
 
 ## Documentation
 
-Pick the entry point that matches where you are:
-
-- New to `duckdb-vectors`? Read the [primitive](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-primitive.md)
-  for understanding the architecture and building blocks, then the
-  [guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-vectors-guide.md) for the straightforward developer workflow.
-
-- Building a specific capability? Follow a step-by-step procedure:
-  [RAG answering machine](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md),
-  [LLM wiki to RAG](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md), or
-  [semantic skills search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
-
-- New to DuckDB? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
-
-- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md).
-
-- Deploying on AWS? See the
-  [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md), or the
-  [Lambda guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-guide.md).
-
-- Contributing or developing? Start with [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md),
-  then the [developer workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/developer-workbook.md) for
-  prerequisites, setup, and the full workflow.
+Check [the on-line documentation](https://bernard357.github.io/duckdb-vectors)
 
 ## Configuration
 
