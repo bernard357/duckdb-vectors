@@ -17,11 +17,6 @@ export default withMermaid(
     lang: 'en-US',
     cleanUrls: true,
     lastUpdated: true,
-    // Several pages link to repo files that are not part of the site —
-    // ../README, ../CONTRIBUTING, and ../examples/* (code the reader clones).
-    // These resolve on GitHub/PyPI but are not built pages, so allow them
-    // rather than rewrite the authored prose.
-    ignoreDeadLinks: [/\.\.\/README$/, /\.\.\/CONTRIBUTING$/, /\.\.\/examples\//],
     // Pre-bundle Mermaid's CommonJS dependencies so the Vite dev server
     // resolves their ESM interop; without this the dev page can render blank.
     // The production (Rollup) build already handles this.

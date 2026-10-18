@@ -5,7 +5,7 @@ answers questions about `duckdb-vectors` itself. The agent indexes this very
 `documentation/` folder at build time and serves answers from a frozen,
 read-only index — the canonical build-then-freeze lifecycle.
 
-The runnable assets live in [`examples/docker-agent/`](../examples/docker-agent):
+The runnable assets live in [`examples/docker-agent/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples/docker-agent):
 `agent.py`, `requirements.txt`, and a `Dockerfile`.
 
 ## What you will build {#what}
@@ -59,7 +59,7 @@ def answer(question: str, db_path: str, top_k: int = 5):
         store.close()
 ```
 
-See [`examples/docker-agent/agent.py`](../examples/docker-agent/agent.py) for
+See [`examples/docker-agent/agent.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/agent.py) for
 the full module with a small CLI.
 
 ## Step 2 — index the documentation {#index}
@@ -120,7 +120,7 @@ ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]
 CMD ["what is duckdb-vectors?"]
 ```
 
-See [`examples/docker-agent/Dockerfile`](../examples/docker-agent/Dockerfile).
+See [`examples/docker-agent/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/Dockerfile).
 
 ## Step 5 — build and run the container {#run}
 
