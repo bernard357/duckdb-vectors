@@ -30,3 +30,7 @@ venv/
 node_modules/
 documentation/.vitepress/dist/
 documentation/.vitepress/cache/
+
+# Agent workflow scratch (review artifacts, worktrees)
+.agents/
+.worktrees/
