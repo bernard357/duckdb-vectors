@@ -8,14 +8,6 @@ read-only index — the canonical build-then-freeze lifecycle.
 The runnable assets live in [`examples/docker-agent/`](../examples/docker-agent):
 `agent.py`, `requirements.txt`, and a `Dockerfile`.
 
-- [What you will build](#what)
-- [Step 1 — the agent code](#agent)
-- [Step 2 — index the documentation](#index)
-- [Step 3 — ask a question locally](#query)
-- [Step 4 — the two-stage Dockerfile](#dockerfile)
-- [Step 5 — build and run the container](#run)
-- [Where to go next](#next)
-
 ## What you will build {#what}
 
 A container that, given a question about `duckdb-vectors`, returns the most
@@ -142,12 +134,3 @@ $ docker run --rm duckdb-vectors-agent "how is a search answered?"
 
 The frozen index is inside the image, so the container needs no volume and no
 network to answer.
-
-## Where to go next {#next}
-
-- [docker-agent-workbook.md](docker-agent-workbook.md) — FAQ on image size,
-  backends, refreshing the index, and runtime append
-- [aws-bedrock-agentcore-guide.md](aws-bedrock-agentcore-guide.md) — deploy a
-  container agent on Bedrock AgentCore
-- [setup-rag-procedure.md](setup-rag-procedure.md) — the end-to-end procedure
-  this guide instantiates

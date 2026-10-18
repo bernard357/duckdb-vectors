@@ -1,21 +1,43 @@
-# duckdb-vectors primitive
+# Technical design
 
 This page explains how `duckdb-vectors` is built: the architecture, the
 building blocks it exposes, and the two surfaces you drive it through — the
-Python API and the command-line interface. Read it to understand what the
-component is before the [guide](duckdb-vectors-guide.md) walks you through
-using it.
+Python API and the command-line interface. 
 
-- [Understand the primitive](#overview)
-- [Building blocks](#building-blocks)
-- [The data model](#data-model)
-- [The API surface](#api-surface)
-- [The CLI surface](#cli-surface)
-- [How a search is answered](#search-flow)
-- [Lifecycles](#lifecycles)
-- [Follow-up](#follow-up)
+## Understand container lifecycle {#docker}
 
-## Understand the primitive {#overview}
+A baked-in index makes the container self-contained: no external vector database, no network dependency at query time, and a reproducible artifact that is identical in every environment. The build-then-freeze lifecycle opens the file read-only at run time, which needs no experimental persistence flags because the default ranking is a plain cosine scan.
+
+You can also expand the database during the execution of the container. Open the store read-write at startup and append a registry (for example a set of tools or skills), then search it. A writable DuckDB file is single-writer, so keep writes to one process. For a read-only frozen index, open with `read_only=True`, which also refuses accidental writes. 
+
+Given a search query, the container returns the most
+relevant chunks of text. 
+
+```mermaid
+flowchart LR
+    subgraph build[docker build]
+        Docs[documentation/*.md] --> IndexBuild[index folder]
+        IndexBuild --> DB[(vectors.duckdb)]
+    end
+    subgraph run[docker run]
+        Initialization[start] --> IndexStart[add items] --> Store[VectorStore]
+        Q[search query] --> Store
+        DB --> Store
+        Store --> Hits[ranked chunks]
+    end
+```
+
+
+The solution supports static and dynamic indexing:
+
+- __Build-then-freeze__ — build the index at image-build time, open it
+  read-only at runtime. The container answers from a baked-in file with no
+  external service. See the example [Setup a RAG agent](setup-rag-procedure.md).
+- __Runtime append__ — open the store read-write at harness init and append a
+  registry (for example a set of tools or skills), then search it. See
+  the example [Search over skills](setup-skills-search-procedure.md).
+
+## Understand the architecture {#overview}
 
 `duckdb-vectors` is a small retrieval building block. One DuckDB file is one
 index. You put chunks of text (with metadata) into it, and you query it with a
@@ -80,9 +102,7 @@ The store keeps one table, `chunks`, with a fixed-size embedding column:
 | `stamped_at` | Run timestamp; older stamps are pruned on reindex |
 | `embedding` | `FLOAT[dim]` ARRAY column (HNSW-ready) |
 
-The `Chunk` and `SearchResult` models are Pydantic classes; a `SearchResult`
-carries the chunk, the fused score, and the per-signal ranks (`vector_rank`,
-`text_rank`).
+The `Chunk` and `SearchResult` models are Pydantic classes; a `SearchResult` carries the chunk, the fused score, and the per-signal ranks (`vector_rank`, `text_rank`).
 
 ## The API surface {#api-surface}
 
@@ -118,14 +138,11 @@ store.delete_vectors(["doc:1"])
 store.close()
 ```
 
-For metadata scoping and age decay through an injected `SELECT`, see the
-[developer guide](duckdb-vectors-guide.md#search) and the README section on
-injectable ranking SQL.
+For metadata scoping and age decay through an injected `SELECT`, see the [developer guide](duckdb-vectors-guide.md#search) and the README section on injectable ranking SQL.
 
 ## The CLI surface {#cli-surface}
 
-The CLI covers the three operational verbs and honors the same configuration
-(constructor argument > `DUCKDB_VECTORS_*` env > default):
+The CLI covers the three operational verbs and honors the same configuration (constructor argument > `DUCKDB_VECTORS_*` env > default):
 
 ```shell
 $ duckdb-vectors index ./docs --backend local      # index a folder
@@ -145,22 +162,18 @@ Common options: `--db` (file path), `--backend` (embedder spec), `--top-k`,
 4. The two rankings are fused with Reciprocal Rank Fusion into one ordered
    list, each result carrying its component ranks.
 
-Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is
-deliberately an exact-token match (no stemming) so acronyms and codes are
-found without a language dependency; see the README design note.
+Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is  deliberately an exact-token match (no stemming) so acronyms and codes are found without a language dependency; see the README design note.
 
-## Lifecycles {#lifecycles}
+## What about cold start and latency? {#latency}
 
-- __Build-then-freeze__ — build the index at image-build time, open it
-  read-only at runtime. The container answers from a baked-in file with no
-  external service. See the [Docker guide](docker-agent-guide.md).
-- __Runtime append__ — open the store read-write at harness init and append a
-  registry (for example a set of tools or skills), then search it. See
-  [setup-skills-search-procedure.md](setup-skills-search-procedure.md).
+Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of 384-dim chunks is single-digit to low-tens of milliseconds. With `local` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
 
-## Follow-up {#follow-up}
+## How do I keep the image small? {#image-size}
 
-- [duckdb-vectors-guide.md](duckdb-vectors-guide.md) — the hand-held workflow
-- [duckdb-workbook.md](duckdb-workbook.md) — DuckDB patterns this builds on
-- [setup-rag-procedure.md](setup-rag-procedure.md) — build an answering machine
-- [README](../README.md) — install, quickstart, configuration, alternatives
+- The DuckDB file itself is compact — a few thousand 384-dim chunks is a small
+  number of megabytes.
+- Use a two-stage build: install and index in the builder stage, copy only the
+  agent code and the frozen `.duckdb` into the runtime stage.
+- Prefer `python:3.12-slim` as the base.
+
+

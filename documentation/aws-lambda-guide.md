@@ -5,12 +5,24 @@ function that takes a question as input and returns a grounded answer as
 output. No agentic loop — one retrieval, one Bedrock call, one response. This
 is RAG reduced to a stateless function.
 
-- [What you will build](#what)
-- [Step 1 — bake the index into the image](#index)
-- [Step 2 — the handler](#handler)
-- [Step 3 — package and deploy](#deploy)
-- [Permissions](#permissions)
-- [Follow-up](#follow-up)
+## When should I use Lambda instead of AgentCore? {#vs-agentcore}
+
+Use Lambda when the interaction is a single turn: one question, one retrieval,
+one model call, one answer — no multi-step tool use, no session memory. It is
+the cheapest, simplest shape and scales to zero. Reach for
+[AgentCore](aws-bedrock-agentcore-guide.md) when you need the agentic loop:
+multi-turn sessions, tool orchestration, and managed memory.
+
+## Understand the Lambda pattern {#overview}
+
+[AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) runs a
+function in response to an event and scales to zero when idle. For
+`duckdb-vectors` this is the simplest useful shape: a stateless function that
+takes a question, retrieves grounding chunks from a baked-in index, makes one
+direct Bedrock call to generate an answer, and returns it — no agentic loop, no
+session. The index ships inside the function's container image and is opened
+read-only. This workbook answers the practical questions of packaging and
+operating that function.
 
 ## What you will build {#what}
 
@@ -36,7 +48,7 @@ build time and open it read-only — no writable path needed:
 
 ```dockerfile
 FROM public.ecr.aws/lambda/python:3.12
-RUN pip install duckdb-vectors[local,bedrock]
+RUN pip install duckdb-vectors
 COPY documentation/ ${LAMBDA_TASK_ROOT}/documentation/
 RUN duckdb-vectors index ${LAMBDA_TASK_ROOT}/documentation \
     --db ${LAMBDA_TASK_ROOT}/vectors.duckdb --backend local
@@ -108,17 +120,14 @@ $ aws lambda create-function \
     --timeout 30 --memory-size 1024
 ```
 
-## Permissions {#permissions}
+## What permissions are required? {#permissions}
 
-`duckdb-vectors` reads the baked-in file and needs no AWS permissions. The
-function's __execution role__ must allow the one Bedrock call that generates
-the answer: `bedrock:InvokeModel` on the chosen model (and on the Titan embed
-model too, if you switch to runtime `bedrock:titan` embedding instead of a
-baked local index). Credentials are picked up from the execution context
-through the default boto3 chain.
+`duckdb-vectors` reads a local file and needs no AWS permissions. The function's execution role needs `bedrock:InvokeModel` on the answer model (and on the Titan embed model if you use it). Credentials come from the execution context via the default boto3 chain — the same inherit-from-the-role model used on AgentCore, ECS, and EC2.
 
-## Follow-up {#follow-up}
 
-- [aws-lambda-workbook.md](aws-lambda-workbook.md) — FAQ for the Lambda pattern
-- [aws-bedrock-agentcore-guide.md](aws-bedrock-agentcore-guide.md) — the agentic AWS path
-- [setup-rag-procedure.md](setup-rag-procedure.md) — the full RAG procedure
+## How do I keep cold starts low? {#cold-start}
+
+- Open the `VectorStore` at module scope so it is created once per execution
+  environment and reused across warm invocations.
+- Keep `memory-size` generous enough — more memory also means more CPU, which
+  speeds both the model load and the scan.

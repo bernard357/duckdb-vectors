@@ -1,127 +1,10 @@
 # Developer workbook
 
-A FAQ for developing and contributing to `duckdb-vectors` itself: prerequisites,
+Questions and answers for contributors to the `duckdb-vectors` project: prerequisites,
 setup, the Makefile workflow, testing, project principles, and how changes land.
-For a quick fit-check and the welcome, see
-[CONTRIBUTING.md](../CONTRIBUTING.md); for using the package, see the
-[guide](duckdb-vectors-guide.md) and [primitive](duckdb-vectors-primitive.md).
 
-- [Understand developing duckdb-vectors](#overview)
-- [Glossary](#glossary)
-- [What are the prerequisites?](#prerequisites)
-- [How do I set up a development environment?](#setup)
-- [What does each Makefile target do?](#makefile)
-- [Where do the pings put build output?](#out)
-- [How do I run the tests?](#tests)
-- [What does the lint cover?](#lint)
-- [What are good first contributions?](#first-contributions)
-- [What principles should a change follow?](#principles)
-- [How do I add an embedding backend?](#backend)
-- [How do I add a chunker?](#chunker)
-- [What are the documentation conventions?](#docs-conventions)
-- [How do I open a good pull request?](#pull-request)
-- [How do I report an issue?](#issues)
-- [Follow-up](#follow-up)
-
-## Understand developing duckdb-vectors {#overview}
-
-`duckdb-vectors` is a small, deliberately scoped retrieval building block. The
-development loop is correspondingly simple: a [uv](https://docs.astral.sh/uv/)-managed
-virtual environment, [Ruff](https://docs.astral.sh/ruff/) for linting and
-formatting, [pytest](https://docs.pytest.org/) for tests, and a `Makefile` that
-wraps the common tasks. This workbook answers the questions a developer or
-contributor asks when getting the project running and landing a change.
-
-## Glossary {#glossary}
-
-- uv — the Python package and environment manager used for the venv, installs,
-  and builds
-- Ruff — the linter and formatter for Python code
-- extra — an optional dependency group in `pyproject.toml` (`local`, `bedrock`,
-  `cli`, `dev`)
-- hashing backend — a deterministic, dependency-free embedder used by the tests
-- `.venv` — the project virtual environment created by `make setup`
-
-## What are the prerequisites? {#prerequisites}
-
-Install these before running `make setup`. The first three are genuine
-prerequisites `make setup` cannot install for you; it checks they are present
-and installs the rest.
-
-| Tool | Why | How to install |
-| --- | --- | --- |
-| [Python](https://www.python.org/) 3.12+ | Runs the package and the tests | python.org, pyenv, or your package manager |
-| [uv](https://docs.astral.sh/uv/) | Creates the venv, installs deps, builds | `curl -LsSf https://astral.sh/uv/install.sh \| sh` or `brew install uv` |
-| [Docker](https://docs.docker.com/get-docker/) | Builds and runs the example container agents | Docker Desktop, or your package manager |
-| [Node.js](https://nodejs.org/) + npm | Provides markdownlint-cli for Markdown linting | nodejs.org, nvm, or your package manager |
-| [hadolint](https://github.com/hadolint/hadolint) | Lints the example Dockerfiles | Per your platform — see the [hadolint install guide](https://github.com/hadolint/hadolint#install) (binary release, `hadolint/hadolint` Docker image, or a native package) |
-
-Ruff and pytest are not prerequisites — `make setup` installs them into the
-virtual environment via the `[dev]` extra.
-
-## How do I set up a development environment? {#setup}
-
-```shell
-$ git clone https://github.com/bernard357/duckdb-vectors.git
-$ cd duckdb-vectors
-$ make setup   # checks prerequisites, creates the venv, installs tooling
-```
-
-`make setup` runs `check-prerequisites`, then `setup-python` (uv venv + the
-package with all extras) and `setup-markdownlint` (npm). `setup-hadolint`
-checks whether hadolint is present and, if not, points you at the official
-install guide — hadolint has no pip or npm package, so install it for your
-platform (binary release, Docker image, or a native package). Run `make
-setup-python` for just the Python environment if you manage the linters
-yourself.
-
-## What does each Makefile target do? {#makefile}
-
-Run `make` with no target to list them. The essentials:
-
-- `make setup` — check prerequisites, create the `.venv`, install tooling
-- `make lint` — Ruff, mypy, Markdown, and Dockerfile checks
-- `make test` — the pytest suite
-- `make format` — apply Ruff formatting
-- `make build` — build the wheel and sdist with uv
-- `make clean` — remove build artifacts and caches (including `*.out`)
-- `make ping-docker` / `make ping-lambda` / `make ping-agentcore` —
-  end-to-end functional pings (see [Where do the pings put build output?](#out))
-- `make push` — rebase onto `main`, then push
-
-## Where do the pings put build output? {#out}
-
-Transient build output goes in `*.out` directories (for example
-`ping-agentcore.out/`), never in a tracked path. The AgentCore ping assembles
-its deployable agent — the entrypoint, the locally built wheel, the
-documentation copy, and the Titan-embedded index — into `ping-agentcore.out/`
-and deploys from there, so the committed `examples/agentcore-rag-agent/`
-template is never mutated. `*.out` is gitignored and removed by `make clean`.
-Use the same convention for any new transient output: name the directory
-`{name}.out` rather than writing scratch into a tracked folder.
-
-## How do I run the tests? {#tests}
-
-```shell
-$ make test        # pytest -q
-```
-
-The suite uses the dependency-free `hashing` backend, so it needs no model
-download and no network and runs in a few seconds. Add a test for any behavior
-you change or add; the suite under `tests/` shows the patterns (temp-file
-DuckDB fixtures, deterministic embeddings).
-
-## What does the lint cover? {#lint}
-
-```shell
-$ make lint        # ruff check + ruff format --check + mypy, markdownlint, hadolint
-```
-
-Python (Ruff lint and format, plus mypy type checking over `src/duckdb_vectors`
-via `[tool.mypy]`), Markdown (markdownlint via `.markdownlint.json`), and
-Dockerfiles (hadolint via `.hadolint.yaml`). mypy verifies the type annotations
-the package ships behind its `py.typed` marker. Use `make format` to apply
-Python formatting. All checks should pass before you open a pull request.
+You may also look at the
+[User guide](duckdb-vectors-guide.md) and at the [Technical design](duckdb-vectors-primitive.md) for more information.
 
 ## What are good first contributions? {#first-contributions}
 
@@ -173,13 +56,8 @@ Documentation lives in `documentation/`, GitHub-Flavored Markdown with mermaid
 (no ASCII art), ATX sentence-case headers, and fenced code blocks. Two naming
 conventions keep the set expandable:
 
-- __Platform pages carry a provider prefix__ — `aws-bedrock-agentcore-guide.md`,
-  `aws-lambda-workbook.md`. Other platforms follow the same shape with their
-  own prefix (`gcp-`, `azure-`, `modal-`), typically a `-guide.md`
-  (teach-by-example) and a `-workbook.md` (FAQ) pair.
-- __Use-case pages are step-by-step procedures__ named
-  `setup-{capability}-procedure.md`. One page per use case keeps the set
-  growing without inflating any single page.
+- __Platform pages carry a provider prefix__ — `aws-bedrock-agentcore-guide.md`. Other platforms follow the same shape with their own prefix (`gcp-`, `azure-`, `modal-`), typically a `-guide.md` (teach-by-example) and a -workbook.md` (FAQ) pair.
+- __Use-case pages are step-by-step procedures__ named `setup-{capability}-procedure.md`. One page per use case keeps the set growing without inflating any single page.
 
 ## How do I open a good pull request? {#pull-request}
 
@@ -196,9 +74,65 @@ Open an issue with what you expected and what happened, a minimal snippet or
 steps to reproduce, and your Python version plus how the store was configured
 (backend, read-only).
 
-## Follow-up {#follow-up}
+## What are the prerequisites? {#prerequisites}
 
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — welcome and fit-check
-- [duckdb-vectors-guide.md](duckdb-vectors-guide.md) — the usage workflow
-- [duckdb-vectors-primitive.md](duckdb-vectors-primitive.md) — the architecture
-- [duckdb-workbook.md](duckdb-workbook.md) — the DuckDB patterns underneath
+Install these before running `make setup`. The first three are genuine
+prerequisites `make setup` cannot install for you; it checks they are present
+and installs the rest.
+
+| Tool | Why | How to install |
+| --- | --- | --- |
+| [Python](https://www.python.org/) 3.12+ | Runs the package and the tests | python.org, pyenv, or your package manager |
+| [uv](https://docs.astral.sh/uv/) | Creates the venv, installs deps, builds | `curl -LsSf https://astral.sh/uv/install.sh \| sh` or `brew install uv` |
+| [Docker](https://docs.docker.com/get-docker/) | Builds and runs the example container agents | Docker Desktop, or your package manager |
+| [Node.js](https://nodejs.org/) + npm | Provides markdownlint-cli for Markdown linting | nodejs.org, nvm, or your package manager |
+| [hadolint](https://github.com/hadolint/hadolint) | Lints the example Dockerfiles | Per your platform — see the [hadolint install guide](https://github.com/hadolint/hadolint#install) (binary release, `hadolint/hadolint` Docker image, or a native package) |
+
+Ruff and pytest are not prerequisites — `make setup` installs them into the
+virtual environment via the `[dev]` extra.
+
+## What does each Makefile target do? {#makefile}
+
+The `Makefile` consolidates the most frequent commands used throughout this project. Run `make` with no target to list them. The essentials:
+
+- `make setup` — check prerequisites, create the `.venv`, install tooling
+- `make lint` — Ruff, mypy, Markdown, and Dockerfile checks
+- `make test` — the pytest suite
+- `make format` — apply Ruff formatting
+- `make push` — rebase onto `main`, then push
+- `make build` — build the wheel and sdist with uv
+- `make clean` — remove build artifacts and caches (including `*.out`)
+
+## How do I set up a development environment? {#setup}
+
+```shell
+$ git clone https://github.com/bernard357/duckdb-vectors.git
+$ cd duckdb-vectors
+$ make setup   # checks prerequisites, creates the venv, installs tooling
+```
+
+`make setup` runs `check-prerequisites`, then `setup-python` (uv venv + the package with all extras) and `setup-markdownlint` (npm). `setup-hadolint` checks whether hadolint is present and, if not, points you at the official install guide — hadolint has no pip or npm package, so install it for your platform (binary release, Docker image, or a native package). Run `make setup-python` for just the Python environment if you manage the linters yourself.
+
+## What does the lint cover? {#lint}
+
+```shell
+$ make lint        # ruff check + ruff format --check + mypy, markdownlint, hadolint
+```
+
+Python (Ruff lint and format, plus mypy type checking over `src/duckdb_vectors`
+via `[tool.mypy]`), Markdown (markdownlint via `.markdownlint.json`), and
+Dockerfiles (hadolint via `.hadolint.yaml`). mypy verifies the type annotations
+the package ships behind its `py.typed` marker. Use `make format` to apply
+Python formatting. All checks should pass before you open a pull request.
+
+## How do I run the tests? {#tests}
+
+```shell
+$ make test        # pytest -q
+```
+
+The suite uses the dependency-free `hashing` backend, so it needs no model
+download and no network and runs in a few seconds. Add a test for any behavior
+you change or add; the suite under `tests/` shows the patterns (temp-file
+DuckDB fixtures, deterministic embeddings).
+

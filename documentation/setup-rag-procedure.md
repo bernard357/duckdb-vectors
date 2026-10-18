@@ -1,22 +1,13 @@
-# Setup RAG procedure
+# Turn an existing markdown folder into a RAG agentic capability
 
-A step-by-step procedure to build an answering machine over your own documents
-with `duckdb-vectors` — the "answering-machine-on-duckdb-vectors" used in the
-guides. Follow the steps in order; each is a concrete action you can replay.
-
-- [Step 1 — get chunkable documents](#step-1)
-- [Step 2 — gather them in one place](#step-2)
-- [Step 3 — chunk and index](#step-3)
-- [Step 4 — integrate in local software](#step-4)
-- [Step 5 — package a container with the database](#step-5)
-- [Step 6 — release a container with the agent and the database](#step-6)
+Here we build an answering machine over your own documents with `duckdb-vectors`. Follow the steps in order; each is a concrete action you can replay.
 
 ## Step 1 — get chunkable documents {#step-1}
 
 `duckdb-vectors` chunks markdown first-class, because the default chunker splits
 on headings. Convert other sources to markdown before indexing:
 
-- Already markdown (docs, wikis, READMEs): use as-is.
+- Already markdown (documentation, wikis, READMEs): use as-is.
 - HTML or web pages: convert to markdown (for example with a reader/clipper).
 - PDFs and scans: run OCR, then convert the text to markdown; keep headings so
   the chunker can split on them.
@@ -30,7 +21,7 @@ words — that granularity embeds well and keeps retrieved chunks focused.
 Collect the markdown in a single folder that will be the index input:
 
 ```text
-docs/
+documentation/
   getting-started.md
   architecture.md
   faq/billing.md
@@ -45,7 +36,7 @@ Index the folder into a DuckDB file. Choose a chunking strategy and an
 embedding backend:
 
 ```shell
-$ duckdb-vectors index ./docs --recursive --backend local
+$ duckdb-vectors index ./documentation --recursive --backend local
 ```
 
 - __Chunking options.__ The default `MarkdownChunker` splits on headings and
@@ -63,7 +54,7 @@ Confirm the result:
 $ duckdb-vectors report
 ```
 
-## Step 4 — integrate in local software {#step-4}
+## Step 4 — integrate in agentic software {#step-4}
 
 Use the Python API against the local `.duckdb` file. Open read-only for
 serving, retrieve per request, and hand the chunks to your LLM:
@@ -81,7 +72,7 @@ def answer(question: str) -> str:
     return context
 ```
 
-At this point you have a working RAG retrieval layer in local software.
+At this point you have a working RAG retrieval layer in python.
 
 ## Step 5 — package a container with the database {#step-5}
 
@@ -91,13 +82,13 @@ index in a builder stage and copy only the frozen file into the runtime stage:
 ```dockerfile
 FROM python:3.12-slim AS builder
 WORKDIR /build
-RUN pip install "duckdb-vectors[local,cli]"
-COPY docs/ ./docs/
-RUN duckdb-vectors index ./docs --recursive --backend local --db /build/vectors.duckdb
+RUN pip install "duckdb-vectors"
+COPY documentation/ ./documentation/
+RUN duckdb-vectors index ./documentation --recursive --backend local --db /build/vectors.duckdb
 
 FROM python:3.12-slim AS runtime
 WORKDIR /app
-RUN pip install "duckdb-vectors[local]"
+RUN pip install "duckdb-vectors"
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
 ENV DUCKDB_VECTORS_READ_ONLY=true

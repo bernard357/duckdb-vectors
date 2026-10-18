@@ -1,6 +1,6 @@
 """Local ONNX embedding backend powered by fastembed.
 
-Installed via the ``local`` extra (``pip install duckdb-vectors[local]``).
+fastembed ships with the base install (``pip install duckdb-vectors``).
 fastembed runs ONNX models with no torch dependency, keeping container images
 small and cold starts fast. The default model ``BAAI/bge-small-en-v1.5``
 produces 384-dimension vectors — well within the 512-dimension budget.
@@ -34,7 +34,7 @@ class LocalEmbedder:
             except ImportError as exc:  # pragma: no cover - import guard
                 raise ImportError(
                     "The 'local' backend requires fastembed. Install it with "
-                    "'pip install duckdb-vectors[local]'."
+                    "'pip install duckdb-vectors'."
                 ) from exc
             self._model = TextEmbedding(model_name=self._model_name)
         return self._model

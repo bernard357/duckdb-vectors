@@ -10,7 +10,7 @@ __A frugal, embeddable semantic-search building block for agentic systems — hy
 
 ## Use cases
 
-`duckdb-vectors` is a nimble building block that has been designed for following use cases:
+`duckdb-vectors` has been designed for following use cases:
 
 - __Retrieval-Augmented Generation (RAG) powered by thousands of static documents__ — You do not see the need for an external vector store or knowledge base. You prefer a composable toolchain over fat frameworks. You are looking for extremely fast responses. [Turn an existing markdown folder into a RAG agentic capability](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md).
 
@@ -81,14 +81,11 @@ Pick the entry point that matches where you are:
 
 - New to DuckDB? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
 
-- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md)
-  and its [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-workbook.md).
+- Packaging an agent? See the [Docker agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md).
 
 - Deploying on AWS? See the
-  [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md) and
-  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-workbook.md), or the
-  [Lambda guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-guide.md) and
-  [FAQ](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-workbook.md).
+  [Bedrock AgentCore guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-bedrock-agentcore-guide.md), or the
+  [Lambda guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/aws-lambda-guide.md).
 
 - Contributing or developing? Start with [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md),
   then the [developer workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/developer-workbook.md) for

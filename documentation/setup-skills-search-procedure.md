@@ -1,17 +1,9 @@
-# Setup skills-search procedure
+# Add a registry of hundreds of skills selected by semantic search
 
-A step-by-step procedure to expose a folder of agent skills to an agent through
+Here we expose a folder of agent skills to an agent through
 semantic search. Instead of listing every skill in the prompt, the agent
 searches a `duckdb-vectors` index and selects the few skills relevant to the
 task — scaling to hundreds of skills without inflating context.
-
-- [Why search skills instead of listing them](#why)
-- [Step 1 — gather the skills](#step-1)
-- [Step 2 — index skill descriptions](#step-2)
-- [Step 3 — expose a selection tool](#step-3)
-- [Step 4 — wire the tool into the agent](#step-4)
-- [Step 5 — runtime append for dynamic skills](#step-5)
-- [Follow-up](#follow-up)
 
 ## Why search skills instead of listing them {#why}
 
@@ -105,9 +97,3 @@ store.add_texts(ids=[...], texts=[...], metadatas=[...])
 
 Keep writes to one process — a DuckDB file is single-writer. For a fixed skill
 set, prefer indexing once at build time and opening read-only.
-
-## Follow-up {#follow-up}
-
-- [setup-rag-procedure.md](setup-rag-procedure.md) — the document-RAG procedure
-- [duckdb-vectors-guide.md](duckdb-vectors-guide.md) — harness integration
-- [examples/skill_registry.py](../examples/skill_registry.py) — a runnable registry

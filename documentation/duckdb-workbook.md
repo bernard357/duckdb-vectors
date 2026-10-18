@@ -1,23 +1,6 @@
 # DuckDB workbook
 
-A Q&A reference for the DuckDB patterns `duckdb-vectors` relies on. It explains
-the engine underneath the component so you can reason about performance,
-extend the ranking SQL, or query the index directly.
-
-This page is adapted from the DuckDB workbook of the Hermione project, with
-project-specific material (DuckLake, DynamoDB bridges, Lambda-bundle
-constraints, S3 ETag staging) removed and the content refocused on embedded
-vector search.
-
-- [Understand DuckDB](#overview)
-- [Glossary](#glossary)
-- [How to query data?](#querying)
-- [How to parse Markdown with DuckDB?](#markdown)
-- [How to perform vector search?](#vector-search)
-- [How to add an exact-token BM25 index?](#bm25)
-- [How to open a read-only database?](#read-only)
-- [How to troubleshoot DuckDB issues?](#troubleshooting)
-- [Follow-up](#follow-up)
+Questions and answers about DuckDB, the stepping stone component for `duckdb-vectors`. It explains the engine underneath the component so you can reason about performance, extend the ranking SQL, or query the index directly.
 
 ## Understand DuckDB {#overview}
 
@@ -195,4 +178,4 @@ store does this for you.
 - [VSS extension](https://duckdb.org/docs/stable/core_extensions/vss)
 - [FTS extension](https://duckdb.org/docs/stable/core_extensions/full_text_search)
 - [markdown extension](https://github.com/teaguesterling/duckdb_markdown)
-- [duckdb-vectors-primitive.md](duckdb-vectors-primitive.md) — how the component uses these patterns
+- [The archduckdb-vectors-primitive.md](duckdb-vectors-primitive.md) — how the component uses these patterns

@@ -1,17 +1,9 @@
-# Setup LLM-wiki-to-RAG procedure
+# Leverage an LLM-managed wiki into an agent
 
-A step-by-step procedure to turn an LLM-maintained wiki into an answering
+Here we turn an LLM-maintained wiki into an answering
 machine with `duckdb-vectors`. This positions the component downstream of the
 LLM Wiki pattern: the wiki is kept current by an LLM, and `duckdb-vectors`
 makes it searchable at agent scale.
-
-- [Background: the LLM Wiki pattern](#background)
-- [Where duckdb-vectors fits](#fit)
-- [Step 1 — point at the wiki pages](#step-1)
-- [Step 2 — index the wiki](#step-2)
-- [Step 3 — keep the index current](#step-3)
-- [Step 4 — serve answers](#step-4)
-- [Follow-up](#follow-up)
 
 ## Background: the LLM Wiki pattern {#background}
 
@@ -95,9 +87,3 @@ for hit in hits:
 The result: the LLM keeps the wiki rich and current; `duckdb-vectors` turns
 that living wiki into fast, grounded answers — a compounding knowledge base
 with an answering machine on top.
-
-## Follow-up {#follow-up}
-
-- [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
-- [setup-rag-procedure.md](setup-rag-procedure.md) — the general RAG procedure
-- [duckdb-vectors-guide.md](duckdb-vectors-guide.md) — the workflow in depth

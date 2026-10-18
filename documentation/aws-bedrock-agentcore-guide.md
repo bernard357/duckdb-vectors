@@ -1,31 +1,18 @@
 # AWS Bedrock AgentCore guide
 
-A teach-by-example walk-through: build an agent that answers questions about
-`duckdb-vectors`, bake the documentation index into it, and deploy it on Amazon
-Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the
-[Docker agent guide](docker-agent-guide.md) but targets the managed AgentCore
-runtime instead of a plain container.
+A teach-by-example walk-through: build an agent that answers questions about `duckdb-vectors`, bake the documentation index into it, and deploy it on Amazon Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the [Docker agent guide](docker-agent-guide.md) but targets the managed AgentCore runtime instead of a plain container.
 
-Verified against the AgentCore starter toolkit quickstart; command names and
-flags can evolve, so cross-check the
-[AgentCore documentation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/)
-before a production deploy.
+## Understand AgentCore deployment {#overview}
 
-- [What you will build](#what)
-- [Step 1 — install the toolkit](#install)
-- [Step 2 — bake the index](#index)
-- [Step 3 — the agent entrypoint](#entrypoint)
-- [Step 4 — configure, deploy, invoke](#deploy)
-- [Permissions](#permissions)
-- [Follow-up](#follow-up)
+[Amazon Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/) is a managed runtime for AI agents: you supply an entrypoint, and the service runs the harness loop, provides the execution role, memory, and observability, and hosts the deployed artifact. `duckdb-vectors` fits inside that artifact as a local, read-only search index — retrieval runs in-process, and the only cloud calls are the model calls the agent makes to generate answers. This workbook answers the questions specific to that deployment: where the index lives, how permissions reach it, and when to embed locally versus in the cloud.
+
+## How does this differ from a plain container? {#vs-container}
+
+The `duckdb-vectors` usage is identical — open read-only, `query`, feed the model. What differs is the harness and deployment: AgentCore provides the managed runtime, the entrypoint contract (`@app.entrypoint`), the execution role, memory options, and observability, and the toolkit builds and deploys the artifact for you. A plain container (see the [Docker agent guide](docker-agent-guide.md)) gives you more control and runs anywhere, at the cost of operating the runtime yourself.
 
 ## What you will build {#what}
 
-An AgentCore Runtime agent whose answers are grounded in the `duckdb-vectors`
-documentation. The index is embedded in the deployment artifact; at request
-time the agent retrieves relevant chunks with `duckdb-vectors` and lets the
-model (through Strands Agents) write the answer. `duckdb-vectors` does
-retrieval; AgentCore runs the harness loop.
+An AgentCore Runtime agent whose answers are grounded in the `duckdb-vectors` documentation. The index is embedded in the deployment artifact; at request time the agent retrieves relevant chunks with `duckdb-vectors` and lets the model (through Strands Agents) write the answer. `duckdb-vectors` does retrieval; AgentCore runs the harness loop.
 
 ```mermaid
 flowchart LR
@@ -45,7 +32,7 @@ Strands, and the starter toolkit:
 
 ```shell
 $ pip install bedrock-agentcore strands-agents bedrock-agentcore-starter-toolkit
-$ pip install duckdb-vectors[local]
+$ pip install duckdb-vectors
 $ agentcore --help
 ```
 
@@ -94,7 +81,7 @@ if __name__ == "__main__":
     app.run()
 ```
 
-List `duckdb-vectors[local]`, `bedrock-agentcore`, and `strands-agents` in the
+List `duckdb-vectors`, `bedrock-agentcore`, and `strands-agents` in the
 agent's `requirements.txt`.
 
 ## Step 4 — configure, deploy, invoke {#deploy}
@@ -108,27 +95,16 @@ $ agentcore deploy                          # builds and deploys to AWS
 $ agentcore invoke '{"prompt": "how is a search answered?"}'
 ```
 
-`agentcore deploy` prints the agent ARN and the CloudWatch log location. Use
-`agentcore status` to confirm resources are provisioned, and the AWS SDK
-`invoke_agent_runtime` operation to call the agent programmatically.
+`agentcore deploy` prints the agent ARN and the CloudWatch log location. Use `agentcore status` to confirm resources are provisioned, and the AWS SDK `invoke_agent_runtime` operation to call the agent programmatically.
 
-## Permissions {#permissions}
+## What permissions does duckdb-vectors need? {#permissions}
 
-`duckdb-vectors` reads a local file inside the runtime; it needs no AWS
-permissions of its own for the index. Permissions come from the agent's
-__execution role__, which the toolkit provisions:
+None of its own for reading the baked-in index — it reads a local file. All AWS permissions are __inherited from the execution context__ of the container that AgentCore runs: the agent's execution role, which the starter toolkit provisions during `agentcore configure` / `deploy`.
 
-- The Bedrock model calls (made by Strands) need `bedrock:InvokeModel` on the
-  chosen model.
-- If you use the `bedrock:titan` embedder at runtime instead of baking a local
-  index, the execution role also needs `bedrock:InvokeModel` on the Titan embed
-  model.
+That means `duckdb-vectors` makes no assumption about credentials. When a part of the agent needs AWS access, it uses the ambient role:
 
-See the [AgentCore workbook](aws-bedrock-agentcore-workbook.md) for how the
-execution context supplies these permissions.
+- The model calls that generate answers need `bedrock:InvokeModel` on the model.
+- If you embed at runtime with `bedrock:titan`, the embedder's boto3 client uses the same ambient role, which must   allow `bedrock:InvokeModel` on the Titan embed model. You can also pass an   explicit boto3 `session` to the embedder if you need different credentials.
 
-## Follow-up {#follow-up}
+This inherit-from-execution-context model is the same on any AWS compute (AgentCore, Lambda, ECS, EC2): grant the role, and `duckdb-vectors` picks up credentials through the default boto3 chain.
 
-- [aws-bedrock-agentcore-workbook.md](aws-bedrock-agentcore-workbook.md) — FAQ
-- [docker-agent-guide.md](docker-agent-guide.md) — the plain-container version
-- [AgentCore documentation](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/)

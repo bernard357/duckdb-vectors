@@ -1,1 +1,1 @@
-duckdb-vectors[local]
+duckdb-vectors

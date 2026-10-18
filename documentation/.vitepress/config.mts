@@ -41,38 +41,16 @@ export default withMermaid(
       ],
       sidebar: [
         {
-          text: 'Overview',
+          text: 'Start here',
           items: [
-            { text: 'The primitive', link: '/duckdb-vectors-primitive' },
             { text: 'User guide', link: '/duckdb-vectors-guide' },
+            { text: 'Technical design', link: '/duckdb-vectors-primitive' },
+            { text: 'How DuckDB is used', link: '/duckdb-workbook' },
+            { text: 'Developer workbook', link: '/developer-workbook' },
           ],
         },
         {
-          text: 'Guides',
-          items: [
-            { text: 'Docker agent', link: '/docker-agent-guide' },
-            { text: 'AWS Lambda', link: '/aws-lambda-guide' },
-            {
-              text: 'AWS Bedrock AgentCore',
-              link: '/aws-bedrock-agentcore-guide',
-            },
-          ],
-        },
-        {
-          text: 'Workbooks',
-          items: [
-            { text: 'DuckDB', link: '/duckdb-workbook' },
-            { text: 'Developer', link: '/developer-workbook' },
-            { text: 'Docker agent', link: '/docker-agent-workbook' },
-            { text: 'AWS Lambda', link: '/aws-lambda-workbook' },
-            {
-              text: 'AWS Bedrock AgentCore',
-              link: '/aws-bedrock-agentcore-workbook',
-            },
-          ],
-        },
-        {
-          text: 'Procedures',
+          text: 'Use cases',
           items: [
             { text: 'Set up a RAG agent', link: '/setup-rag-procedure' },
             {
@@ -82,6 +60,22 @@ export default withMermaid(
             {
               text: 'Search over skills',
               link: '/setup-skills-search-procedure',
+            },
+          ],
+        },
+        {
+          text: 'Harnessing guides',
+          items: [
+            { text: 'Docker agent', link: '/docker-agent-guide' },
+          ],
+        },
+        {
+          text: 'Deployment guides',
+          items: [
+            { text: 'AWS Lambda', link: '/aws-lambda-guide' },
+            {
+              text: 'AWS Bedrock AgentCore',
+              link: '/aws-bedrock-agentcore-guide',
             },
           ],
         },

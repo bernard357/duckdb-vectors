@@ -14,7 +14,7 @@ RUN duckdb-vectors index ./docs --db /build/vectors.duckdb --backend local
 FROM python:3.12-slim AS runtime
 WORKDIR /app
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
-RUN pip install --no-cache-dir "duckdb-vectors[local]"
+RUN pip install --no-cache-dir "duckdb-vectors"
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
 ENV DUCKDB_VECTORS_BACKEND=local
 ENV DUCKDB_VECTORS_READ_ONLY=true
