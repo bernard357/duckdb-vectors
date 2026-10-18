@@ -178,4 +178,4 @@ store does this for you.
 - [VSS extension](https://duckdb.org/docs/stable/core_extensions/vss)
 - [FTS extension](https://duckdb.org/docs/stable/core_extensions/full_text_search)
 - [markdown extension](https://github.com/teaguesterling/duckdb_markdown)
-- [The archduckdb-vectors-primitive.md](duckdb-vectors-primitive.md) — how the component uses these patterns
+- [The technical design of `duckdb-vectors`](duckdb-vectors-primitive.md) — how the package is making good use of DuckDB capabilities

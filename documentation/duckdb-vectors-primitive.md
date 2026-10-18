@@ -27,7 +27,6 @@ flowchart LR
     end
 ```
 
-
 The solution supports static and dynamic indexing:
 
 - __Build-then-freeze__ — build the index at image-build time, open it
@@ -175,5 +174,3 @@ Total query latency is the query embedding plus the ranking scan. The scan over 
 - Use a two-stage build: install and index in the builder stage, copy only the
   agent code and the frozen `.duckdb` into the runtime stage.
 - Prefer `python:3.12-slim` as the base.
-
-

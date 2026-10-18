@@ -135,4 +135,3 @@ The suite uses the dependency-free `hashing` backend, so it needs no model
 download and no network and runs in a few seconds. Add a test for any behavior
 you change or add; the suite under `tests/` shows the patterns (temp-file
 DuckDB fixtures, deterministic embeddings).
-

@@ -124,7 +124,6 @@ $ aws lambda create-function \
 
 `duckdb-vectors` reads a local file and needs no AWS permissions. The function's execution role needs `bedrock:InvokeModel` on the answer model (and on the Titan embed model if you use it). Credentials come from the execution context via the default boto3 chain — the same inherit-from-the-role model used on AgentCore, ECS, and EC2.
 
-
 ## How do I keep cold starts low? {#cold-start}
 
 - Open the `VectorStore` at module scope so it is created once per execution

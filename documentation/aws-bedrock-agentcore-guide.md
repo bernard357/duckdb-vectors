@@ -107,4 +107,3 @@ That means `duckdb-vectors` makes no assumption about credentials. When a part o
 - If you embed at runtime with `bedrock:titan`, the embedder's boto3 client uses the same ambient role, which must   allow `bedrock:InvokeModel` on the Titan embed model. You can also pass an   explicit boto3 `session` to the embedder if you need different credentials.
 
 This inherit-from-execution-context model is the same on any AWS compute (AgentCore, Lambda, ECS, EC2): grant the role, and `duckdb-vectors` picks up credentials through the default boto3 chain.
-
