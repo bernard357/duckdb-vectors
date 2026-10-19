@@ -63,6 +63,12 @@ export default withMermaid(
           items: [
             { text: 'Containerized agent', link: '/containerized-agent-guide' },
             { text: 'Docker Agent', link: '/docker-agent-guide' },
+            { text: 'LangChain', link: '/langchain-guide' },
+            { text: 'LangGraph', link: '/langgraph-guide' },
+            { text: 'Hermes', link: '/hermes-guide' },
+            { text: 'n8n', link: '/n8n-guide' },
+            { text: 'Strands Agents', link: '/strands-agent-guide' },
+            { text: 'Pydantic AI', link: '/pydantic-ai-guide' },
           ],
         },
         {
@@ -72,6 +78,10 @@ export default withMermaid(
             {
               text: 'AWS Bedrock AgentCore',
               link: '/aws-bedrock-agentcore-guide',
+            },
+            {
+              text: 'Agent sandbox on Kubernetes',
+              link: '/agent-sandbox-kubernetes-guide',
             },
           ],
         },
