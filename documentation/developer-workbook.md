@@ -6,14 +6,14 @@ setup, the Makefile workflow, testing, project principles, and how changes land.
 You may also look at the
 [User guide](duckdb-vectors-guide.md) and at the [Technical design](duckdb-vectors-primitive.md) for more information.
 
-## What are good first contributions? {#first-contributions}
+## What are good first contributions?
 
 You do not need to understand the whole codebase to help:
 
 - __Add an embedding backend__ — the main extension point; see
-  [below](#backend).
+  [below](#how-do-i-add-an-embedding-backend).
 - __Add a chunker__ — for a format not covered well yet; see
-  [below](#chunker).
+  [below](#how-do-i-add-a-chunker).
 - __Improve the docs__ — clarify a page, add a worked example under
   `examples/`, or document a pattern.
 - __Share a ranking recipe__ — a neat injectable `vector_sql` / `text_sql` for
@@ -22,7 +22,7 @@ You do not need to understand the whole codebase to help:
 
 If unsure where to start, open an issue describing what you want to do.
 
-## What principles should a change follow? {#principles}
+## What principles should a change follow?
 
 Contributions land fastest when they fit the project's shape:
 
@@ -35,7 +35,7 @@ Contributions land fastest when they fit the project's shape:
 - __Read-mostly and fast.__ The serving path opens read-only and answers in
   tens of milliseconds.
 
-## How do I add an embedding backend? {#backend}
+## How do I add an embedding backend?
 
 The embedder registry is the main extension point. A backend is a small class
 exposing `model_identifier`, `dimensions`, and `embed(texts)`, registered with
@@ -44,13 +44,13 @@ the registry is designed for a growing set. See `src/duckdb_vectors/embedders/`
 for the hashing, fastembed, and Bedrock examples, and keep heavy dependencies
 behind an optional extra in `pyproject.toml`.
 
-## How do I add a chunker? {#chunker}
+## How do I add a chunker?
 
 Implement the `Chunker` protocol — any object with a `chunk(text, source)`
 method returning chunks with stable ids. See `src/duckdb_vectors/chunkers/` for
 the markdown chunker, and pass your chunker to `index_folder` or the store.
 
-## What are the documentation conventions? {#docs-conventions}
+## What are the documentation conventions?
 
 Documentation lives in `documentation/`, GitHub-Flavored Markdown with mermaid
 (no ASCII art), ATX sentence-case headers, and fenced code blocks. Two naming
@@ -59,7 +59,7 @@ conventions keep the set expandable:
 - __Platform pages carry a provider prefix__ — `aws-bedrock-agentcore-guide.md`. Other platforms follow the same shape with their own prefix (`gcp-`, `azure-`, `modal-`), typically a `-guide.md` (teach-by-example) and a -workbook.md` (FAQ) pair.
 - __Use-case pages are step-by-step procedures__ named `setup-{capability}-procedure.md`. One page per use case keeps the set growing without inflating any single page.
 
-## How do I open a good pull request? {#pull-request}
+## How do I open a good pull request?
 
 - Keep each pull request focused on a single change.
 - Write a clear description: what changed and why.
@@ -68,13 +68,13 @@ conventions keep the set expandable:
 - Run `make lint` and `make test` first; both should pass.
 - Be kind in review.
 
-## How do I report an issue? {#issues}
+## How do I report an issue?
 
 Open an issue with what you expected and what happened, a minimal snippet or
 steps to reproduce, and your Python version plus how the store was configured
 (backend, read-only).
 
-## What are the prerequisites? {#prerequisites}
+## What are the prerequisites?
 
 Install these before running `make setup`. The first three are genuine
 prerequisites `make setup` cannot install for you; it checks they are present
@@ -91,7 +91,7 @@ and installs the rest.
 Ruff and pytest are not prerequisites — `make setup` installs them into the
 virtual environment via the `[dev]` extra.
 
-## What does each Makefile target do? {#makefile}
+## What does each Makefile target do?
 
 The `Makefile` consolidates the most frequent commands used throughout this project. Run `make` with no target to list them. The essentials:
 
@@ -103,7 +103,7 @@ The `Makefile` consolidates the most frequent commands used throughout this proj
 - `make build` — build the wheel and sdist with uv
 - `make clean` — remove build artifacts and caches (including `*.out`)
 
-## How do I set up a development environment? {#setup}
+## How do I set up a development environment?
 
 ```shell
 $ git clone https://github.com/bernard357/duckdb-vectors.git
@@ -113,7 +113,7 @@ $ make setup   # checks prerequisites, creates the venv, installs tooling
 
 `make setup` runs `check-prerequisites`, then `setup-python` (uv venv + the package with all extras) and `setup-markdownlint` (npm). `setup-hadolint` checks whether hadolint is present and, if not, points you at the official install guide — hadolint has no pip or npm package, so install it for your platform (binary release, Docker image, or a native package). Run `make setup-python` for just the Python environment if you manage the linters yourself.
 
-## What does the lint cover? {#lint}
+## What does the lint cover?
 
 ```shell
 $ make lint        # ruff check + ruff format --check + mypy, markdownlint, hadolint
@@ -125,7 +125,7 @@ Dockerfiles (hadolint via `.hadolint.yaml`). mypy verifies the type annotations
 the package ships behind its `py.typed` marker. Use `make format` to apply
 Python formatting. All checks should pass before you open a pull request.
 
-## How do I run the tests? {#tests}
+## How do I run the tests?
 
 ```shell
 $ make test        # pytest -q

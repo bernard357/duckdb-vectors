@@ -6,7 +6,7 @@ the workflow routes the question and the answer. The primary path calls the
 CLI or SDK in the same container as n8n; the alternative reaches the stdio MCP
 server through an MCP Client node.
 
-## What you will build {#what}
+## What you will build
 
 A workflow whose Code node opens a local read-only index, runs `store.query`
 for the incoming question, and passes the ranked chunks to the next node — an
@@ -21,7 +21,7 @@ flowchart LR
     Model -->|grounded answer| Out[response]
 ```
 
-## Step 1 — put duckdb-vectors in the n8n container {#install}
+## Step 1 — put duckdb-vectors in the n8n container
 
 The in-container path needs `duckdb-vectors` importable from the same runtime
 n8n uses. Build an image from the n8n base and add the package plus a prebuilt
@@ -41,7 +41,7 @@ Build the index once on your workstation before copying it in:
 $ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
 ```
 
-## Step 2 — the Code node {#code}
+## Step 2 — the Code node
 
 n8n's Code node runs a snippet per item. Point it at the baked index, call
 `store.query`, and return the chunks as the item's JSON so the next node reads
@@ -73,13 +73,13 @@ carries `source`, `title`, and `text`. If you prefer to shell out, an Execute
 Command node running `duckdb-vectors search "$question" --db
 /data/vectors.duckdb --json` returns the same chunks as JSON.
 
-## Step 3 — ground the answer {#answer}
+## Step 3 — ground the answer
 
 Feed the retrieved chunks into an LLM node (the AI Agent or Basic LLM Chain
 node) as context, and let the model answer the original question from them. The
 retrieval ran in-process against the local file — no external vector service.
 
-## Verify the retrieval {#verify}
+## Verify the retrieval
 
 Confirm the CLI resolves the baked index from inside the container before
 wiring the workflow:
@@ -91,7 +91,7 @@ $ docker exec -it n8n duckdb-vectors report --db /data/vectors.duckdb
 The report prints the backend, dimensions, chunk count, and sources — proof the
 index is readable in the n8n runtime.
 
-## The MCP alternative {#mcp}
+## The MCP alternative
 
 Instead of calling the SDK in a node, you can reach the same retrieval through
 the stdio MCP server. n8n's built-in MCP Client Tool node connects over an
@@ -110,7 +110,7 @@ environment variables and serves the same two read-only tools, `search` and
 `report`. See the [Docker Agent guide](docker-agent-guide.md) for the canonical
 MCP wiring reference.
 
-## Where to go next {#next}
+## Where to go next
 
 - The [LangChain guide](langchain-guide.md) wraps the same `store.query` call
   as a code-first tool for a looping agent.

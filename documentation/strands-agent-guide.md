@@ -7,7 +7,7 @@ decorator turns a plain function into a tool, so wrapping `store.query` is one
 small function. The primary path imports the SDK in the same process; the
 alternative reuses the stdio MCP server.
 
-## What you will build {#what}
+## What you will build
 
 A Strands `@tool` named `search` that wraps `store.query`. The docstring and
 type hints become the tool spec the model reads. The index is a local DuckDB
@@ -22,7 +22,7 @@ flowchart LR
     Agent -->|grounded answer| User
 ```
 
-## Step 1 — install the pieces {#install}
+## Step 1 — install the pieces
 
 `duckdb-vectors` carries the retrieval code; add the Strands SDK:
 
@@ -30,7 +30,7 @@ flowchart LR
 $ pip install duckdb-vectors strands-agents
 ```
 
-## Step 2 — build an index {#index}
+## Step 2 — build an index
 
 Point the CLI at a folder of markdown to produce a single DuckDB file:
 
@@ -40,7 +40,7 @@ $ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
 
 The first run downloads the fastembed model; later runs reuse the cache.
 
-## Step 3 — wrap store.query as a tool {#tool}
+## Step 3 — wrap store.query as a tool
 
 Import `@tool` from `strands`. The function name becomes the tool name; the
 docstring and type hints become the spec the model reads. Open the store once
@@ -74,7 +74,7 @@ def search(query: str, top_k: int = 5) -> str:
 Each `hit` is a `SearchResult`: `hit.score` is the fused rank and `hit.chunk`
 carries `source`, `title`, and `text`.
 
-## Step 4 — give the tool to an agent {#agent}
+## Step 4 — give the tool to an agent
 
 Pass the tool to an `Agent` and ask a question; the loop calls `search` and
 grounds the answer:
@@ -86,7 +86,7 @@ print(agent("how is a search answered?"))
 
 Retrieval runs in-process against the local file — no external vector service.
 
-## Verify the tool on its own {#verify}
+## Verify the tool on its own
 
 Call the underlying function directly to confirm it retrieves before wiring it
 to a model:
@@ -98,7 +98,7 @@ $ python -c "from app import search; print(search('how is a search answered?'))"
 The top chunk should come from the primitive's "how a search is answered"
 section — the retrieval is working.
 
-## The MCP alternative {#mcp}
+## The MCP alternative
 
 Instead of importing the SDK, you can reach the same retrieval through the
 stdio MCP server. Strands' `MCPClient` spawns `duckdb-vectors mcp` over stdio
@@ -128,7 +128,7 @@ variables and serves the same two read-only tools. See the
 [Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
 reference.
 
-## Where to go next {#next}
+## Where to go next
 
 - The [AWS Bedrock AgentCore guide](aws-bedrock-agentcore-guide.md) deploys a
   Strands agent on the managed AgentCore runtime with a baked-in index.

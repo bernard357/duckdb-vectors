@@ -7,7 +7,7 @@ read-only index and returns ranked chunks. The primary path imports the SDK in
 the plugin handler; the alternative wires the stdio MCP server through Hermes'
 native MCP client.
 
-## What you will build {#what}
+## What you will build
 
 A Hermes plugin that registers a `search` tool. The plugin's `register(ctx)`
 function wires a JSON schema (what the model sees) to a handler that calls
@@ -22,7 +22,7 @@ flowchart LR
     Hermes -->|grounded answer| User
 ```
 
-## Step 1 — install the pieces {#install}
+## Step 1 — install the pieces
 
 Install Hermes and `duckdb-vectors` into the same environment so the plugin
 handler can import the SDK:
@@ -31,7 +31,7 @@ handler can import the SDK:
 $ pip install hermes-agent duckdb-vectors
 ```
 
-## Step 2 — build an index {#index}
+## Step 2 — build an index
 
 Point the CLI at a folder of markdown to produce a single DuckDB file:
 
@@ -41,7 +41,7 @@ $ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
 
 The first run downloads the fastembed model; later runs reuse the cache.
 
-## Step 3 — the plugin {#plugin}
+## Step 3 — the plugin
 
 A Hermes plugin is a directory under `~/.hermes/plugins/` with a `plugin.yaml`
 manifest and an `__init__.py` exposing `register(ctx)`. The manifest names the
@@ -108,7 +108,7 @@ def register(ctx):
 Each `hit` is a `SearchResult`: `hit.score` is the fused rank and `hit.chunk`
 carries `source`, `title`, and `text`.
 
-## Step 4 — enable the plugin {#enable}
+## Step 4 — enable the plugin
 
 Plugins are opt-in. Enable it by name, then start Hermes — the model can call
 `search` immediately:
@@ -121,7 +121,7 @@ $ hermes
 The handler runs in the Hermes process and retrieves in-process against the
 local file — no external vector service.
 
-## Verify the handler on its own {#verify}
+## Verify the handler on its own
 
 Import the handler and call it directly to confirm it retrieves before enabling
 the plugin:
@@ -133,7 +133,7 @@ $ python -c "from app import handle_search; print(handle_search({'query': 'how i
 The first chunk should come from the primitive's "how a search is answered"
 section — the retrieval is working.
 
-## The MCP alternative {#mcp}
+## The MCP alternative
 
 Instead of a plugin that imports the SDK, you can let Hermes' native MCP client
 spawn the stdio server. Declare it under `mcp_servers` in
@@ -156,7 +156,7 @@ variables and serves the same two read-only tools. See the
 [Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
 reference.
 
-## Where to go next {#next}
+## Where to go next
 
 - The [LangChain guide](langchain-guide.md) wraps the same `store.query` call
   as a single tool for a looping agent.

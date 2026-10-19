@@ -4,7 +4,7 @@ Is `duckdb-vectors` adapted to your use case? And how to use it? Let see how you
 
 If you are looking for an internal view of `duckdb-vectors`, then jump to the [Technical design](duckdb-vectors-primitive.md) page. And if you want to contribute, go to the [Developer workbook](developer-workbook.md).
 
-## Is `duckdb-vectors` a good fit for your use case? {#evaluate}
+## Is `duckdb-vectors` a good fit for your use case?
 
 In-process semantic search fits when the corpus is in the thousands of items, mostly static, and travels with a single agent, and when a local function call beating a network round trip matters more than elastic write throughput. It does __not__ replace a managed vector database for large multi-tenant corpora, high-churn write workloads, or sustained high-concurrency serving. Naming the boundary is part of the pitch: the smaller scope is exactly what buys the simplicity.
 
@@ -21,7 +21,7 @@ The mismatch is easiest to see side by side:
 
 Pick the left column when you genuinely have that scale. For the right column — the in-process semantic search — the left column is machinery you do not need.
 
-## How to install `duckdb-vectors`? {#install}
+## How to install `duckdb-vectors`?
 
 This package is exposed publicly from PyPI.
 
@@ -38,7 +38,7 @@ $ duckdb-vectors --help          # list the index, report, search, and mcp verbs
 $ duckdb-vectors index --help    # options for a specific verb
 ```
 
-## How to gather content? {#gather}
+## How to gather content?
 
 Collect the documents you want searchable in one place. Markdown is the first-class input because the default chunker understands headings; convert other formats (HTML, PDF via OCR, docx) to markdown first.
 
@@ -67,9 +67,9 @@ audience: customer
 Refunds are processed within 14 days of the request.
 ```
 
-Each key lands in `chunk.metadata`, is returned with every hit, and can be referenced from the ranking SQL (see [How to search](#search)). The chunker's own `section_path` is always preserved, so frontmatter keys never overwrite it.
+Each key lands in `chunk.metadata`, is returned with every hit, and can be referenced from the ranking SQL (see [How to search](#how-to-search-for-matching-content)). The chunker's own `section_path` is always preserved, so frontmatter keys never overwrite it.
 
-## How to index content? {#index}
+## How to index content?
 
 Indexing chunks each document, embeds the chunks, and writes them to a DuckDB file. The folder indexer embeds only what changed since the last run.
 
@@ -153,7 +153,7 @@ $ duckdb-vectors report                  # summary of database content
 $ duckdb-vectors report --json           # same, as JSON
 ```
 
-## How to search for matching content? {#search}
+## How to search for matching content?
 
 Query with a natural-language string. Search is hybrid by default: semantic
 similarity plus exact-token BM25, fused with Reciprocal Rank Fusion.
@@ -192,7 +192,7 @@ The `mcp` verb serves the same retrieval as a Model Context Protocol server over
 $ duckdb-vectors mcp                     # serve retrieval over stdio
 ```
 
-## How to integrate into a harness? {#integrate}
+## How to integrate into a harness?
 
 Inside an agent, retrieval becomes context. The pattern is: open the store at startup, then call `query` per user turn and feed the chunks to the model. This is framework-agnostic: the same store drops into a container, AWS Strands, Pydantic AI, etc. The examples below are basic snippets to be adapted to your own use case.
 
@@ -222,7 +222,7 @@ def retrieve_context(question: str, k: int = 5) -> str:
 
 See the [containerized agent guide](containerized-agent-guide.md) for building a self-contained agent image.
 
-## How to build a container image? {#container}
+## How to build a container image?
 
 Freeze the index into an image so the container is self-contained. Build the
 index in a builder stage and copy only the frozen file into the runtime stage, then add the code of your agent:
@@ -255,7 +255,7 @@ $ docker run --rm duckdb-vectors-agent "how is a search answered?"
 
 The frozen index is inside the image, so the container needs no volume and no network to answer.
 
-## How to deploy? {#deploy}
+## How to deploy?
 
 Because the index is a file baked into the image, deployment is just "run the container" — there is no data tier to provision alongside it. The same artifact runs across targets:
 

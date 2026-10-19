@@ -2,7 +2,7 @@
 
 Questions and answers about DuckDB, the stepping stone component for `duckdb-vectors`. It explains the engine underneath the component so you can reason about performance, extend the ranking SQL, or query the index directly.
 
-## Understand DuckDB {#overview}
+## Understand DuckDB
 
 [DuckDB](https://duckdb.org) is an in-process analytical database for fast SQL
 on local data. Created in 2018 at CWI Amsterdam, it is often described as
@@ -20,7 +20,7 @@ graph LR
     B --> E[In-memory tables]
 ```
 
-## Glossary {#glossary}
+## Glossary
 
 - DuckDB — in-process analytical database engine; runs inside the Python
   process
@@ -29,7 +29,7 @@ graph LR
 - FTS — the full-text search extension providing BM25 scoring
 - markdown extension — community extension that parses markdown into SQL rows
 
-## How to query data? {#querying}
+## How to query data?
 
 DuckDB runs standard SQL and can read files directly, without a load step.
 
@@ -55,7 +55,7 @@ row = con.execute(
 A `duckdb-vectors` database is an ordinary DuckDB file: you can open it with
 the `duckdb` CLI or the Python client and inspect the `chunks` table directly.
 
-## How to parse Markdown with DuckDB? {#markdown}
+## How to parse Markdown with DuckDB?
 
 The [markdown](https://github.com/teaguesterling/duckdb_markdown) community
 extension parses markdown into structured rows. `duckdb-vectors` uses it inside
@@ -86,7 +86,7 @@ markdown formatting to plain text — the string that gets embedded. The
 `content_mode` option controls nesting: `minimal` stops at the next heading,
 `full` includes subsections, `smart` adapts to length.
 
-## How to perform vector search? {#vector-search}
+## How to perform vector search?
 
 Store embeddings in a fixed-size `FLOAT[dim]` ARRAY column and rank by
 `array_cosine_distance`. At the few-to-tens-of-thousands-of-chunks scale this
@@ -111,7 +111,7 @@ an HNSW index on the same ARRAY column. Note that persisting an HNSW index to a
 file still requires the experimental persistence flag, which is why the default
 path stays brute-force and trivially read-only.
 
-## How to add an exact-token BM25 index? {#bm25}
+## How to add an exact-token BM25 index?
 
 The [FTS extension](https://duckdb.org/docs/stable/core_extensions/full_text_search)
 provides BM25 scoring via `match_bm25`, backed by an index built with
@@ -134,7 +134,7 @@ ORDER BY score DESC;
 With stemming off, `run` does not match `running`; only the exact token does.
 The index lives in the `fts_main_chunks` schema created by the pragma.
 
-## How to open a read-only database? {#read-only}
+## How to open a read-only database?
 
 Opening read-only is the serving mode: a frozen index baked into an image, read
 by many requests, never written.
@@ -150,7 +150,7 @@ persisted vector index, read-only open needs no experimental flags. In
 `duckdb-vectors` this is `VectorStore(..., read_only=True)`, which also refuses
 writes with a clear error.
 
-## How to troubleshoot DuckDB issues? {#troubleshooting}
+## How to troubleshoot DuckDB issues?
 
 Out of memory — raise the limit or spill to disk:
 
@@ -171,7 +171,7 @@ exactly (`$v::FLOAT[384]` for a 384-dim column); a wrong dimension raises a bind
 error. Keep the embedder's `dimensions` and the table dimension in sync; the
 store does this for you.
 
-## Follow-up {#follow-up}
+## Follow-up
 
 - [DuckDB documentation](https://duckdb.org/docs/)
 - [DuckDB Python API](https://duckdb.org/docs/stable/clients/python/overview)

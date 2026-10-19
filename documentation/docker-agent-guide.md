@@ -4,7 +4,7 @@ Wire an agent running on [Docker Agent](https://docs.docker.com/ai/docker-agent/
 
 This is the __integrate into an existing agent runtime__ path. It is complementary to the [containerized agent guide](containerized-agent-guide.md), which bakes a self-contained image that embeds both the retrieval code and a frozen index. Here, Docker Agent owns the agent loop and the model, and `duckdb-vectors` plugs in as one retrieval tool.
 
-## What is Docker Agent? {#what}
+## What is Docker Agent?
 
 Docker Agent (the `cagent` multi-agent runtime) runs agents defined in a YAML file: an agent references a model and a set of __toolsets__. One toolset type is `mcp` — it connects the agent to any MCP server. The __local-stdio__ flavour runs the server as a subprocess identified by a `command` and `args`, and talks to it over stdin/stdout. That is exactly how an MCP client is meant to spawn `duckdb-vectors mcp`.
 
@@ -17,7 +17,7 @@ flowchart LR
     Agent -->|grounded answer| User
 ```
 
-## The tools exposed {#tools}
+## The tools exposed
 
 `duckdb-vectors mcp` registers two read-only tools:
 
@@ -26,7 +26,7 @@ flowchart LR
 
 Both open the index read-only, resolved from the `DUCKDB_VECTORS_*` environment variables. The serving contract is read-only by design, matching the baked-index lifecycle.
 
-## The Docker Agent configuration {#config}
+## The Docker Agent configuration
 
 The local-stdio `mcp` toolset accepts `command`, `args`, `tools`, `env`, and `working_dir` (verified against the [Docker Agent MCP tool reference](https://docs.docker.com/ai/docker-agent/tools/mcp/)). Point `command` at `duckdb-vectors`, pass `mcp` as the argument, and set the index location through `env`:
 
@@ -59,7 +59,7 @@ agents:
 
 The runnable config and a companion README live in [`examples/docker-agent/`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/agent.yaml).
 
-## Step 1 — install duckdb-vectors {#install}
+## Step 1 — install duckdb-vectors
 
 The `mcp` verb ships in the base package — no extra to remember:
 
@@ -67,7 +67,7 @@ The `mcp` verb ships in the base package — no extra to remember:
 $ pip install duckdb-vectors
 ```
 
-## Step 2 — build an index {#index}
+## Step 2 — build an index
 
 Point the CLI at a folder of markdown to produce a single DuckDB file. Here we index this project's own documentation:
 
@@ -78,7 +78,7 @@ Indexed 13 files, 98 chunks (98 embedded, 0 reused, 0 pruned).
 
 The counts reflect this repository at the time of writing; yours will differ. The first run downloads the fastembed model; later runs reuse the cache.
 
-## Step 3 — point the YAML at the index {#point}
+## Step 3 — point the YAML at the index
 
 Docker Agent reads the index path from the environment variable referenced in the config. Export it to the absolute path of the file you just built:
 
@@ -86,7 +86,7 @@ Docker Agent reads the index path from the environment variable referenced in th
 $ export DUCKDB_VECTORS_DB_PATH="$PWD/vectors.duckdb"
 ```
 
-## Step 4 — run the agent and ask a question {#run}
+## Step 4 — run the agent and ask a question
 
 ```shell
 $ docker agent run examples/docker-agent/agent.yaml "how is a search answered?"
@@ -98,7 +98,7 @@ Docker Agent spawns `duckdb-vectors mcp`, the agent calls the `search` tool, and
 $ docker agent run examples/docker-agent/agent.yaml "what does the index contain?"
 ```
 
-## Verify the server on its own {#verify}
+## Verify the server on its own
 
 You can confirm the server starts and registers its tools without a client:
 
@@ -108,7 +108,7 @@ $ duckdb-vectors mcp --help
 
 A full session needs an MCP client to drive the stdio handshake; Docker Agent is that client.
 
-## Where to go next {#next}
+## Where to go next
 
 - To ship a self-contained image that carries both the agent and a frozen index, follow the [containerized agent guide](containerized-agent-guide.md).
 - The same `duckdb-vectors mcp` command works with any MCP client — Claude Desktop, Claude Code, and Cursor all spawn local-stdio servers the same way.

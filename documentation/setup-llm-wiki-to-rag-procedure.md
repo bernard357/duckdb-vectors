@@ -5,7 +5,7 @@ machine with `duckdb-vectors`. This positions the component downstream of the
 LLM Wiki pattern: the wiki is kept current by an LLM, and `duckdb-vectors`
 makes it searchable at agent scale.
 
-## Background: the LLM Wiki pattern {#background}
+## Background: the LLM Wiki pattern
 
 The [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 (Andrej Karpathy) describes three layers: immutable __raw sources__, an
@@ -21,7 +21,7 @@ BM25/vector engine the LLM can shell out to or call as a tool. That richer
 variant (index plus log plus a real search tool over the pages) is where this
 procedure applies: `duckdb-vectors` is that search tool.
 
-## Where duckdb-vectors fits {#fit}
+## Where duckdb-vectors fits
 
 The wiki is a folder of LLM-maintained markdown — exactly the chunkable input
 `duckdb-vectors` is built for. You do not change how the wiki is produced; you
@@ -39,14 +39,14 @@ flowchart LR
     Search --> Agent[answering agent]
 ```
 
-## Step 1 — point at the wiki pages {#step-1}
+## Step 1 — point at the wiki pages
 
 Identify the directory the LLM maintains (the wiki layer, not the raw sources).
 It is already markdown with headings, so no conversion is needed. If the wiki
 adds YAML frontmatter (tags, dates), it is preserved in the chunk text and can
 be queried later through metadata-scoped ranking SQL.
 
-## Step 2 — index the wiki {#step-2}
+## Step 2 — index the wiki
 
 Index the wiki folder. Headings give the chunker natural boundaries, and the
 page breadcrumb becomes each chunk's title:
@@ -56,7 +56,7 @@ $ duckdb-vectors index ./wiki --recursive --backend local
 $ duckdb-vectors report
 ```
 
-## Step 3 — keep the index current {#step-3}
+## Step 3 — keep the index current
 
 The wiki changes whenever the LLM ingests a new source. Re-index to pick up
 changes; ETag reuse means only changed chunks are re-embedded and pages the
@@ -70,7 +70,7 @@ Run this after each ingest (or on a schedule, or as a step in the wiki's own
 maintenance loop). Because re-indexing is incremental, it is cheap to run
 often, so the answering machine stays in step with the wiki.
 
-## Step 4 — serve answers {#step-4}
+## Step 4 — serve answers
 
 Open the index read-only and retrieve per question, then let the agent answer
 from the retrieved pages:

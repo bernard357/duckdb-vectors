@@ -2,7 +2,7 @@
 
 Here we build an answering machine over your own documents with `duckdb-vectors`. Follow the steps in order; each is a concrete action you can replay.
 
-## Step 1 — get chunkable documents {#step-1}
+## Step 1 — get chunkable documents
 
 `duckdb-vectors` chunks markdown first-class, because the default chunker splits
 on headings. Convert other sources to markdown before indexing:
@@ -16,7 +16,7 @@ on headings. Convert other sources to markdown before indexing:
 Aim for documents with clear headings and sections of roughly a few hundred
 words — that granularity embeds well and keeps retrieved chunks focused.
 
-## Step 2 — gather them in one place {#step-2}
+## Step 2 — gather them in one place
 
 Collect the markdown in a single folder that will be the index input:
 
@@ -30,7 +30,7 @@ documentation/
 The source can be a local folder, an S3 prefix synced down, a git checkout, or
 a wiki export. `duckdb-vectors` only needs files on disk when indexing runs.
 
-## Step 3 — chunk and index {#step-3}
+## Step 3 — chunk and index
 
 Index the folder into a DuckDB file. Choose a chunking strategy and an
 embedding backend:
@@ -54,7 +54,7 @@ Confirm the result:
 $ duckdb-vectors report
 ```
 
-## Step 4 — integrate in agentic software {#step-4}
+## Step 4 — integrate in agentic software
 
 Use the Python API against the local `.duckdb` file. Open read-only for
 serving, retrieve per request, and hand the chunks to your LLM:
@@ -74,7 +74,7 @@ def answer(question: str) -> str:
 
 At this point you have a working RAG retrieval layer in python.
 
-## Step 5 — package a container with the database {#step-5}
+## Step 5 — package a container with the database
 
 Freeze the index into an image so the container is self-contained. Build the
 index in a builder stage and copy only the frozen file into the runtime stage:
@@ -98,7 +98,7 @@ The container now holds the database and answers read-only with no external
 service. See the [containerized agent guide](containerized-agent-guide.md) for a complete,
 runnable version.
 
-## Step 6 — release a container with the agent and the database {#step-6}
+## Step 6 — release a container with the agent and the database
 
 Add your agent code to the runtime stage so one image bundles the agentic code,
 the `duckdb-vectors` dependency, and the baked-in database:

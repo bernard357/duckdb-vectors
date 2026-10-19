@@ -6,7 +6,7 @@ the chunks into graph state, so later nodes — a model call, a formatter — re
 them from state. The primary path imports the SDK and calls it in the same
 process; the alternative reuses the stdio MCP server as a tool node.
 
-## What you will build {#what}
+## What you will build
 
 A two-node graph: a `retrieve` node that opens a local read-only index, runs
 `store.query`, and stores the ranked chunks in state; and a `generate` node
@@ -20,7 +20,7 @@ flowchart LR
     Generate -->|grounded answer| End[answer in state]
 ```
 
-## Step 1 — install the pieces {#install}
+## Step 1 — install the pieces
 
 `duckdb-vectors` carries the retrieval code; add LangGraph and a model
 provider:
@@ -29,7 +29,7 @@ provider:
 $ pip install duckdb-vectors langgraph langchain-openai
 ```
 
-## Step 2 — build an index {#index}
+## Step 2 — build an index
 
 Point the CLI at a folder of markdown to produce a single DuckDB file:
 
@@ -39,7 +39,7 @@ $ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
 
 The first run downloads the fastembed model; later runs reuse the cache.
 
-## Step 3 — the retrieval node {#node}
+## Step 3 — the retrieval node
 
 Open the store once at module scope. The node reads the question from state,
 retrieves chunks, and writes a joined context string back into state:
@@ -75,7 +75,7 @@ def retrieve(state: State) -> dict:
 Each `hit` is a `SearchResult`: `hit.score` is the fused rank and `hit.chunk`
 carries `source`, `title`, and `text`.
 
-## Step 4 — the generate node and the graph {#graph}
+## Step 4 — the generate node and the graph
 
 The `generate` node reads the context from state and asks the model to answer.
 Wire the two nodes in sequence:
@@ -103,7 +103,7 @@ print(result["answer"])
 Retrieval runs in-process against the local file; the chunks flow through state
 to the model — no external vector service.
 
-## Verify the node on its own {#verify}
+## Verify the node on its own
 
 Call the node with a minimal state to confirm it retrieves before compiling the
 graph:
@@ -115,7 +115,7 @@ $ python -c "from app import retrieve; print(retrieve({'question': 'how is a sea
 The context should open with a chunk from the primitive's "how a search is
 answered" section — the retrieval is working.
 
-## The MCP alternative {#mcp}
+## The MCP alternative
 
 Instead of importing the SDK in the node, you can expose the stdio MCP server's
 tools as a LangGraph tool node with
@@ -146,7 +146,7 @@ variables and serves the same two read-only tools. See the
 [Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
 reference.
 
-## Where to go next {#next}
+## Where to go next
 
 - The [LangChain guide](langchain-guide.md) wraps the same `store.query` call
   as a single `@tool` for a looping agent instead of a graph node.

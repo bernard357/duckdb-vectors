@@ -6,7 +6,7 @@ Wire a [LangChain](https://python.langchain.com/docs/introduction/) agent to
 returns ranked chunks. The primary path imports the SDK and calls it in the
 same process; the alternative reuses the stdio MCP server.
 
-## What you will build {#what}
+## What you will build
 
 A LangChain tool named `search` that wraps `store.query` and returns the
 grounding chunks for a question. The index is a local DuckDB file opened
@@ -21,7 +21,7 @@ flowchart LR
     Agent -->|grounded answer| User
 ```
 
-## Step 1 — install the pieces {#install}
+## Step 1 — install the pieces
 
 `duckdb-vectors` carries the retrieval code; add LangChain and a model
 provider of your choice:
@@ -30,7 +30,7 @@ provider of your choice:
 $ pip install duckdb-vectors langchain langchain-openai
 ```
 
-## Step 2 — build an index {#index}
+## Step 2 — build an index
 
 Point the CLI at a folder of markdown to produce a single DuckDB file. Here we
 index this project's own documentation:
@@ -41,7 +41,7 @@ $ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
 
 The first run downloads the fastembed model; later runs reuse the cache.
 
-## Step 3 — wrap store.query as a tool {#tool}
+## Step 3 — wrap store.query as a tool
 
 The `@tool` decorator turns a plain function into a LangChain tool: the
 function name becomes the tool name and the docstring becomes the description
@@ -70,7 +70,7 @@ def search(query: str, top_k: int = 5) -> str:
 Each `hit` is a `SearchResult`: `hit.score` is the fused rank and `hit.chunk`
 carries `source`, `title`, and `text`.
 
-## Step 4 — give the tool to an agent {#agent}
+## Step 4 — give the tool to an agent
 
 Bind the tool to a model and let the agent decide when to retrieve:
 
@@ -88,7 +88,7 @@ The agent calls `search`, grounds its answer in the returned chunks, and
 replies. Retrieval runs in-process against the local file — no external vector
 service.
 
-## Verify the tool on its own {#verify}
+## Verify the tool on its own
 
 Call the tool directly to confirm it retrieves before wiring it to a model:
 
@@ -99,7 +99,7 @@ $ python -c "from app import search; print(search.invoke({'query': 'how is a sea
 The top chunk should come from the primitive's "how a search is answered"
 section — the retrieval is working.
 
-## The MCP alternative {#mcp}
+## The MCP alternative
 
 Instead of importing the SDK, you can reach the same retrieval through the
 stdio MCP server with
@@ -128,7 +128,7 @@ variables and serves the same two read-only tools. See the
 [Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
 reference.
 
-## Where to go next {#next}
+## Where to go next
 
 - The [LangGraph guide](langgraph-guide.md) turns the same `store.query` call
   into a retrieval node inside a graph.

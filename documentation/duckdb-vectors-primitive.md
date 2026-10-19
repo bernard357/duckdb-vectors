@@ -4,7 +4,7 @@ This page explains how `duckdb-vectors` is built: the architecture, the
 building blocks it exposes, and the three surfaces you drive it through — the
 Python SDK, the command-line interface, and an MCP server for agents.
 
-## Understand container lifecycle {#docker}
+## Understand container lifecycle
 
 A baked-in index makes the container self-contained: no external vector database, no network dependency at query time, and a reproducible artifact that is identical in every environment. The build-then-freeze lifecycle opens the file read-only at run time, which needs no experimental persistence flags because the default ranking is a plain cosine scan.
 
@@ -36,7 +36,7 @@ The solution supports static and dynamic indexing:
   registry (for example a set of tools or skills), then search it. See
   the example [Search over skills](setup-skills-search-procedure.md).
 
-## Understand the architecture {#overview}
+## Understand the architecture
 
 `duckdb-vectors` is a small retrieval building block. One DuckDB file is one
 index. You put chunks of text (with metadata) into it, and you query it with a
@@ -64,7 +64,7 @@ flowchart TD
     RRF --> Results[ranked SearchResults]
 ```
 
-## Building blocks {#building-blocks}
+## Building blocks
 
 Each block is small and replaceable. You can use the defaults or swap any one.
 
@@ -86,7 +86,7 @@ Each block is small and replaceable. You can use the defaults or swap any one.
 - __CLI__ — a thin wrapper over the store and indexer: `index`, `report`,
   `search`, and `mcp` (serve retrieval over stdio to an agent).
 
-## The data model {#data-model}
+## The data model
 
 The store keeps one table, `chunks`, with a fixed-size embedding column:
 
@@ -104,7 +104,7 @@ The store keeps one table, `chunks`, with a fixed-size embedding column:
 
 The `Chunk` and `SearchResult` models are Pydantic classes; a `SearchResult` carries the chunk, the fused score, and the per-signal ranks (`vector_rank`, `text_rank`).
 
-## The SDK surface {#sdk-surface}
+## The SDK surface
 
 The Python library (SDK) exposes the S3-Vectors-flavored write and read methods. Import `VectorStore` and drive it in-process:
 
@@ -138,9 +138,9 @@ store.delete_vectors(["doc:1"])
 store.close()
 ```
 
-For metadata scoping and age decay through an injected `SELECT`, see the [developer guide](duckdb-vectors-guide.md#search) and the README section on injectable ranking SQL.
+For metadata scoping and age decay through an injected `SELECT`, see the [developer guide](duckdb-vectors-guide.md#how-to-search-for-matching-content) and the README section on injectable ranking SQL.
 
-## The CLI surface {#cli-surface}
+## The CLI surface
 
 The CLI covers the three operational verbs and honors the same configuration (constructor argument > `DUCKDB_VECTORS_*` env > default):
 
@@ -153,7 +153,7 @@ $ duckdb-vectors search "how do retries work?" --top-k 5
 Common options: `--db` (file path), `--backend` (embedder spec), `--top-k`,
 `--recursive` (on `index`), and `--json` (machine-readable output).
 
-## The MCP surface {#mcp-surface}
+## The MCP surface
 
 The third surface turns retrieval into a tool an agent can call over the
 [Model Context Protocol](https://modelcontextprotocol.io). `duckdb-vectors mcp`
@@ -194,7 +194,7 @@ integration. Transport is stdio today, which fits the co-located
 subprocess model; a networked (HTTP) transport is a possible future addition
 for cross-container use.
 
-## How a search is answered {#search-flow}
+## How a search is answered
 
 1. The query string is embedded once with the configured backend.
 2. A vector ranking is produced by `array_cosine_distance` over the embedding
@@ -205,11 +205,11 @@ for cross-container use.
 
 Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is  deliberately an exact-token match (no stemming) so acronyms and codes are found without a language dependency; see the README design note.
 
-## What about cold start and latency? {#latency}
+## What about cold start and latency?
 
 Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of 384-dim chunks is single-digit to low-tens of milliseconds. With `local` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
 
-## How do I keep the image small? {#image-size}
+## How do I keep the image small?
 
 - The DuckDB file itself is compact — a few thousand 384-dim chunks is a small
   number of megabytes.

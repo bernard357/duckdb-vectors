@@ -8,7 +8,7 @@ read-only index — the canonical build-then-freeze lifecycle.
 The runnable assets live in [`examples/containerized-agent/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples/containerized-agent):
 `agent.py`, `requirements.txt`, and a `Dockerfile`.
 
-## What you will build {#what}
+## What you will build
 
 A container that, given a question about `duckdb-vectors`, returns the most
 relevant documentation chunks. The index is built once during
@@ -28,7 +28,7 @@ flowchart LR
     end
 ```
 
-## Step 1 — the agent code {#agent}
+## Step 1 — the agent code
 
 The agent is one small module. It has a build-time path that indexes a folder,
 and a query-time path that opens the index read-only and retrieves chunks. It
@@ -62,7 +62,7 @@ def answer(question: str, db_path: str, top_k: int = 5):
 See [`examples/containerized-agent/agent.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/containerized-agent/agent.py) for
 the full module with a small CLI.
 
-## Step 2 — index the documentation {#index}
+## Step 2 — index the documentation
 
 Point the agent at the documentation folder to build the index:
 
@@ -75,7 +75,7 @@ The counts reflect this repository's documentation at the time of writing;
 yours will differ as pages are added. The first run downloads the fastembed
 model; later runs reuse the cached model.
 
-## Step 3 — ask a question locally {#query}
+## Step 3 — ask a question locally
 
 ```shell
 $ python examples/containerized-agent/agent.py --db vectors.duckdb "how is a search answered?"
@@ -88,7 +88,7 @@ The top hit is the primitive's "how a search is answered" section — the
 retrieval is working. A full agent would feed these chunks to an LLM and return
 a written answer; the retrieval step is what `duckdb-vectors` provides.
 
-## Step 4 — the two-stage Dockerfile {#dockerfile}
+## Step 4 — the two-stage Dockerfile
 
 The build stage installs the `local` backend, downloads its model, copies the
 documentation, and indexes it. The runtime stage copies only the agent, the
@@ -122,7 +122,7 @@ CMD ["what is duckdb-vectors?"]
 
 See [`examples/containerized-agent/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/containerized-agent/Dockerfile).
 
-## Step 5 — build and run the container {#run}
+## Step 5 — build and run the container
 
 Build from the repository root (the build context must include both
 `examples/containerized-agent/` and `documentation/`):
