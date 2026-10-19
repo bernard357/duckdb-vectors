@@ -121,14 +121,23 @@ $ kubectl exec duckdb-vectors-agent -- duckdb-vectors report
 The report prints the backend, dimensions, chunk count, and sources — proof the
 frozen index is readable in the pod.
 
-## The stdio-MCP sidecar alternative {#mcp}
+## The stdio-MCP alternative {#mcp}
 
-Instead of calling the SDK in the agent container, run `duckdb-vectors mcp` as a
-sidecar container in the same pod and let the agent reach it as an MCP client
-over stdio. The sidecar opens the same baked index read-only, resolved from the
-`DUCKDB_VECTORS_*` environment variables, and serves the `search` and `report`
-tools. See the [Docker Agent guide](docker-agent-guide.md) for the canonical
-MCP wiring reference.
+Instead of importing the SDK directly, the agent can treat retrieval as an MCP
+tool: it spawns `duckdb-vectors mcp` as a child process __inside the agent
+container__ and talks to it over stdio. The server opens the same baked index
+read-only, resolved from the `DUCKDB_VECTORS_*` environment variables, and
+serves the `search` and `report` tools. See the
+[Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
+reference.
+
+Stdio is a same-container transport: an MCP client speaks to the server over
+the child process's stdin/stdout, so the server must run in the __same
+container__ as the agent, not a separate sidecar. Containers in a pod share a
+network namespace but not a process tree or stdio, so a true sidecar split
+would need a network transport (streamable-HTTP over `localhost`) — which this
+server does not expose; it serves stdio only. Keep the MCP server in the agent
+container, or use the in-process SDK call above.
 
 ## Where to go next {#next}
 
