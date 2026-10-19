@@ -10,7 +10,7 @@ help:
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
 	@echo "$$ make ping-agentcore - End-to-end ping: deploy and invoke on Bedrock AgentCore"
 	@echo "$$ make docs-serve - Serve the VitePress documentation site locally"
-	@echo "$$ make docs-build - Build the VitePress documentation site"
+	@echo "$$ make build-documentation - Build the VitePress documentation site"
 	@echo "$$ make push      - Rebase onto main and push commits to git remote"
 	@echo " ... and you have access to git, uv, ruff and pytest directly as well."
 
@@ -132,7 +132,7 @@ docs-serve:
 	@echo "Serving the documentation site locally..."
 	npm run dev
 
-docs-build:
+build-documentation:
 	@echo "Building the documentation site..."
 	npm run build
 

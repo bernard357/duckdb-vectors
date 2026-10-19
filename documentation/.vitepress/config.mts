@@ -42,6 +42,10 @@ export default withMermaid(
             { text: 'Technical design', link: '/duckdb-vectors-primitive' },
             { text: 'How DuckDB is used', link: '/duckdb-workbook' },
             { text: 'Developer workbook', link: '/developer-workbook' },
+            {
+              text: 'Foster adoption',
+              link: '/register-package-procedure',
+            },
           ],
         },
         {

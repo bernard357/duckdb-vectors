@@ -18,6 +18,9 @@ keywords = [
     "rag",
     "bm25",
     "agents",
+    "mcp",
+    "llm",
+    "vector-search",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -50,8 +53,9 @@ duckdb-vectors = "duckdb_vectors.cli:app"
 [project.urls]
 Homepage = "https://github.com/bernard357/duckdb-vectors"
 Repository = "https://github.com/bernard357/duckdb-vectors"
-Documentation = "https://github.com/bernard357/duckdb-vectors/tree/main/documentation"
+Documentation = "https://bernard357.github.io/duckdb-vectors/"
 Issues = "https://github.com/bernard357/duckdb-vectors/issues"
+Changelog = "https://github.com/bernard357/duckdb-vectors/blob/main/CHANGES.md"
 
 # Version is derived from the latest git tag (e.g. a v0.1.0 tag yields 0.1.0).
 # Between tags, hatch-vcs appends a dev/commit suffix. There is no version

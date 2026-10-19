@@ -1,0 +1,25 @@
+# duckdb-vectors
+
+> A frugal, embeddable semantic-search building block for agentic systems — hybrid vector + exact-token search over a local DuckDB file, no external vector database.
+
+## Documentation
+
+- [User guide](https://bernard357.github.io/duckdb-vectors/duckdb-vectors-guide): the straightforward developer workflow — index, search, integrate.
+- [Technical design](https://bernard357.github.io/duckdb-vectors/duckdb-vectors-primitive): the architecture and building blocks of the package.
+- [How DuckDB is used](https://bernard357.github.io/duckdb-vectors/duckdb-workbook): the DuckDB schema, hybrid ranking, and RRF fusion.
+
+## Use cases
+
+- [Set up a RAG agent](https://bernard357.github.io/duckdb-vectors/setup-rag-procedure): turn a markdown folder into a RAG retrieval layer.
+- [Turn an LLM wiki into RAG](https://bernard357.github.io/duckdb-vectors/setup-llm-wiki-to-rag-procedure): chat over an incrementally managed wiki.
+- [Search over skills](https://bernard357.github.io/duckdb-vectors/setup-skills-search-procedure): select agent skills by semantic search.
+
+## Agents and MCP
+
+- [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide): wire an agent to the MCP-over-stdio `search` and `report` tools.
+- [AGENTS.md](https://github.com/bernard357/duckdb-vectors/blob/main/AGENTS.md): how an agent adopts duckdb-vectors — install, SDK entry point, MCP tool.
+
+## Resources
+
+- [PyPI project](https://pypi.org/project/duckdb-vectors/): install with `pip install duckdb-vectors`.
+- [Source repository](https://github.com/bernard357/duckdb-vectors): code, examples, and issues.
