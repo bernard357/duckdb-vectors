@@ -10,6 +10,47 @@
 
 ### Removed
 
+## v261019
+
+Expose retrieval over the Model Context Protocol and meet framework users
+where they are: an MCP-over-stdio server plus per-framework harnessing and
+deployment guides, a published VitePress documentation site, and an engaging
+README landing block.
+
+### Added
+
+- MCP-over-stdio server exposed as `duckdb-vectors mcp`, registering the
+  read-only `search` and `report` tools (#17)
+- per-framework guides for LangChain, LangGraph, Hermes, n8n, Strands Agents,
+  and Pydantic AI, plus an agent-sandbox-on-Kubernetes deployment guide, each
+  leading with in-container SDK use and the stdio MCP server as the
+  alternative (#19)
+- VitePress documentation site on GitHub Pages with a curated sidebar and
+  local search (#12)
+- README status badges (supported Python, PyPI version, tests, MCP stdio) and
+  a documentation-site link (#18)
+
+### Changed
+
+- rename the Docker agent example and guide to a containerized agent to avoid
+  colliding with Docker's own agent product (#16)
+- rename the GitHub Actions workflows to action-oriented names — `integrate`,
+  `deploy-pypi`, `deploy-vitepress` — and prune the legacy Pages pipeline (#20)
+- point the README documentation links at the rendered Pages site, fix the
+  hero image to an absolute raw URL, and audit site coverage (#18)
+- rename the primitive's API surface to SDK surface and add an MCP surface
+  (#17)
+- align the user guide with the README: config table, embedder and chunker
+  registries, injectable SQL tokens (#15)
+- restructure the docs site, link docs to example artefacts via absolute
+  GitHub URLs, and fix stale install extras (#12, #13, #14)
+
+### Metrics
+
+- tests: 56 passed, 1 skipped
+- python: 2897 lines (40 files)
+- markdown: 5209 lines (44 files)
+
 ## v261017
 
 Make the published package match the README: a batteries-included install
