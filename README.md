@@ -8,16 +8,24 @@ __A frugal, embeddable semantic-search building block for agentic systems — hy
 2. bake the database into the container that packages your agent
 3. search semantically using vector distances and BM25 in tens of milliseconds
 
+## When your agent deserves in-process semantic search
+
+Most agents we build at work are specialists, not oracles. The honest requirement is small: semantic search over a modest, mostly-static corpus. Yet the reflex answer is large — stand up a vector database, run it as a service, wire the agent to it over the network. For a few thousand documents, that is a lot of moving parts to own, pay for, and keep alive. We wondered if there was a more frugal path.
+
+![Two ways to add semantic search to an agent: the usual external vector database with a network round trip, versus a DuckDB file baked into the agent's own container.](https://raw.githubusercontent.com/bernard357/duckdb-vectors/main/documentation/media/duckdb-vectors.excalidraw.png)
+
+For the common case — a few thousand documents, read-mostly, packaged with one agent — you can skip the external vector database entirely. Index the corpus into a single [DuckDB](https://duckdb.org) file, bake that file into the agent's container image, and answer semantic queries with a local function call in milliseconds. No MCP, no network round-trip. We packaged this pattern as `duckdb-vectors`, a compact open-source Python package.
+
 ## Use cases
 
 `duckdb-vectors` has been designed for following use cases:
 
-- __Retrieval-Augmented Generation (RAG) powered by thousands of static documents__ — You do not see the need for an external vector store or knowledge base. You prefer a composable toolchain over fat frameworks. You are looking for extremely fast responses. [Turn an existing markdown folder into a RAG agentic capability](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md).
+- __Retrieval-Augmented Generation (RAG) powered by thousands of static documents__ — You do not see the need for an external vector store or knowledge base. You prefer a composable toolchain over fat frameworks. You are looking for extremely fast responses. [Turn an existing markdown folder into a RAG agentic capability](https://bernard357.github.io/duckdb-vectors/setup-rag-procedure).
 
 - __Select skills exposed to your agents__ — The toolbox of your agent is growing exponentially. You create a tool for selecting appropriate skills instead of exposing all of them. In addition, each tool comes with attributes that should be considered during the search.
-  [Add a registry of hundreds of skills selected by semantic search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
+  [Add a registry of hundreds of skills selected by semantic search](https://bernard357.github.io/duckdb-vectors/setup-skills-search-procedure).
 
-- __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md).
+- __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](https://bernard357.github.io/duckdb-vectors/setup-llm-wiki-to-rag-procedure).
 
 ## Quick start
 
@@ -36,7 +44,7 @@ $ duckdb-vectors search "my question"    # hybrid search
 $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
 ```
 
-The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/docker-agent-guide.md) for a complete integration.
+The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide) for a complete integration.
 
 You can also index content dynamically from the harnessing code. This is required if the agent gets new skills dynamically for example.
 
