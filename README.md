@@ -2,6 +2,13 @@
 
 __A frugal, embeddable semantic-search building block for agentic systems — hybrid vector + exact-token search over a local DuckDB file, no external vector database.__
 
+[![Python](https://img.shields.io/pypi/pyversions/duckdb-vectors)](https://pypi.org/project/duckdb-vectors/)
+[![PyPI](https://img.shields.io/pypi/v/duckdb-vectors)](https://pypi.org/project/duckdb-vectors/)
+[![Tests](https://github.com/bernard357/duckdb-vectors/actions/workflows/ci.yml/badge.svg)](https://github.com/bernard357/duckdb-vectors/actions/workflows/ci.yml)
+[![MCP](https://img.shields.io/badge/MCP-stdio-blue)](https://bernard357.github.io/duckdb-vectors/docker-agent-guide)
+
+🌐 __[Browse the documentation site](https://bernard357.github.io/duckdb-vectors/)__ — a searchable guide to every use case, harness, and deployment.
+
 `duckdb-vectors` is a python package that facilitates the implementation of small-scale semantic search into any kind of agentic system, in 3 steps:
 
 1. chunk items and store their embeddings in a DuckDB database
