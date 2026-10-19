@@ -23,6 +23,7 @@ Copy-paste these fields into any submission form, catalog entry, or pull request
   - Documentation: <https://bernard357.github.io/duckdb-vectors/>
   - Repository: <https://github.com/bernard357/duckdb-vectors>
   - Agent instructions: [AGENTS.md](https://github.com/bernard357/duckdb-vectors/blob/main/AGENTS.md)
+  - MCP manifest: [server.json](https://github.com/bernard357/duckdb-vectors/blob/main/server.json)
 
 ## Venue status table
 
@@ -42,7 +43,7 @@ Each venue is a place where the package can be discovered. PyPI is `complete` be
 
 Move a venue forward in three steps.
 
-1. __candidate → on-going.__ Read the venue's current submission rules at the link above (they drift), then prepare the submission from the registration package. For the official MCP registry, this means authoring a `server.json` and publishing it with the registry publisher CLI — the API is in preview and frozen at v0.1, so re-check the schema before submitting. For the Docker MCP Catalog, fork [docker/mcp-registry](https://github.com/docker/mcp-registry), add the server definition, and open a pull request; every submission gets a Docker-team review before merge, and on approval Docker builds, signs, and publishes the image. For awesome-lists and framework directories, open a pull request adding one annotated link.
+1. __candidate → on-going.__ Read the venue's current submission rules at the link above (they drift), then prepare the submission from the registration package. For the official MCP registry, the server manifest is already authored at the repo root — [`server.json`](https://github.com/bernard357/duckdb-vectors/blob/main/server.json) (name `io.github.bernard357/duckdb-vectors`, PyPI package with the `mcp` stdio runtime). Re-validate it against the current `$schema` (the schema version drifts), then publish it with the `mcp-publisher` CLI, authenticating the `io.github.bernard357` namespace via GitHub. For the Docker MCP Catalog, fork [docker/mcp-registry](https://github.com/docker/mcp-registry), add the server definition, and open a pull request; every submission gets a Docker-team review before merge, and on approval Docker builds, signs, and publishes the image. For awesome-lists and framework directories, open a pull request adding one annotated link.
 2. __on-going.__ The submission is open and awaiting third-party review or merge. Record the pull-request or submission URL here next to the venue.
 3. __on-going → complete.__ The entry is live in the venue. Verify by loading the public listing, not by trusting the merge — confirm the entry resolves and the links in it work.
 

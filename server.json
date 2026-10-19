@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bernard357/duckdb-vectors",
+  "title": "duckdb-vectors",
+  "description": "Embeddable hybrid semantic + exact-token search over a local DuckDB file, as read-only MCP tools.",
+  "websiteUrl": "https://bernard357.github.io/duckdb-vectors/",
+  "repository": {
+    "url": "https://github.com/bernard357/duckdb-vectors",
+    "source": "github"
+  },
+  "version": "261019",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "duckdb-vectors",
+      "version": "261019",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "DUCKDB_VECTORS_DB_PATH",
+          "description": "Path to the DuckDB index file the server opens read-only."
+        }
+      ]
+    }
+  ]
+}
