@@ -4,7 +4,7 @@ __A frugal, embeddable semantic-search building block for agentic systems — hy
 
 [![Python](https://img.shields.io/pypi/pyversions/duckdb-vectors)](https://pypi.org/project/duckdb-vectors/)
 [![PyPI](https://img.shields.io/pypi/v/duckdb-vectors)](https://pypi.org/project/duckdb-vectors/)
-[![Tests](https://github.com/bernard357/duckdb-vectors/actions/workflows/ci.yml/badge.svg)](https://github.com/bernard357/duckdb-vectors/actions/workflows/ci.yml)
+[![Tests](https://github.com/bernard357/duckdb-vectors/actions/workflows/integrate.yml/badge.svg)](https://github.com/bernard357/duckdb-vectors/actions/workflows/integrate.yml)
 [![MCP](https://img.shields.io/badge/MCP-stdio-blue)](https://bernard357.github.io/duckdb-vectors/docker-agent-guide)
 
 🌐 __[Browse the documentation site](https://bernard357.github.io/duckdb-vectors/)__ — a searchable guide to every use case, harness, and deployment.
