@@ -2,7 +2,7 @@
 
 How fast is in-process search, and how much data fits in one container? This page answers both with an engineering model you can reason about, so you can decide whether `duckdb-vectors` fits before you measure.
 
-> __These figures are an engineering model, not a measured benchmark.__ They are derived from the architecture — the source files are cited at every claim — and are meant to set expectations and ground design choices. They are __not__ p50/p95 numbers from a timing harness. A measured harness is tracked separately (see the optional item on issue #25) and will replace these estimates with real percentiles when it lands. Until then, read every number below as "the model predicts," not "we measured."
+> __These figures are an engineering model, not a measured benchmark.__ They are derived from the architecture — the source files are cited at every claim — and are meant to set expectations and ground design choices. They are __not__ p50/p95 numbers from a timing harness. A measured harness ships with the package (`scripts/benchmark_performance.py`) and will replace these estimates with real percentiles when its results are published here. Until then, read every number below as "the model predicts," not "we measured."
 
 ## How a query spends its time
 
