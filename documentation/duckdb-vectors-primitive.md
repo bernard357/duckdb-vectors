@@ -209,6 +209,8 @@ Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is  de
 
 Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of 384-dim chunks is single-digit to low-tens of milliseconds. With `local` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
 
+The [performance guide](performance-guide) expands this into a full cost model — the per-query breakdown, in-process vs stdio vs HTTP MCP transport overhead, local vs Bedrock embedding latency, and how much data fits in one container.
+
 ## How do I keep the image small?
 
 - The DuckDB file itself is compact — a few thousand 384-dim chunks is a small

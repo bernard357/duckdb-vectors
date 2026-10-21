@@ -16,6 +16,8 @@ Most agents we build at work are specialists, not oracles. The honest requiremen
 
 For the common case — a few thousand documents, read-mostly, packaged with one agent — you can skip the external vector database entirely. Index the corpus into a single [DuckDB](https://duckdb.org) file, bake that file into the agent's container image, and answer semantic queries with a local function call in milliseconds. No MCP, no network round-trip. We packaged this pattern as `duckdb-vectors`, a compact open-source Python package.
 
+For the engineering model behind "in milliseconds" — a fair latency comparison against a remote MCP and how much data reasonably fits in one container — see the [performance guide](performance-guide).
+
 ## Use cases
 
 `duckdb-vectors` has been designed for following use cases:
