@@ -222,6 +222,9 @@ We did our homework, as reflected in the [Alternatives](#alternatives) section. 
 - [microrag](https://pypi.org/project/microrag/)
   — the closest neighbour: a universal RAG library with ONNX-backed embeddings and DuckDB storage. If you want an end-to-end RAG library, it is a strong fit. We are not a RAG library — we deliberately stop at retrieval (store, index, search) and leave generation, prompting, and LLM orchestration to the harness, so the component composes into any framework rather than owning the pipeline.
 
+- [Docker Agent RAG toolset](https://docs.docker.com/ai/docker-agent/tools/rag/)
+  — the built-in `rag` toolset of Docker Agent (cagent): declare a knowledge base under `rag:` in the agent config and any agent searches your documents before answering, no separate retrieval package. Reach for it when Docker Agent is already your harness and you want retrieval wired in-runtime. We stay harness-agnostic: `duckdb-vectors` is a standalone library you call from any framework (or from Docker Agent itself via `duckdb-vectors mcp`), so the index and the retrieval surface are not tied to one agent runtime.
+
 - [duckdb `ai` community extension](https://duckdb.org/community_extensions/extensions/ai.html)
   — an extension that calls embedding and chat providers from inside SQL. Reach for it when you want embeddings generated in the database and don't mind the provider wiring living in SQL. We keep embedding in Python so the same code runs offline in CI and against a cloud provider in production without SQL-level credentials.
 
