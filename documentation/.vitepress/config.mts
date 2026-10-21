@@ -46,6 +46,7 @@ export default withMermaid(
               text: 'Foster adoption',
               link: '/register-package-procedure',
             },
+            { text: 'Performance guide', link: '/performance-guide' },
           ],
         },
         {
