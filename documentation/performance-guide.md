@@ -1,8 +1,27 @@
 # Performance guide
 
-How fast is in-process search, and how much data fits in one container? This page answers both with an engineering model you can reason about, so you can decide whether `duckdb-vectors` fits before you measure.
+How fast is in-process search, and how much data fits in one container? This page answers both: first a measured retrieval benchmark, then the engineering model that explains the shape of the numbers and extrapolates past what was measured.
 
-> __These figures are an engineering model, not a measured benchmark.__ They are derived from the architecture — the source files are cited at every claim — and are meant to set expectations and ground design choices. They are __not__ p50/p95 numbers from a timing harness. A measured harness ships with the package (`scripts/benchmark_performance.py`) and will replace these estimates with real percentiles when its results are published here. Until then, read every number below as "the model predicts," not "we measured."
+> __Two kinds of number live on this page.__ The [measured retrieval latency](#measured-retrieval-latency) section reports real p50/p95 from a timing run on a specific machine, produced by the harness that ships with the package (`scripts/benchmark_performance.py`). Everything after it — transport overhead, embedder comparison, and the data-volume ceiling — is an engineering __model__ derived from the architecture, with source files cited. Model figures set expectations and extrapolate; the measured section is the ground truth at the one scale we timed. Where the two disagree, the measurement wins, and the model text below has been corrected to match it.
+
+## Measured retrieval latency
+
+A real timing run, retrieval only — the index is built once (indexing cost is not measured) and then warm `query()` calls are timed.
+
+__Setup:__ 1,000 chunks of ~300 words each, local embedder (`BAAI/bge-small-en-v1.5`, 384-dim, fastembed ONNX, fully offline), hybrid search (`top_k=5`), 5 warm-up queries discarded, 50 timed iterations over a 5-query bank. __Hardware: MacBook Pro M1 (2021).__ Database file: 9.5 MB. Reproduce with `scripts/benchmark_performance.py`.
+
+| Slice | p50 | p95 | p99 |
+| --- | --- | --- | --- |
+| Query embedding | 4.4 ms | 5.0 ms | 5.1 ms |
+| Full `query()` (embed + scan + fuse + fetch) | 41.4 ms | 42.5 ms | 42.6 ms |
+| Scan + fuse + fetch (query − embed, p50) | ~37 ms | | |
+
+Two things stand out, and both correct the model's first guess:
+
+- __The scan, not the embedding, dominates.__ Query embedding is small and steady (~4.4 ms, exactly as the model predicts below). The rest of `query()` — the cosine scan, the BM25 scan, Reciprocal Rank Fusion, and the per-hit fetch-by-id — is ~37 ms at only 1,000 chunks. An early pure-cosine model under-counted this by roughly 10x because it ignored the BM25 pass, the fusion, and the per-id round-trips that `query()` actually performs.
+- __The tail is tight.__ p95 and p99 sit within ~1 ms of p50. In-process execution has no network hop to stall on, so latency is almost flat across iterations — the practical value of the embedded design.
+
+The absolute numbers are specific to this machine and this corpus shape; treat them as an order-of-magnitude anchor (tens of milliseconds), not a universal constant. The model below explains why the slices behave as they do and how they scale.
 
 ## How a query spends its time
 
@@ -19,7 +38,7 @@ Source: `src/duckdb_vectors/store.py`, `query()`. The method embeds the query st
 
 The two rankings are fused with Reciprocal Rank Fusion, then the top-k chunks are fetched by id.
 
-The key insight for a __fair comparison__: `embed` is identical across every transport — the same model runs on the same input regardless of how the call arrived — and `scan` and `fuse/fetch` happen inside the same DuckDB file either way. So the __only__ slice that differs between in-process, stdio MCP, and HTTP MCP is `transport`. Compare transports honestly and you are comparing just that one slice against a fixed `embed + scan` cost that dominates it.
+The key insight for a __fair comparison__: `embed`, `scan`, and `fuse/fetch` are identical across every transport — the same model runs on the same input and the same DuckDB file is scanned the same way, regardless of how the call arrived. So the __only__ slice that differs between in-process, stdio MCP, and HTTP MCP is `transport`. A fair comparison holds the retrieval cost fixed and compares just that one slice. Measurement (above) puts the fixed retrieval cost at ~41 ms for a 1k-chunk index, of which the scan and fetch — not the embedding — are the larger part.
 
 ## Transport overhead: in-process vs stdio vs HTTP MCP
 
@@ -40,19 +59,19 @@ Because `embed` is the same across transports, its size decides how much the tra
 - __Local__ (`src/duckdb_vectors/embedders/local.py`, default `BAAI/bge-small-en-v1.5`, 384-dim, fastembed ONNX, no network): roughly __5-20 ms__ per short query on a warm CPU. No round-trip — the model runs in-process.
 - __Bedrock__ (`src/duckdb_vectors/embedders/bedrock.py`, Titan `amazon.titan-embed-text-v2:0`, 1024-dim): one `invoke_model` HTTP round-trip per query, roughly __30-100 ms__ same-region. This is a network call regardless of which transport delivered the search request.
 
-Worked end-to-end latency (transport + embed + ~1-5 ms scan), per embedder and transport:
+Worked end-to-end latency, per embedder and transport. The `scan + fuse/fetch` term is taken from the measured section above (~37 ms at 1k chunks on the reference machine), not from the earlier pure-cosine estimate; it moves with corpus size and hardware, so treat these as that machine's figures:
 
 | Local embedder (384-dim) | In-process | stdio MCP | HTTP MCP |
 | --- | --- | --- | --- |
-| End-to-end | ~6-25 ms | ~7-26 ms | ~36-55 ms |
+| End-to-end | ~41 ms | ~42-43 ms | ~75-90 ms |
 
-With the local embedder the in-process/stdio win is __largest__: the embedding work is small, so transport was often bigger than the real work. HTTP MCP runs roughly __2-8x slower end-to-end__, and that extra time is pure overhead — no additional search happened.
+With the local embedder, embedding is the small slice (~4 ms) and the scan+fetch is the large one (~37 ms); transport is what a transport choice changes on top of that fixed retrieval cost. Moving from in-process/stdio to a remote HTTP MCP adds ~30-50 ms of pure network overhead — on this corpus that roughly __doubles__ end-to-end latency, and none of the added time does any more searching.
 
 | Bedrock embedder (1024-dim) | In-process | stdio MCP | HTTP MCP |
 | --- | --- | --- | --- |
-| End-to-end | ~31-105 ms | ~32-106 ms | ~61-135 ms |
+| End-to-end | ~67-137 ms | ~68-138 ms | ~97-187 ms |
 
-With Bedrock the embedding network call dwarfs transport, so the transport slice is a smaller share (~20-30% of the total) — but in-process still wins, and stdio is within a hair of it.
+With Bedrock the embedding network round-trip (~30-100 ms, modelled — not measured here) stacks on top of the ~37 ms scan, so a single search already spans two cost centres before transport. In-process still wins and stdio is within a hair of it, but the relative value of avoiding the HTTP transport shrinks because the embed call is itself a network cost you cannot avoid.
 
 The win is not only latency. In-process and stdio also buy:
 
@@ -62,7 +81,7 @@ The win is not only latency. In-process and stdio also buy:
 
 ## How much data fits in a container
 
-The ceiling is set by the __brute-force scan__ (linear in chunk count), not by disk. The DuckDB file is small; the question is how long a linear cosine scan over every row takes.
+The ceiling is set by retrieval time, not by disk. The DuckDB file is small. Retrieval has a roughly __fixed floor__ — the measured ~37 ms of BM25, fusion, and per-id fetch that is present even at 1,000 chunks — plus a __linear term__: the brute-force cosine scan grows with row count. Below, the "retrieval latency" column is that floor plus the growing scan; it is anchored on the measured 1k point and extrapolated upward (model, not measured).
 
 Per-chunk footprint, from the defaults:
 
@@ -72,18 +91,20 @@ Per-chunk footprint, from the defaults:
 
 Round figure: __~3-5 KB stored per chunk__.
 
-| Chunks | Approx DB size | Approx raw text | Scan latency (local, 384-dim) | Verdict |
+| Chunks | Approx DB size | Approx raw text | Retrieval latency (local, 384-dim) | Verdict |
 | --- | --- | --- | --- | --- |
-| 1,000 | ~3-5 MB | ~1.5-2 MB | sub-millisecond | trivial |
-| 10,000 | ~30-50 MB | ~15-20 MB | ~1-5 ms | comfortable sweet spot |
-| 50,000 | ~150-250 MB | ~75-100 MB | ~5-20 ms | fine; scan now visible |
-| 100,000 | ~300-500 MB | ~150-200 MB | ~15-40 ms | upper edge of snappy |
-| 500,000+ | ~1.5-2.5 GB+ | ~1 GB+ | ~100 ms+ per query | brute force starts to hurt |
+| 1,000 | ~3-5 MB | ~1.5-2 MB | ~40 ms (measured) | the reference point |
+| 10,000 | ~30-50 MB | ~15-20 MB | ~45-60 ms | comfortable sweet spot |
+| 50,000 | ~150-250 MB | ~75-100 MB | ~70-120 ms | fine; scan now visible |
+| 100,000 | ~300-500 MB | ~150-200 MB | ~120-200 ms | upper edge of snappy |
+| 500,000+ | ~1.5-2.5 GB+ | ~1 GB+ | several hundred ms+ | brute force starts to hurt |
+
+The 1k row is measured; the rest adds the linear cosine-scan growth on top of the fixed floor and is a model extrapolation, not a measurement. Run the harness at your own scale to replace any row with a real figure.
 
 Practical guidance:
 
-- The __design target__ is a few thousand to a few tens of thousands of chunks — the band where the scan is a rounding error and the DB file is negligible next to a typical container image.
-- The __comfortable ceiling__ for the default (no HNSW) is around __100k chunks__: the scan stays within the "tens of milliseconds" promise and the file is still a rounding error against the image.
+- The __design target__ is a few thousand to a few tens of thousands of chunks — the band where retrieval stays in tens of milliseconds and the DB file is negligible next to a typical container image.
+- The __comfortable ceiling__ for the default (no HNSW) is around __100k chunks__: retrieval is still interactive (low hundreds of ms) and the file is still a rounding error against the image. If you need the single-digit-to-low-tens-of-ms band, stay nearer the low-thousands scale that was measured.
 - __Beyond ~100k-500k__, it is the linear scan — not storage — that degrades. Options, in order of effort:
   1. A __smaller embedding dimension__ scans faster (384-dim is roughly 2x faster to scan than 768-dim).
   2. __Scope the query__ with a metadata `WHERE` in the injectable ranking SQL to cut the scanned set.
