@@ -18,10 +18,23 @@ __Setup:__ 1,000 chunks of ~300 words each, local embedder (`BAAI/bge-small-en-v
 
 Two things stand out, and both correct the model's first guess:
 
-- __The scan, not the embedding, dominates.__ Query embedding is small and steady (~4.4 ms, exactly as the model predicts below). The rest of `query()` — the cosine scan, the BM25 scan, Reciprocal Rank Fusion, and the per-hit fetch-by-id — is ~37 ms at only 1,000 chunks. An early pure-cosine model under-counted this by roughly 10x because it ignored the BM25 pass, the fusion, and the per-id round-trips that `query()` actually performs.
+- __The cosine scan, not the embedding, dominates.__ Query embedding is small and steady (~4.4 ms, exactly as the model predicts below). The rest of `query()` — the cosine scan, the BM25 scan, Reciprocal Rank Fusion, and the per-hit fetch-by-id — is ~37 ms at only 1,000 chunks. Profiling that ~37 ms (next section) shows the brute-force cosine scan is by far the largest slice at ~32 ms (~80% of retrieval), with BM25 at ~6 ms and fusion plus fetch a rounding error. An early pure-cosine model got the shape right but under-counted the absolute cost of the cosine scan itself.
 - __The tail is tight.__ p95 and p99 sit within ~1 ms of p50. In-process execution has no network hop to stall on, so latency is almost flat across iterations — the practical value of the embedded design.
 
 The absolute numbers are specific to this machine and this corpus shape; treat them as an order-of-magnitude anchor (tens of milliseconds), not a universal constant. The model below explains why the slices behave as they do and how they scale.
+
+### Where the ~41 ms goes
+
+Profiled separately on the same machine (MacBook Pro M1 (2021), 1,000 chunks, local embedder, hybrid `query()` `top_k=5`, 50 timed iterations), the retrieval time breaks down as follows. These are __measured__ figures, not a model.
+
+| Slice | Time | Share |
+| --- | --- | --- |
+| Cosine vector scan (`array_cosine_distance` over `FLOAT[384]`) | ~32 ms | ~80% |
+| BM25 exact-token scan | ~6 ms | ~15% |
+| Reciprocal Rank Fusion | ~0.03 ms | ~0% |
+| Per-id fetch loop | ~2 ms | ~5% |
+
+The headline: the brute-force cosine scan is the budget. BM25 is a small second, fusion is free, and the fetch loop is negligible. This is why corpus size moves the number — the cosine scan is the slice that grows linearly with row count.
 
 ## How a query spends its time
 
@@ -38,7 +51,7 @@ Source: `src/duckdb_vectors/store.py`, `query()`. The method embeds the query st
 
 The two rankings are fused with Reciprocal Rank Fusion, then the top-k chunks are fetched by id.
 
-The key insight for a __fair comparison__: `embed`, `scan`, and `fuse/fetch` are identical across every transport — the same model runs on the same input and the same DuckDB file is scanned the same way, regardless of how the call arrived. So the __only__ slice that differs between in-process, stdio MCP, and HTTP MCP is `transport`. A fair comparison holds the retrieval cost fixed and compares just that one slice. Measurement (above) puts the fixed retrieval cost at ~41 ms for a 1k-chunk index, of which the scan and fetch — not the embedding — are the larger part.
+The key insight for a __fair comparison__: `embed`, `scan`, and `fuse/fetch` are identical across every transport — the same model runs on the same input and the same DuckDB file is scanned the same way, regardless of how the call arrived. So the __only__ slice that differs between in-process, stdio MCP, and HTTP MCP is `transport`. A fair comparison holds the retrieval cost fixed and compares just that one slice. Measurement (above) puts the fixed retrieval cost at ~41 ms for a 1k-chunk index, of which the brute-force cosine scan — not the embedding, and not BM25 or fusion — is the dominant part (~32 ms, ~80%).
 
 ## Transport overhead: in-process vs stdio vs HTTP MCP
 
@@ -52,6 +65,28 @@ Transport is the only slice a transport choice changes. Per call:
 
 Source for the stdio path: `src/duckdb_vectors/mcp_server.py`. An MCP client spawns `duckdb-vectors mcp` as a subprocess in the __same container__ and talks to it over stdin/stdout. stdio is a same-container IPC mechanism, __not__ a network protocol — there is no socket, no TLS handshake, no hop. That is why stdio gives you the MCP tool contract at essentially in-process latency: you get the standard tool interface a client expects without paying the network cost that "MCP" usually implies.
 
+## Would an HNSW index help?
+
+The cosine scan is the budget, so the obvious question is whether an approximate-nearest-neighbour (ANN) index would pay off. We measured it: the same 1,000-chunk index, built with an HNSW index using the DuckDB `vss` extension (cosine metric, requiring the experimental-persistence flag), compared against the brute-force exact top-k as ground truth.
+
+| Approach | Vector-ranking p50 | Recall@5 |
+| --- | --- | --- |
+| Brute-force exact scan | ~30.1 ms | 1.00 (ground truth) |
+| HNSW index (vss extension) | ~29.6 ms | 0.96 mean, 0.80 worst-case |
+
+The planner did use the index (`HNSW_INDEX_SCAN` confirmed in the query plan), so this is a real HNSW path, not a silent fall-back. The result: at 1,000 chunks HNSW is ~2% faster — within noise — while giving up exact recall (0.96 mean, down to 0.80 on the worst query) and requiring the experimental-persistence flag for a baked read-only file. At this scale the distance-comparison count is small enough that brute force is already fast, so the index buys essentially nothing in speed and costs recall.
+
+__Conclusion:__ brute force is the right default at the package's target scale. HNSW only becomes a worthwhile lever well beyond the thousands-of-items niche, where the number of distance comparisons itself dominates the budget. The schema stays HNSW-ready (a fixed-size ARRAY column) so a user who outgrows the niche can opt in, but the default path pays neither the recall nor the persistence-flag cost.
+
+## Versus a network vector database
+
+How does the in-process path compare to reaching a hosted vector database over the network? Hold the retrieval work fixed and look at what the network adds.
+
+- __In-process (this package):__ ~41 ms p50 at 1,000 chunks on the reference machine, with __no network hop__ — the index is baked read-only into the agent's container and queried by a local function call.
+- __Hosted vector database:__ its own compute (embedding and/or ANN search on the server) __plus__ a network round-trip to reach it. The round-trip alone is ~10-50 ms same-region and 50-150 ms+ cross-region or on a cold connection (modelled, see the transport table above), with a long tail that in-process execution does not have.
+
+The honest boundary: at this 1k scale the network hop roughly __doubles__ end-to-end latency (~30-50 ms added on top of comparable retrieval work), and none of the added time does any more searching. A remote store only starts to pay for itself once the corpus outgrows what a brute-force scan serves well — well past the thousands-to-low-tens-of-thousands niche this package targets. Below that line, the file baked into the container is both faster and simpler; above it, the served store's indexing and horizontal scale earn their round-trip. The network figures are a __model__; the ~41 ms in-process figure is measured.
+
 ## Embedding latency dominates
 
 Because `embed` is the same across transports, its size decides how much the transport slice matters. The two built-in embedders sit at very different points.
@@ -59,13 +94,13 @@ Because `embed` is the same across transports, its size decides how much the tra
 - __Local__ (`src/duckdb_vectors/embedders/local.py`, default `BAAI/bge-small-en-v1.5`, 384-dim, fastembed ONNX, no network): roughly __5-20 ms__ per short query on a warm CPU. No round-trip — the model runs in-process.
 - __Bedrock__ (`src/duckdb_vectors/embedders/bedrock.py`, Titan `amazon.titan-embed-text-v2:0`, 1024-dim): one `invoke_model` HTTP round-trip per query, roughly __30-100 ms__ same-region. This is a network call regardless of which transport delivered the search request.
 
-Worked end-to-end latency, per embedder and transport. The `scan + fuse/fetch` term is taken from the measured section above (~37 ms at 1k chunks on the reference machine), not from the earlier pure-cosine estimate; it moves with corpus size and hardware, so treat these as that machine's figures:
+Worked end-to-end latency, per embedder and transport. The `scan + fuse/fetch` term is taken from the measured section above (~37 ms at 1k chunks on the reference machine, of which ~32 ms is the cosine scan), not from the earlier pure-cosine estimate; it moves with corpus size and hardware, so treat these as that machine's figures:
 
 | Local embedder (384-dim) | In-process | stdio MCP | HTTP MCP |
 | --- | --- | --- | --- |
 | End-to-end | ~41 ms | ~42-43 ms | ~75-90 ms |
 
-With the local embedder, embedding is the small slice (~4 ms) and the scan+fetch is the large one (~37 ms); transport is what a transport choice changes on top of that fixed retrieval cost. Moving from in-process/stdio to a remote HTTP MCP adds ~30-50 ms of pure network overhead — on this corpus that roughly __doubles__ end-to-end latency, and none of the added time does any more searching.
+With the local embedder, embedding is the small slice (~4 ms) and the cosine scan is the large one (~32 ms of the ~37 ms scan+fetch); transport is what a transport choice changes on top of that fixed retrieval cost. Moving from in-process/stdio to a remote HTTP MCP adds ~30-50 ms of pure network overhead — on this corpus that roughly __doubles__ end-to-end latency, and none of the added time does any more searching.
 
 | Bedrock embedder (1024-dim) | In-process | stdio MCP | HTTP MCP |
 | --- | --- | --- | --- |
@@ -81,7 +116,7 @@ The win is not only latency. In-process and stdio also buy:
 
 ## How much data fits in a container
 
-The ceiling is set by retrieval time, not by disk. The DuckDB file is small. Retrieval has a roughly __fixed floor__ — the measured ~37 ms of BM25, fusion, and per-id fetch that is present even at 1,000 chunks — plus a __linear term__: the brute-force cosine scan grows with row count. Below, the "retrieval latency" column is that floor plus the growing scan; it is anchored on the measured 1k point and extrapolated upward (model, not measured).
+The ceiling is set by retrieval time, not by disk. The DuckDB file is small. Retrieval has a small __fixed floor__ — the measured ~8 ms of embedding, BM25, fusion, and per-id fetch that is present even at 1,000 chunks — plus a __linear term__ that dominates: the brute-force cosine scan, measured at ~32 ms for 1,000 chunks and growing with row count. Below, the "retrieval latency" column is that floor plus the growing scan; it is anchored on the measured 1k point and extrapolated upward (model, not measured).
 
 Per-chunk footprint, from the defaults:
 

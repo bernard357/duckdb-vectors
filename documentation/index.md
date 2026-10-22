@@ -18,6 +18,17 @@ For the common case — a few thousand documents, read-mostly, packaged with one
 
 For the engineering model behind "in milliseconds" — a fair latency comparison against a remote MCP and how much data reasonably fits in one container — see the [performance guide](performance-guide).
 
+## Data architecture decisions and facts
+
+A few deliberate choices shape how `duckdb-vectors` retrieves, and they are backed by measurement rather than assumption:
+
+- __One DuckDB file is one index__, baked read-only into the agent's container image — no external vector database and no network hop on the query path.
+- __Hybrid retrieval__: a brute-force exact cosine scan (`array_cosine_distance` over a `FLOAT[384]` ARRAY column) fused with a BM25 exact-token scan via Reciprocal Rank Fusion. The BM25 index is built without stemming or stopwords on purpose, for language-agnostic exact-token matching.
+- __No ANN index by default__: the schema is HNSW-ready (a fixed-size ARRAY column), but the default path is brute force, because measurement shows HNSW is not worth the recall and persistence cost at the package's target scale.
+- __Local embedding by default__ (offline, in-process); cloud embedding (Bedrock Titan) is opt-in.
+
+Measured on a MacBook Pro M1 (2021): ~41 ms p50 retrieval over a 1,000-chunk index, fully in-process — versus a network round-trip for a hosted vector database. The full breakdown, the HNSW comparison, and the network-versus-in-process boundary are in the [performance guide](/performance-guide).
+
 ## Use cases
 
 `duckdb-vectors` has been designed for following use cases:
