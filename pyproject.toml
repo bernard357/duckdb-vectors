@@ -86,5 +86,15 @@ warn_unused_ignores = true
 # isolated behind the embedder registry, so ignore their missing stubs rather
 # than vendor third-party type packages.
 [[tool.mypy.overrides]]
-module = ["boto3", "fastembed", "llama_cpp", "mcp.*", "yaml"]
+module = [
+    "boto3",
+    "fastembed",
+    "huggingface_hub",
+    "huggingface_hub.*",
+    "llama_cpp",
+    "mcp.*",
+    "onnxruntime",
+    "tokenizers",
+    "yaml",
+]
 ignore_missing_imports = true

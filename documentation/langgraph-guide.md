@@ -34,7 +34,7 @@ $ pip install duckdb-vectors langgraph langchain-openai
 Point the CLI at a folder of markdown to produce a single DuckDB file:
 
 ```shell
-$ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
+$ duckdb-vectors index ./documentation --db vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 The first run downloads the fastembed model; later runs reuse the cache.
@@ -53,7 +53,7 @@ from langgraph.graph import START, StateGraph
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="local", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
 )
 model = init_chat_model("openai:gpt-4o-mini")
 

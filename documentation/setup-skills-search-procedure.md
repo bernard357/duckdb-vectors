@@ -43,7 +43,7 @@ SKILLS = [
     ("skill:send-email", "Compose and send an email to a recipient."),
 ]
 
-store = VectorStore(db_path="skills.duckdb", backend="local")
+store = VectorStore(db_path="skills.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 store.add_texts(
     ids=[sid for sid, _ in SKILLS],
     texts=[desc for _, desc in SKILLS],
@@ -60,7 +60,7 @@ A folder of `SKILL.md` files can be indexed the same way with
 Wrap retrieval as a function the agent can call to find relevant skills:
 
 ```python
-store = VectorStore(db_path="skills.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="skills.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 
 
 def find_skills(task: str, k: int = 3) -> list[str]:
@@ -90,7 +90,7 @@ open the store read-write at init and append them before serving — the
 runtime-append lifecycle:
 
 ```python
-store = VectorStore(db_path="skills.duckdb", backend="local")
+store = VectorStore(db_path="skills.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 store.add_texts(ids=[...], texts=[...], metadatas=[...])
 # then switch to read-only queries for the rest of the session
 ```

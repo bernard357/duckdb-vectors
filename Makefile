@@ -20,9 +20,10 @@ help:
 .EXPORT_ALL_VARIABLES:
 
 # default embedding backend for the CLI and examples
-# "local" uses fastembed (minimum viable setup); "bedrock:titan" embeds in the
-# cloud; "hashing" is a deterministic, dependency-free fixture for tests only
-DUCKDB_VECTORS_BACKEND ?= local
+# "fastembed:<model>" uses fastembed (minimum viable setup); "hf:<repo>" loads
+# any Hugging Face ONNX repo; "bedrock:titan" embeds in the cloud; "hashing" is
+# a deterministic, dependency-free fixture for tests only
+DUCKDB_VECTORS_BACKEND ?= fastembed:minishlab/potion-multilingual-128M
 # default DuckDB database path
 DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 # default Python path for imports

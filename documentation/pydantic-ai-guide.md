@@ -35,7 +35,7 @@ $ pip install duckdb-vectors pydantic-ai
 Point the CLI at a folder of markdown to produce a single DuckDB file:
 
 ```shell
-$ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
+$ duckdb-vectors index ./documentation --db vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 The first run downloads the fastembed model; later runs reuse the cache.
@@ -52,7 +52,7 @@ from pydantic_ai import Agent
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="local", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
 )
 agent = Agent("openai:gpt-4o-mini")
 

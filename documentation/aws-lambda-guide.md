@@ -51,7 +51,7 @@ FROM public.ecr.aws/lambda/python:3.12
 RUN pip install duckdb-vectors
 COPY documentation/ ${LAMBDA_TASK_ROOT}/documentation/
 RUN duckdb-vectors index ${LAMBDA_TASK_ROOT}/documentation \
-    --db ${LAMBDA_TASK_ROOT}/vectors.duckdb --backend local
+    --db ${LAMBDA_TASK_ROOT}/vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 COPY handler.py ${LAMBDA_TASK_ROOT}/
 CMD ["handler.lambda_handler"]
 ```
@@ -69,7 +69,7 @@ import boto3
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="local", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
 )
 bedrock = boto3.client("bedrock-runtime")
 MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
@@ -101,8 +101,8 @@ def lambda_handler(event, context):
 
 The store is created at module scope so the index is opened once per execution
 environment and reused across warm invocations. Trigger a warm-up query if you
-use the `local` backend, so the first real request does not pay the one-time
-model load.
+use the `fastembed` backend, so the first real request does not pay the
+one-time model load.
 
 ## Step 3 — package and deploy
 

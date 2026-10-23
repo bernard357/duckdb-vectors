@@ -38,7 +38,7 @@ USER node
 Build the index once on your workstation before copying it in:
 
 ```shell
-$ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
+$ duckdb-vectors index ./documentation --db vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 ## Step 2 — the Code node
@@ -51,7 +51,7 @@ them:
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="/data/vectors.duckdb", backend="local", read_only=True
+    db_path="/data/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
 )
 question = _input.item.json["question"]
 hits = store.query(question, top_k=5)

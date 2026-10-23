@@ -11,8 +11,9 @@ mirrors the model's decomposition.
 
 Backends:
 
-- ``local`` (default) — fastembed ONNX, 384-dim, no network. The realistic
-  serving path for the embed timing.
+- ``fastembed:minishlab/potion-multilingual-128M`` (default) — fastembed ONNX,
+  256-dim multilingual, no network. The realistic serving path for the embed
+  timing.
 - ``hashing`` — deterministic, dependency-free, no network. Use it to isolate the
   scan curve at large chunk counts without paying embedding cost or time.
 - ``bedrock`` / ``bedrock:titan`` — opt-in only. It issues a billable Bedrock
@@ -25,6 +26,7 @@ Run it from the repository root with the project venv:
     $ .venv/bin/python scripts/benchmark_performance.py --sizes 1000 10000 50000
     $ .venv/bin/python scripts/benchmark_performance.py --json results.json
     $ .venv/bin/python scripts/benchmark_performance.py --backend bedrock:titan
+    $ .venv/bin/python scripts/benchmark_performance.py --backend hashing
 
 Nothing here is wired into the test suite: it builds large indexes and (for the
 bedrock backend) makes billable calls, so it is a manual utility, not a test.
@@ -198,8 +200,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--backend",
-        default="local",
-        help="embedding backend: local (default), hashing, bedrock[:titan]",
+        default="fastembed:minishlab/potion-multilingual-128M",
+        help=(
+            "embedding backend: fastembed:<model> (default), hashing, "
+            "hf:<repo>, bedrock[:titan]"
+        ),
     )
     parser.add_argument(
         "--warmup",

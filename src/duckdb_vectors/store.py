@@ -56,7 +56,7 @@ class ReadOnlyError(RuntimeError):
 class VectorStore:
     """A DuckDB-backed vector index with hybrid search.
 
-    Open with a backend spec (``"local"``, ``"hashing"``, ``"bedrock:titan"``)
+    Open with a backend spec (``"fastembed"``, ``"hashing"``, ``"bedrock:titan"``)
     or an explicit :class:`Embedder`. ``read_only`` opens the file without
     allowing writes — the mode used when a frozen index is baked into an image.
     """

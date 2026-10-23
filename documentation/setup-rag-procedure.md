@@ -36,15 +36,16 @@ Index the folder into a DuckDB file. Choose a chunking strategy and an
 embedding backend:
 
 ```shell
-$ duckdb-vectors index ./documentation --recursive --backend local
+$ duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 - __Chunking options.__ The default `MarkdownChunker` splits on headings and
   windows long sections to ~300 words. Supply a custom `Chunker` (any object
   with `chunk(text, source)`) for other formats or sizes.
-- __Embedding options.__ `local` (fastembed, offline, 384 dims) is the default
-  and the minimum viable setup for real relevance; `bedrock:titan` embeds
-  through Bedrock. (`hashing` is a deterministic, dependency-free fixture for
+- __Embedding options.__ `fastembed:minishlab/potion-multilingual-128M`
+  (offline, 256-dim static multilingual) is the default and the minimum viable
+  setup for real relevance; other `fastembed:` tiers and `hf:<repo-id>` trade
+  size for relevance, and `bedrock:titan` embeds through Bedrock. (`hashing` is a deterministic, dependency-free fixture for
   tests and CI, not for relevance.) Re-running the index only re-embeds changed
   chunks (ETag reuse) and prunes chunks for deleted files.
 
@@ -62,7 +63,7 @@ serving, retrieve per request, and hand the chunks to your LLM:
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 
 
 def answer(question: str) -> str:
@@ -84,7 +85,7 @@ FROM python:3.12-slim AS builder
 WORKDIR /build
 RUN pip install "duckdb-vectors"
 COPY documentation/ ./documentation/
-RUN duckdb-vectors index ./documentation --recursive --backend local --db /build/vectors.duckdb
+RUN duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M --db /build/vectors.duckdb
 
 FROM python:3.12-slim AS runtime
 WORKDIR /app

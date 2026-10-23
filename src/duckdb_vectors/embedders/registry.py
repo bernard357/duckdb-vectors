@@ -1,8 +1,10 @@
 """Resolve a backend string to an :class:`Embedder` instance.
 
-A backend string is either a bare name (``"local"``, ``"hashing"``) or a
-``name:variant`` pair (``"bedrock:titan"``). Factories are registered by name;
-the variant (the part after the first colon) is passed through to the factory.
+A backend string is either a bare name (``"fastembed"``, ``"hashing"``) or a
+``name:variant`` pair (``"fastembed:BAAI/bge-small-en-v1.5"``,
+``"hf:Qwen/Qwen3-Embedding-0.6B"``, ``"bedrock:titan"``). Factories are
+registered by name; the variant (the part after the first colon) is passed
+through to the factory.
 
 Contributors add open or closed, local or cloud backends by calling
 :func:`register_embedder` with a factory, keeping the core free of heavy
@@ -29,7 +31,7 @@ def register_embedder(name: str, factory: EmbedderFactory) -> None:
 
 
 def resolve_embedder(spec: str) -> Embedder:
-    """Resolve a backend spec such as ``"local"`` or ``"bedrock:titan"``.
+    """Resolve a backend spec such as ``"fastembed"`` or ``"bedrock:titan"``.
 
     Raises ``ValueError`` for an unknown backend name, listing the registered
     names to aid discovery.
@@ -50,10 +52,21 @@ def _hashing_factory(variant: str | None) -> Embedder:
     return HashingEmbedder()
 
 
-def _local_factory(variant: str | None) -> Embedder:
-    from duckdb_vectors.embedders.local import LocalEmbedder
+def _fastembed_factory(variant: str | None) -> Embedder:
+    from duckdb_vectors.embedders.fastembed import FastembedEmbedder
 
-    return LocalEmbedder(model_name=variant) if variant else LocalEmbedder()
+    return FastembedEmbedder(model_name=variant) if variant else FastembedEmbedder()
+
+
+def _hf_factory(variant: str | None) -> Embedder:
+    from duckdb_vectors.embedders.huggingface import HuggingFaceEmbedder
+
+    if not variant:
+        raise ValueError(
+            "The 'hf' backend requires a repository id, e.g. "
+            "'hf:Qwen/Qwen3-Embedding-0.6B'."
+        )
+    return HuggingFaceEmbedder(repo_id=variant)
 
 
 def _bedrock_factory(variant: str | None) -> Embedder:
@@ -63,5 +76,6 @@ def _bedrock_factory(variant: str | None) -> Embedder:
 
 
 register_embedder("hashing", _hashing_factory)
-register_embedder("local", _local_factory)
+register_embedder("fastembed", _fastembed_factory)
+register_embedder("hf", _hf_factory)
 register_embedder("bedrock", _bedrock_factory)

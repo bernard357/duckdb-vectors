@@ -1,6 +1,6 @@
 # A tiny answering agent over the duckdb-vectors documentation.
 #
-# Stage 1 installs the local (fastembed) backend, downloads its ONNX model, and
+# Stage 1 installs the fastembed backend, downloads its ONNX model, and
 # indexes the project's documentation/ folder into a frozen DuckDB file. Stage 2
 # copies only the agent code, the frozen index, and the model cache, so the
 # container answers read-only and fully offline with no build tooling.

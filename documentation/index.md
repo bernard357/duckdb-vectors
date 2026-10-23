@@ -118,13 +118,13 @@ Settings resolve with the precedence: explicit argument >
 | Setting | Argument | Environment variable | Default |
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
-| Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `local` |
+| Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
 | Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ## Embedding backends
 
-The selection of a backend for embeddings is resolved from a string. This can be a bare name (`local`) or a `name:variant` pair (`bedrock:titan`). `local` is the default and the minimum viable setup for end users. The registry is contributor-extensible — register open or closed, local or cloud backends without touching the core:
+The selection of a backend for embeddings is resolved from a string: a `name:variant` pair (`fastembed:<model>`, `hf:<repo-id>`, `bedrock:titan`) or a bare name (`hashing`). The default is `fastembed:minishlab/potion-multilingual-128M`, a static multilingual model that keeps vectors and the DuckDB file as small as possible while serving international docs. The registry is contributor-extensible — register open or closed, local or cloud backends without touching the core:
 
 ```python
 from duckdb_vectors import register_embedder
@@ -132,11 +132,17 @@ from duckdb_vectors import register_embedder
 register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 ```
 
-Here is the list of embeddings that are currently available:
+The `fastembed:` backend runs a bundled ONNX model with no torch dependency; pick the dimension tier that fits your relevance/size budget. The `hf:<repo-id>` backend is core (no extra install) and loads any Hugging Face repo that ships ONNX weights, running them through the ONNX runtime fastembed already vendors.
 
 | Backend | Spec | Dimensions | Use for |
 | --- | --- | --- | --- |
-| fastembed (ONNX, local) | `local` | 384 | default; real relevance, offline |
+| fastembed potion (static, multilingual) | `fastembed:minishlab/potion-multilingual-128M` | 256 | default; smallest DB, international docs |
+| fastembed MiniLM (multilingual) | `fastembed:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | 384 | balanced multilingual relevance |
+| fastembed mpnet (multilingual) | `fastembed:sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | 768 | higher multilingual relevance |
+| fastembed e5-large (multilingual) | `fastembed:intfloat/multilingual-e5-large` | 1024 | strongest multilingual relevance |
+| fastembed bge-small (English) | `fastembed:BAAI/bge-small-en-v1.5` | 384 | English-only, compact |
+| fastembed bge-large (English) | `fastembed:BAAI/bge-large-en-v1.5` | 1024 | English-only, strongest |
+| Hugging Face ONNX (any repo) | `hf:<repo-id>`, e.g. `hf:Qwen/Qwen3-Embedding-0.6B` | probed | any HF repo shipping ONNX weights |
 | Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
 | Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
 

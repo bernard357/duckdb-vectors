@@ -58,6 +58,6 @@ def test_constructor_overrides_environment():
         "DUCKDB_VECTORS_BACKEND": "hashing",
     }
     with mock.patch.dict("os.environ", env, clear=True):
-        settings = Settings(db_path="/tmp/explicit.duckdb", backend="local")
+        settings = Settings(db_path="/tmp/explicit.duckdb", backend="fastembed")
     assert settings.db_path == "/tmp/explicit.duckdb"
-    assert settings.backend == "local"
+    assert settings.backend == "fastembed"

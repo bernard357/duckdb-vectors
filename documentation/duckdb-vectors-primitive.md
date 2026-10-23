@@ -53,7 +53,8 @@ flowchart TD
     MCP[MCP server: stdio] --> Store
     Store[VectorStore] --> Chunker[Chunker]
     Store --> Embedder[Embedder registry]
-    Embedder --> Local[local: fastembed]
+    Embedder --> Fastembed[fastembed: ONNX]
+    Embedder --> HF[hf: HuggingFace ONNX]
     Embedder --> Bedrock[bedrock:titan]
     Embedder --> Hashing[hashing: tests only]
     Store --> DB[(DuckDB file)]
@@ -72,11 +73,14 @@ Each block is small and replaceable. You can use the defaults or swap any one.
   owns the schema, the write path (`put_vectors`, `add_texts`,
   `delete_vectors`), and the read path (`query`, `query_vectors`). Open it
   read-write to build an index, or read-only to serve a frozen one.
-- __Embedder registry__ — turns a backend string into an embedder. `local`
-  (fastembed) is the default and the minimum viable setup for users;
-  `bedrock:titan` embeds in the cloud; `hashing` is a deterministic,
-  dependency-free fixture for tests and CI, not for relevance. Contributors add
-  more with `register_embedder(name, factory)` without touching the core.
+- __Embedder registry__ — turns a backend string into an embedder.
+  `fastembed:<model>` (bundled ONNX) is the default — the minimum viable setup
+  for users, defaulting to the 256-dim static multilingual
+  `minishlab/potion-multilingual-128M`; `hf:<repo-id>` loads any Hugging Face
+  ONNX repo (for example `hf:Qwen/Qwen3-Embedding-0.6B`); `bedrock:titan`
+  embeds in the cloud; `hashing` is a deterministic, dependency-free fixture
+  for tests and CI, not for relevance. Contributors add more with
+  `register_embedder(name, factory)` without touching the core.
 - __Chunker__ — splits a source document into indexable chunks. The default
   `MarkdownChunker` uses the DuckDB `markdown` extension to split on headings.
   Supply any object with a `chunk(text, source)` method to replace it.
@@ -111,7 +115,7 @@ The Python library (SDK) exposes the S3-Vectors-flavored write and read methods.
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="local")
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 
 # Chunk-first convenience: upsert raw texts.
 store.add_texts(
@@ -145,7 +149,7 @@ For metadata scoping and age decay through an injected `SELECT`, see the [develo
 The CLI covers the three operational verbs and honors the same configuration (constructor argument > `DUCKDB_VECTORS_*` env > default):
 
 ```shell
-$ duckdb-vectors index ./docs --backend local      # index a folder
+$ duckdb-vectors index ./docs --backend fastembed:minishlab/potion-multilingual-128M      # index a folder
 $ duckdb-vectors report --json                      # stats on the database
 $ duckdb-vectors search "how do retries work?" --top-k 5
 ```
@@ -207,7 +211,7 @@ Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is  de
 
 ## What about cold start and latency?
 
-Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of 384-dim chunks is single-digit to low-tens of milliseconds. With `local` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
+Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of chunks is single-digit to low-tens of milliseconds, and scales with the vector dimension — the 256-dim default keeps it fastest. With `fastembed` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
 
 The [performance guide](performance-guide) expands this into a full cost model — the per-query breakdown, in-process vs stdio vs HTTP MCP transport overhead, local vs Bedrock embedding latency, and how much data fits in one container.
 

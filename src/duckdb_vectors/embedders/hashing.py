@@ -2,7 +2,7 @@
 
 Useful as a zero-install default and in tests: it needs no model download and
 no optional extra, yet produces stable, normalized vectors so cosine distance
-behaves. It is not semantically meaningful — swap in ``local`` or a cloud
+behaves. It is not semantically meaningful — swap in ``fastembed`` or a cloud
 backend for real relevance.
 """
 

@@ -39,11 +39,11 @@ $ agentcore --help
 ## Step 2 — bake the index
 
 Index the documentation into a local DuckDB file that ships with the agent.
-Use the `local` backend so retrieval is semantic and offline inside the
+Use the `fastembed` backend so retrieval is semantic and offline inside the
 runtime:
 
 ```shell
-$ duckdb-vectors index ./documentation --db vectors.duckdb --backend local
+$ duckdb-vectors index ./documentation --db vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 Keep `vectors.duckdb` next to the agent entrypoint so it is packaged with the
@@ -63,7 +63,7 @@ from duckdb_vectors import VectorStore
 
 app = BedrockAgentCoreApp()
 agent = Agent()
-store = VectorStore(db_path="vectors.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 
 
 @app.entrypoint

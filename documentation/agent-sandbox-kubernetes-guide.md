@@ -48,7 +48,7 @@ ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 RUN pip install --no-cache-dir duckdb-vectors
 COPY documentation/ /app/documentation/
 RUN duckdb-vectors index /app/documentation \
-    --db /app/vectors.duckdb --backend local
+    --db /app/vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 COPY agent.py /app/agent.py
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
 ENV DUCKDB_VECTORS_READ_ONLY=true
@@ -72,7 +72,7 @@ resolve the index without an explicit path:
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="/app/vectors.duckdb", backend="local", read_only=True
+    db_path="/app/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
 )
 hits = store.query("how is a search answered?", top_k=5)
 for hit in hits:

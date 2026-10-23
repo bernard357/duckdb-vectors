@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 ENV_PREFIX = "DUCKDB_VECTORS_"
 DEFAULT_DB_PATH = "vectors.duckdb"
-DEFAULT_BACKEND = "local"
+DEFAULT_BACKEND = "fastembed:minishlab/potion-multilingual-128M"
 DEFAULT_CHUNKER = "markdown"
 
 

@@ -52,7 +52,7 @@ Index the wiki folder. Headings give the chunker natural boundaries, and the
 page breadcrumb becomes each chunk's title:
 
 ```shell
-$ duckdb-vectors index ./wiki --recursive --backend local
+$ duckdb-vectors index ./wiki --recursive --backend fastembed:minishlab/potion-multilingual-128M
 $ duckdb-vectors report
 ```
 
@@ -63,7 +63,7 @@ changes; ETag reuse means only changed chunks are re-embedded and pages the
 LLM deleted are pruned:
 
 ```shell
-$ duckdb-vectors index ./wiki --recursive --backend local
+$ duckdb-vectors index ./wiki --recursive --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 Run this after each ingest (or on a schedule, or as a step in the wiki's own
@@ -78,7 +78,7 @@ from the retrieved pages:
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 hits = store.query("what did we conclude about pricing?", top_k=5)
 for hit in hits:
     print(hit.chunk.source, hit.chunk.title)

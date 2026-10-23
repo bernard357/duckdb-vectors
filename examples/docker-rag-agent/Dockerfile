@@ -1,7 +1,7 @@
 # A fully offline RAG agent over the duckdb-vectors documentation.
 #
-# The build stage installs the local embedding backend (fastembed) and the
-# local generation model (Qwen2.5-0.5B GGUF via llama-cpp-python), indexes the
+# The build stage installs the fastembed embedding backend and the local
+# generation model (Qwen2.5-0.5B GGUF via llama-cpp-python), indexes the
 # documentation, and warms the model into the cache. The runtime stage carries
 # the agent, the frozen index, the fastembed model, and the GGUF cache, so the
 # container retrieves and assembles a grounded answer with no network.
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # duckdb-vectors is not yet on PyPI; install it from the locally built wheel.
 # Build it first with `uv build`, then build this image from the repo root.
 COPY dist/ ./dist/
-RUN pip install --no-cache-dir "$(echo ./dist/*.whl)[local]"
+RUN pip install --no-cache-dir "$(echo ./dist/*.whl)"
 COPY examples/docker-rag-agent/agent.py .
 COPY documentation/ ./documentation/
 RUN python agent.py --index ./documentation --db /build/vectors.duckdb
@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY examples/docker-rag-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY dist/ ./dist/
-RUN pip install --no-cache-dir "$(echo ./dist/*.whl)[local]" && rm -rf ./dist
+RUN pip install --no-cache-dir "$(echo ./dist/*.whl)" && rm -rf ./dist
 COPY examples/docker-rag-agent/agent.py .
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache

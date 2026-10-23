@@ -6,7 +6,7 @@ This page is an engineering explanation of how `duckdb-vectors` stores and retri
 
 One DuckDB file is one index. It is built once and baked read-only into the agent's container image, so there is no data tier to provision and no network path to the data — a query is a local read of a local file.
 
-The per-chunk footprint follows from the defaults. A default chunk is ~300 words (the markdown chunker's `DEFAULT_TARGET_WORDS` is 300), which is roughly 1.5-2 KB of text. The default local embedding is a `FLOAT[384]` vector, exactly 384 x 4 = 1,536 bytes. On top of that each chunk carries an etag, a metadata JSON, a title, and its entry in the BM25 full-text index. The round figure is __~3-5 KB stored per chunk__. The measured anchor: an index of 1,000 chunks is __9.5 MB on disk__.
+The per-chunk footprint follows from the defaults. A default chunk is ~300 words (the markdown chunker's `DEFAULT_TARGET_WORDS` is 300), which is roughly 1.5-2 KB of text. The default embedding (`fastembed:minishlab/potion-multilingual-128M`) is a `FLOAT[256]` vector, exactly 256 x 4 = 1,024 bytes — the smallest tier on offer. A higher-dimension backend grows this term linearly: a 384-dim model is 1,536 bytes per vector, a 1,024-dim model 4,096 bytes. On top of that each chunk carries an etag, a metadata JSON, a title, and its entry in the BM25 full-text index. The round figure is __~3-5 KB stored per chunk__ at the default dimension. The measured anchor (at 384 dims, the previous default): an index of 1,000 chunks is __9.5 MB on disk__; the 256-dim default trims the vector share further.
 
 Storage scales linearly with chunk count, and the file stays small relative to anything it ships inside:
 
@@ -45,6 +45,26 @@ The cosine scan dominates the budget, so the natural question is whether an appr
 | HNSW index (vss extension) | ~29.6 ms | 0.96 mean, 0.80 worst-case |
 
 The planner did use the index — `HNSW_INDEX_SCAN` was confirmed in the query plan — so this is a genuine HNSW path. The result is that HNSW is ~2% faster, within measurement noise, while giving up exact recall (0.96 mean, down to 0.80 on the worst query). At the target scale the number of distance comparisons is small enough that an exact scan is already fast, so the index trades exact recall for no speed. HNSW also needs the experimental-persistence flag, which fights the read-only baked-index model. HNSW only pays off far beyond this niche, where the distance-comparison count itself dominates the budget. The schema stays HNSW-ready — a fixed-size ARRAY column — so anyone who outgrows the niche can opt in, but the default is exact brute force.
+
+## Choosing a model and dimension
+
+The cosine scan is ~80% of query time and grows with __dimension x chunk count__: every scanned chunk computes a distance over the full vector, so halving the dimension roughly halves the scan's per-chunk work, and smaller vectors also shrink the DuckDB file linearly. Model choice is therefore a direct lever on both latency and storage, not just relevance.
+
+The default is `fastembed:minishlab/potion-multilingual-128M`, a 256-dimension static [Model2Vec](https://github.com/MinishLab/model2vec) model. "Static" means it maps each token to a fixed vector and averages — there is no transformer forward pass — so it is the fastest and smallest option and serves international documentation out of the box. The tradeoff is relevance: a static model has no contextual understanding, so a contextual (transformer) model such as the MiniLM, mpnet, or e5 tiers will rank better on nuanced or ambiguous queries, at the cost of a larger vector, a larger DuckDB file, and a slower scan. Pick the smallest dimension that meets your relevance bar; 256 dims keep the file smallest while covering multiple languages, which is why it is the default.
+
+Measured candidate models (hardware: MacBook Pro M1 (2021); embed p50 over 20 iterations; `hit@k` is a small fixed multilingual query/doc relevance sanity check, not a full benchmark; produced by `scripts/benchmark_embedders.py`):
+
+| Model | Dimensions | Embed p50 | hit@1 | hit@3 |
+| --- | --- | --- | --- | --- |
+| `fastembed:minishlab/potion-multilingual-128M` (default) | 256 | 0.1 ms | 0.80 | 1.00 |
+| `fastembed:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | 384 | 4.2 ms | 0.80 | 1.00 |
+| `fastembed:sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | 768 | 11.2 ms | 0.80 | 1.00 |
+| `fastembed:intfloat/multilingual-e5-large` | 1024 | 35.6 ms | 0.80 | 1.00 |
+| `fastembed:BAAI/bge-small-en-v1.5` | 384 | 4.0 ms | 0.80 | 1.00 |
+| `fastembed:BAAI/bge-large-en-v1.5` | 1024 | 35.2 ms | 1.00 | 1.00 |
+| `hf:Qwen/Qwen3-Embedding-0.6B` | TODO | TODO | TODO | TODO |
+
+The `hf:Qwen/Qwen3-Embedding-0.6B` row is a TODO: the Qwen3 repository does not publish ONNX weights in a location this loader probes, so it was not run in this environment. The static 256-dim default embeds in ~0.1 ms — two orders of magnitude faster than the 1,024-dim contextual tiers — and the tiny relevance bank does not separate the tiers; measure on your own corpus before trading the default's size and speed for a larger model.
 
 ## Deliberate omissions
 

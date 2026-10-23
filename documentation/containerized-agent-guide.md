@@ -32,15 +32,15 @@ flowchart LR
 
 The agent is one small module. It has a build-time path that indexes a folder,
 and a query-time path that opens the index read-only and retrieves chunks. It
-uses the `local` backend (fastembed ONNX) — the minimum viable setup for real
-relevance, which runs fully offline once the model is baked into the image.
+uses the `fastembed` backend (fastembed ONNX) — the minimum viable setup for
+real relevance, which runs fully offline once the model is baked into the image.
 Switch to `bedrock:titan` for cloud embedding, and pass the retrieved chunks to
 an LLM to generate prose answers.
 
 ```python
 from duckdb_vectors import VectorStore, index_folder
 
-BACKEND = "local"
+BACKEND = "fastembed:minishlab/potion-multilingual-128M"
 
 
 def build_index(docs: str, db_path: str) -> None:
@@ -90,7 +90,7 @@ a written answer; the retrieval step is what `duckdb-vectors` provides.
 
 ## Step 4 — the two-stage Dockerfile
 
-The build stage installs the `local` backend, downloads its model, copies the
+The build stage installs the `fastembed` backend, downloads its model, copies the
 documentation, and indexes it. The runtime stage copies only the agent, the
 frozen index, and the model cache, so the serving image carries no build
 tooling and needs no network. The fastembed cache path is pinned so it can be

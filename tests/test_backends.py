@@ -1,7 +1,7 @@
-"""Real embedding backends: Bedrock (stubbed) and local (skipped if absent).
+"""Real embedding backends: Bedrock (stubbed) and fastembed (skipped if absent).
 
-No live network calls: the Bedrock client is a stub, and the local backend is
-skipped unless fastembed is installed.
+No live network calls: the Bedrock client is a stub, and the fastembed backend
+is skipped unless fastembed is installed.
 """
 
 import importlib.util
@@ -70,16 +70,8 @@ def test_registry_resolves_bedrock():
 
 @pytest.mark.skipif(not _HAS_FASTEMBED, reason="fastembed not installed")
 @pytest.mark.slow
-def test_local_backend_embeds_when_installed():
-    embedder = resolve_embedder("local")
+def test_fastembed_backend_embeds_when_installed():
+    # The default fastembed model is the 256-dim multilingual potion model.
+    embedder = resolve_embedder("fastembed")
     vectors = embedder.embed(["semantic search over markdown"])
-    assert len(vectors[0]) == 384
-
-
-def test_local_import_error_is_actionable_when_missing():
-    if _HAS_FASTEMBED:
-        pytest.skip("fastembed installed; cannot test missing-extra path")
-    from duckdb_vectors.embedders.local import LocalEmbedder
-
-    with pytest.raises(ImportError, match="duckdb-vectors\\[local\\]"):
-        LocalEmbedder().embed(["x"])
+    assert len(vectors[0]) == 256

@@ -14,7 +14,7 @@ class Embedder(Protocol):
 
     @property
     def model_identifier(self) -> str:
-        """Stable identifier of the backing model, e.g. ``local:bge-small``."""
+        """Stable identifier of the backing model, e.g. ``fastembed:bge-small``."""
         ...
 
     @property

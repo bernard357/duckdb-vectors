@@ -1,21 +1,28 @@
-"""Local ONNX embedding backend powered by fastembed.
+"""fastembed ONNX embedding backend.
 
 fastembed ships with the base install (``pip install duckdb-vectors``).
 fastembed runs ONNX models with no torch dependency, keeping container images
-small and cold starts fast. The default model ``BAAI/bge-small-en-v1.5``
-produces 384-dimension vectors — well within the 512-dimension budget.
+small and cold starts fast. The default model
+``minishlab/potion-multilingual-128M`` is a static Model2Vec model producing
+compact 256-dimension multilingual vectors — the smallest vectors and database
+while still serving international documentation.
 """
 
-DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+DEFAULT_MODEL = "minishlab/potion-multilingual-128M"
 
 # Dimensions for the models we name explicitly. Unknown models are probed once.
 _KNOWN_DIMENSIONS = {
+    "minishlab/potion-multilingual-128M": 256,
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": 384,
+    "sentence-transformers/paraphrase-multilingual-mpnet-base-v2": 768,
+    "intfloat/multilingual-e5-large": 1024,
     "BAAI/bge-small-en-v1.5": 384,
     "BAAI/bge-base-en-v1.5": 768,
+    "BAAI/bge-large-en-v1.5": 1024,
 }
 
 
-class LocalEmbedder:
+class FastembedEmbedder:
     """Embed text locally with a fastembed ONNX model.
 
     The model is loaded lazily on first use so that merely constructing the
@@ -29,12 +36,14 @@ class LocalEmbedder:
 
     def _load(self):
         if self._model is None:
+            # Imported lazily and function-scoped; Python resolves the
+            # top-level third-party ``fastembed`` package, not this module.
             try:
                 from fastembed import TextEmbedding
             except ImportError as exc:  # pragma: no cover - import guard
                 raise ImportError(
-                    "The 'local' backend requires fastembed. Install it with "
-                    "'pip install duckdb-vectors'."
+                    "The 'fastembed' backend requires fastembed. Install it "
+                    "with 'pip install duckdb-vectors'."
                 ) from exc
             self._model = TextEmbedding(model_name=self._model_name)
         return self._model
@@ -42,7 +51,7 @@ class LocalEmbedder:
     @property
     def model_identifier(self) -> str:
         """Identifier folded into the etag."""
-        return f"local:{self._model_name}"
+        return f"fastembed:{self._model_name}"
 
     @property
     def dimensions(self) -> int:

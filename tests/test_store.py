@@ -113,9 +113,9 @@ def test_hybrid_fusion_beats_single_signal(db_path):
     store.close()
 
 
-def test_default_backend_is_local():
-    assert DEFAULT_BACKEND == "local"
-    assert Settings().backend == "local"
+def test_default_backend_is_fastembed_potion_multilingual():
+    assert DEFAULT_BACKEND == "fastembed:minishlab/potion-multilingual-128M"
+    assert Settings().backend == "fastembed:minishlab/potion-multilingual-128M"
 
 
 def test_cli_app_imports_without_extras():

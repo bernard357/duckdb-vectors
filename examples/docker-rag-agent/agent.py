@@ -17,7 +17,9 @@ import os
 
 from duckdb_vectors import VectorStore, index_folder
 
-BACKEND = os.environ.get("DUCKDB_VECTORS_BACKEND", "local")
+BACKEND = os.environ.get(
+    "DUCKDB_VECTORS_BACKEND", "fastembed:minishlab/potion-multilingual-128M"
+)
 # The local generation model, fetched from HuggingFace into the image's cache
 # at build time so the running container needs no network.
 RAG_MODEL_REPO = os.environ.get("RAG_MODEL_REPO", "Qwen/Qwen2.5-0.5B-Instruct-GGUF")

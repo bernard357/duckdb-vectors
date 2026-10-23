@@ -77,14 +77,14 @@ Indexing chunks each document, embeds the chunks, and writes them to a DuckDB fi
 
 You can use either the CLI or the python interface.
 
-Two choices matter for indexing: the __chunker__ that splits documents and the __embedding backend__ that vectorises the chunks. Both default sensibly (`markdown` chunker, `local` embedder) and both are selectable by string — see [Chunkers](#chunkers) and [Embedding backends](#embedding-backends) below. The embedding backend identity is folded into each chunk's ETag, so switching backends re-embeds everything correctly.
+Two choices matter for indexing: the __chunker__ that splits documents and the __embedding backend__ that vectorises the chunks. Both default sensibly (`markdown` chunker, `fastembed:minishlab/potion-multilingual-128M` embedder) and both are selectable by string — see [Chunkers](#chunkers) and [Embedding backends](#embedding-backends) below. The embedding backend identity is folded into each chunk's ETag, so switching backends re-embeds everything correctly.
 
 Here is an example of indexing with python:
 
 ```python
 from duckdb_vectors import VectorStore, index_folder
 
-store = VectorStore(db_path="vectors.duckdb", backend="local")
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 report = index_folder(store, "documentation", recursive=True)
 print(report)  # files, chunks, embedded, reused, pruned
 store.close()
@@ -93,7 +93,7 @@ store.close()
 `VectorStore` accepts these arguments:
 
 - `db_path` — the DuckDB file (default `vectors.duckdb`).
-- `backend` — the embedding backend spec, e.g. `local` or `bedrock:titan` (default `local`).
+- `backend` — the embedding backend spec, e.g. `fastembed:<model>` or `bedrock:titan` (default `fastembed:minishlab/potion-multilingual-128M`).
 - `chunker` — the chunker spec, e.g. `markdown` (default `markdown`).
 - `read_only` — open the file without writing; the serving default (default `false`).
 - `embedder` — pass a ready `Embedder` instance to bypass backend resolution.
@@ -104,13 +104,13 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | Setting | Argument | Environment variable | Default |
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
-| Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `local` |
+| Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
 | Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ### Embedding backends
 
-A backend is resolved from a string — a bare name (`local`) or a `name:variant` pair (`bedrock:titan`). `local` is the default and the minimum viable setup; the registry is contributor-extensible, so you can register an open or closed, local or cloud backend without touching the core:
+A backend is resolved from a string — a `name:variant` pair (`fastembed:<model>`, `hf:<repo-id>`, `bedrock:titan`) or a bare name (`hashing`). The default is `fastembed:minishlab/potion-multilingual-128M`, a static multilingual model that keeps vectors and the DuckDB file as small as possible. The registry is contributor-extensible, so you can register an open or closed, local or cloud backend without touching the core:
 
 ```python
 from duckdb_vectors import register_embedder
@@ -118,11 +118,21 @@ from duckdb_vectors import register_embedder
 register_embedder("mybackend", lambda variant: MyEmbedder(variant))
 ```
 
+The `fastembed:` backend runs a bundled ONNX model with no torch dependency. Pick the dimension tier that fits your relevance/size budget:
+
 | Backend | Spec | Dimensions | Use for |
 | --- | --- | --- | --- |
-| fastembed (ONNX, local) | `local` | 384 | default; real relevance, offline |
+| fastembed potion (static, multilingual) | `fastembed:minishlab/potion-multilingual-128M` | 256 | default; smallest DB, international docs |
+| fastembed MiniLM (multilingual) | `fastembed:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | 384 | balanced multilingual relevance |
+| fastembed mpnet (multilingual) | `fastembed:sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | 768 | higher multilingual relevance |
+| fastembed e5-large (multilingual) | `fastembed:intfloat/multilingual-e5-large` | 1024 | strongest multilingual relevance |
+| fastembed bge-small (English) | `fastembed:BAAI/bge-small-en-v1.5` | 384 | English-only, compact |
+| fastembed bge-large (English) | `fastembed:BAAI/bge-large-en-v1.5` | 1024 | English-only, strongest |
+| Hugging Face ONNX (any repo) | `hf:<repo-id>`, e.g. `hf:Qwen/Qwen3-Embedding-0.6B` | probed | any HF repo shipping ONNX weights |
 | Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
 | Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
+
+The `hf:<repo-id>` backend is core (no extra install): it downloads a repository's ONNX weights and `tokenizer.json` via `huggingface_hub`, runs them through the ONNX runtime fastembed already vendors, mean-pools by default, and uses last-token pooling for Qwen3-style repos. Use it to load a model fastembed does not bundle. A repo must publish ONNX weights (for example `onnx/model.onnx`) for this backend to load it.
 
 ### Chunkers
 
@@ -143,7 +153,7 @@ See the README's [Embedding backends](https://github.com/bernard357/duckdb-vecto
 Or from the shell:
 
 ```shell
-$ duckdb-vectors index ./documentation --recursive --backend local
+$ duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
 The `index` verb takes `--db` (file path), `--backend` (embedding spec), `--recursive` (descend into sub-folders), and `--json` (emit the report as JSON instead of a human-readable line).
@@ -161,7 +171,7 @@ Query with a natural-language string. Search is hybrid by default: semantic
 similarity plus exact-token BM25, fused with Reciprocal Rank Fusion.
 
 ```python
-store = VectorStore(db_path="vectors.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 for hit in store.query("how do retries work?", top_k=5):
     print(f"{hit.score:.4f}  {hit.chunk.source}  {hit.chunk.title}")
 ```
@@ -201,7 +211,7 @@ Inside an agent, retrieval becomes context. The pattern is: open the store at st
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="local", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
 
 def retrieve_context(question: str, k: int = 5) -> str:
     hits = store.query(question, top_k=k)
@@ -234,7 +244,7 @@ FROM python:3.12-slim AS builder
 WORKDIR /build
 RUN pip install duckdb-vectors
 COPY documentation/ ./documentation/
-RUN duckdb-vectors index ./documentation --recursive --backend local --db /build/vectors.duckdb
+RUN duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M --db /build/vectors.duckdb
 
 FROM python:3.12-slim AS runtime
 WORKDIR /app
