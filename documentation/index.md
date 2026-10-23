@@ -79,7 +79,7 @@ The default configuration of `duckdb-vectors` makes it workable out of the box. 
 
 - Frontmatter headers of Markdown pages are injected as JSON objects. Each attribute can be considered in SELECT statements in addition to semantic search. Metadata is returned along with each chunk.
 
-- Use a local embedding model, or a remote one. Titan from Amazon Bedrock is built-in. You can expect the registry of available embeddings to grow over time.
+- Choose your embedding model by string. The default is a compact 256-dimension multilingual model; step up the `fastembed:` dimension ladder (384 / 768 / 1024) for more relevance, load any Hugging Face ONNX repo with `hf:<repo-id>`, or embed in the cloud with `bedrock:titan`. See [Embedding backends](#embedding-backends) below.
 
 - Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown files. You may have other kinds of documents to ingest.
 
