@@ -9,7 +9,7 @@ help:
 	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
 	@echo "$$ make ping-agentcore - End-to-end ping: deploy and invoke on Bedrock AgentCore"
-	@echo "$$ make docs-serve - Serve the VitePress documentation site locally"
+	@echo "$$ make serve-documentation - Serve the VitePress documentation site locally"
 	@echo "$$ make build-documentation - Build the VitePress documentation site"
 	@echo "$$ make push      - Rebase onto main and push commits to git remote"
 	@echo " ... and you have access to git, uv, ruff and pytest directly as well."
@@ -99,12 +99,6 @@ build:
 	@echo "Building wheel and sdist..."
 	uv build
 
-clean:
-	@echo "Removing build artifacts and caches..."
-	rm -rf dist build *.egg-info src/*.egg-info *.out
-	rm -rf .ruff_cache .pytest_cache
-	find . -type d -name __pycache__ -prune -exec rm -rf {} +
-
 # End-to-end ping tests. Each runs a shell snippet from fixtures/shell/ that
 # builds a search agent from documentation/, runs the fixed query, and pipes
 # the result to the shared Python validator. The AWS pings create real,
@@ -124,11 +118,11 @@ ping-agentcore:
 # Documentation site (VitePress). Node-only targets, namespaced to avoid any
 # collision with the Python toolbox above. The site sources live in
 # documentation/ and build to documentation/.vitepress/dist.
-docs-setup:
+setup-documentation:
 	@echo "Installing documentation site dependencies..."
 	npm ci
 
-docs-serve:
+serve-documentation:
 	@echo "Serving the documentation site locally..."
 	npm run dev
 
@@ -136,16 +130,21 @@ build-documentation:
 	@echo "Building the documentation site..."
 	npm run build
 
-docs-preview:
+preview-documentation:
 	@echo "Previewing the built documentation site..."
 	npm run preview
-
-docs-clean:
-	@echo "Removing documentation site build output and cache..."
-	rm -rf documentation/.vitepress/dist documentation/.vitepress/cache
 
 rebase:
 	git pull --rebase origin main
 
 push: rebase
 	git push
+
+clean:
+	@echo "Removing documentation site build output and cache..."
+	rm -rf documentation/.vitepress/dist documentation/.vitepress/cache
+	@echo "Removing build artifacts and caches..."
+	rm -rf dist build *.egg-info src/*.egg-info *.out
+	rm -rf .ruff_cache .pytest_cache
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
