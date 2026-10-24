@@ -130,3 +130,17 @@ $ aws lambda create-function \
   environment and reused across warm invocations.
 - Keep `memory-size` generous enough — more memory also means more CPU, which
   speeds both the model load and the scan.
+
+## What about image size?
+
+The base install now bundles PDF ingestion and local OCR — `pypdf`,
+`pypdfium2` (which ships its own PDFium binary), and `rapidocr-onnxruntime`
+(which pulls OpenCV; its ONNX runtime is shared with `fastembed`). That grows
+the image, so keep it lean:
+
+- Build the index in a builder stage and copy only `vectors.duckdb` into the
+  runtime stage, so build-only tooling never reaches the final image.
+- Start from a slim base image and prune caches (`pip` wheels, `apt` lists)
+  after install.
+- Drop unused locales and any OCR models you do not need; bake only the models
+  your documents actually require.

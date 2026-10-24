@@ -42,7 +42,7 @@ $ duckdb-vectors index --help    # options for a specific verb
 
 ## How to gather content?
 
-Collect the documents you want searchable in one place. Markdown is the first-class input because the default chunker understands headings; convert other formats (HTML, PDF via OCR, docx) to markdown first.
+Collect the documents you want searchable in one place. Markdown is the first-class input because the default chunker understands headings. PDF is first-class too, through the `pdf` chunker — it reads per-page text and falls back to local OCR for scanned pages (see [PDF ingestion](#pdf-ingestion) below). Convert other formats (HTML, docx) to markdown first.
 
 ```text
 documentation/
@@ -94,7 +94,7 @@ store.close()
 
 - `db_path` — the DuckDB file (default `vectors.duckdb`).
 - `backend` — the embedding backend spec, e.g. `fastembed:<model>` or `bedrock:titan` (default `fastembed:minishlab/potion-multilingual-128M`).
-- `chunker` — the chunker spec, e.g. `markdown` (default `markdown`).
+- `chunker` — the chunker spec, e.g. `markdown` or `pdf` (default `markdown`).
 - `read_only` — open the file without writing; the serving default (default `false`).
 - `embedder` — pass a ready `Embedder` instance to bypass backend resolution.
 - `settings` — pass a fully-built `Settings` object instead of the individual arguments.
@@ -150,11 +150,35 @@ A chunker owns the folder walk, not just text splitting. The contract has three 
 - __Per-file handling__ — `handles(path)` says which files the chunker claims (the markdown chunker claims `*.md`), and `chunk_file(path)` reads one file and yields its chunks. `chunk(text, source)` stays available for direct text input.
 - __Lifecycle hooks__ — three begin/end pairs with no-op defaults fire in a strict nesting order: `begin_indexing` / `end_indexing` wrap a whole run, `begin_folder` / `end_folder` wrap each directory, and `begin_file` / `end_file` wrap each handled file. `end_indexing` always runs, even if indexing raises.
 
-Custom chunkers subclass `FilesystemChunker` and implement only `handles` and `chunk_file`; the base provides the recursive walk, the relative-`source` assignment, and the no-op hooks. The planned PDF chunker is the next consumer: it will claim `*.pdf`, load a local OCR engine once in `begin_indexing`, and emit one chunk per page from `chunk_file`.
+Custom chunkers subclass `FilesystemChunker` and implement only `handles` and `chunk_file`; the base provides the recursive walk, the relative-`source` assignment, and the no-op hooks. The `pdf` chunker is the second consumer: it claims `*.pdf`, loads a local OCR engine once in `begin_indexing`, and emits one chunk per page from `chunk_file` (see [PDF ingestion](#pdf-ingestion)).
 
 | Chunker | Spec | Use for |
 | --- | --- | --- |
 | MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
+| PdfChunker | `pdf` | per-page text with local OCR for scanned pages |
+
+### PDF ingestion
+
+The `pdf` chunker reads a PDF one page at a time. Select it like any chunker, by the `chunker` argument or the `DUCKDB_VECTORS_CHUNKER` environment variable:
+
+```python
+from duckdb_vectors import VectorStore, index_folder
+
+store = VectorStore(db_path="vectors.duckdb", chunker="pdf")
+report = index_folder(store, "pdfs", recursive=True)
+```
+
+Each chunk is page-scoped: `metadata["page"]` carries the 1-based page number and the chunk id is `{source}#p{N}:{pos}`, so re-indexing upserts in place even as pages shift. A page's text is split into the same overlapping word windows the markdown chunker uses, and one chunk is emitted per window.
+
+A born-digital page carries an embedded text layer that is extracted directly. A scanned page has no usable text layer, so when a page's embedded text is shorter than the __min-chars threshold__ (default 16, tunable on the chunker) the page is rasterised and read with a local OCR engine. OCR runs __locally__ through `onnxruntime` — the same runtime `fastembed` already uses — so there is no cloud call on the indexing path. RapidOCR may fetch its ONNX models once on first real use; bake them into your build image to keep indexing self-contained.
+
+To use a different OCR engine, register your own chunker. For example, a Tesseract-backed variant through `pytesseract` is a drop-in alternative you can register yourself:
+
+```python
+from duckdb_vectors import register_chunker
+
+register_chunker("pdf-tesseract", lambda variant: MyTesseractPdfChunker())
+```
 
 See the README's [Embedding backends](https://github.com/bernard357/duckdb-vectors#embedding-backends) and [Chunking backends](https://github.com/bernard357/duckdb-vectors#chunking-backends) sections for the same tables at a glance.
 

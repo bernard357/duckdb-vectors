@@ -48,4 +48,11 @@ def _markdown_factory(variant: str | None) -> Chunker:
     return MarkdownChunker()
 
 
+def _pdf_factory(variant: str | None) -> Chunker:
+    from duckdb_vectors.chunkers.pdf import PdfChunker
+
+    return PdfChunker()
+
+
 register_chunker("markdown", _markdown_factory)
+register_chunker("pdf", _pdf_factory)

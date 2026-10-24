@@ -64,6 +64,14 @@ class FilesystemChunker:
     def end_file(self, path: Path) -> None:
         """Run after a handled file is chunked. No-op by default."""
 
+    def _chunk_id(self, source: str, chunk: Chunk) -> str:
+        """Return the stable id for ``chunk`` within ``source``.
+
+        The base owns ``source`` assignment; subclasses may override only the
+        id *format*. The default is ``{source}:{position}``.
+        """
+        return f"{source}:{chunk.position}"
+
     def chunk_folder(self, folder: Path, recursive: bool = True) -> Iterator[Chunk]:
         """Walk ``folder`` and yield chunks for every handled file.
 
@@ -73,9 +81,10 @@ class FilesystemChunker:
         ``begin_folder`` precedes the first file of a directory and
         ``end_folder`` follows its last. Each yielded chunk's ``source`` is set
         to the file's path relative to ``folder`` (``str(path.relative_to(...))``)
-        and its ``chunk_id`` is re-derived as ``{source}:{position}`` so ids and
-        sources are owned here and stay stable across runs regardless of the
-        placeholder source ``chunk_file`` used.
+        and its ``chunk_id`` is re-derived through :meth:`_chunk_id` (default
+        ``{source}:{position}``) so ids and sources are owned here and stay
+        stable across runs regardless of the placeholder source ``chunk_file``
+        used.
         """
         folder = Path(folder)
         pattern = "**/*" if recursive else "*"
@@ -101,7 +110,7 @@ class FilesystemChunker:
                 source = str(path.relative_to(folder))
                 for chunk in self.chunk_file(path):
                     chunk.source = source
-                    chunk.chunk_id = f"{source}:{chunk.position}"
+                    chunk.chunk_id = self._chunk_id(source, chunk)
                     yield chunk
                 self.end_file(path)
             self.end_folder(parent)

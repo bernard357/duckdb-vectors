@@ -6,6 +6,7 @@ database with hybrid vector + BM25 retrieval. One DuckDB file is one index.
 
 from duckdb_vectors.chunkers.base import Chunker
 from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.chunkers.pdf import PdfChunker
 from duckdb_vectors.chunkers.registry import register_chunker, resolve_chunker
 from duckdb_vectors.config import Settings
 from duckdb_vectors.embedders.base import Embedder
@@ -22,6 +23,7 @@ __all__ = [
     "Embedder",
     "IndexReport",
     "MarkdownChunker",
+    "PdfChunker",
     "SearchResult",
     "Settings",
     "VectorStore",

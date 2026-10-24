@@ -19,6 +19,7 @@ import duckdb
 import yaml
 
 from duckdb_vectors.chunkers.filesystem import FilesystemChunker
+from duckdb_vectors.chunkers.windowing import split_windows
 from duckdb_vectors.models import Chunk
 
 DEFAULT_TARGET_WORDS = 300
@@ -118,18 +119,7 @@ class MarkdownChunker(FilesystemChunker):
 
     def _windows(self, body: str) -> list[str]:
         """Split a long body into overlapping word windows."""
-        words = body.split()
-        if len(words) <= self._target_words:
-            return [body]
-        step = max(1, self._target_words - self._overlap_words)
-        windows = []
-        for start in range(0, len(words), step):
-            window = words[start : start + self._target_words]
-            if window:
-                windows.append(" ".join(window))
-            if start + self._target_words >= len(words):
-                break
-        return windows
+        return split_windows(body, self._target_words, self._overlap_words)
 
     def chunk(self, text: str, source: str) -> list[Chunk]:
         """Return heading-scoped, size-bounded chunks for one document.
