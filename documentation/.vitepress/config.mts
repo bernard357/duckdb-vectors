@@ -61,6 +61,10 @@ export default withMermaid(
               text: 'Search over skills',
               link: '/setup-skills-search-procedure',
             },
+            {
+              text: 'Knowledge base in Kilo Code',
+              link: '/setup-kilo-code-knowledge-base-procedure',
+            },
           ],
         },
         {
