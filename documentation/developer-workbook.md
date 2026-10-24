@@ -46,9 +46,20 @@ behind an optional extra in `pyproject.toml`.
 
 ## How do I add a chunker?
 
-Implement the `Chunker` protocol — any object with a `chunk(text, source)`
-method returning chunks with stable ids. See `src/duckdb_vectors/chunkers/` for
-the markdown chunker, and pass your chunker to `index_folder` or the store.
+Subclass `FilesystemChunker` and implement two methods: `handles(path)` — which
+file types the chunker claims (for example `*.pdf`) — and `chunk_file(path)` —
+read one file and yield its chunks with stable ids. The base provides the
+recursive `chunk_folder` walk, sets each chunk's `source` to its folder-relative
+path, and gives no-op defaults for the three lifecycle hook pairs
+(`begin_indexing` / `end_indexing`, `begin_folder` / `end_folder`,
+`begin_file` / `end_file`). The run-level pair is where to acquire and release an
+expensive resource once — for example the planned PDF chunker will load a local
+OCR engine in `begin_indexing` and release it in `end_indexing`, then emit one
+chunk per page from `chunk_file`.
+
+The text-level `chunk(text, source)` method stays available for feeding raw text
+directly. See `src/duckdb_vectors/chunkers/` for the base and the markdown
+chunker, and pass your chunker to `index_folder` or the store.
 
 ## What are the documentation conventions?
 

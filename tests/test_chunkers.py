@@ -4,11 +4,13 @@ from pathlib import Path
 
 import pytest
 
+from duckdb_vectors.chunkers.filesystem import FilesystemChunker
 from duckdb_vectors.chunkers.markdown import MarkdownChunker
 from duckdb_vectors.chunkers.registry import register_chunker, resolve_chunker
 from duckdb_vectors.models import Chunk
 
 FIXTURES = Path(__file__).parent / "fixtures"
+TREE = FIXTURES / "chunker_tree"
 
 SAMPLE = """# Title
 
@@ -112,3 +114,137 @@ def test_registry_raises_on_unknown():
 def test_registry_resolves_markdown_default():
     chunker = resolve_chunker("markdown")
     assert isinstance(chunker, MarkdownChunker)
+
+
+def test_markdown_default_is_filesystem_chunker():
+    chunker = resolve_chunker("markdown")
+    assert isinstance(chunker, FilesystemChunker)
+    for name in (
+        "chunk_folder",
+        "chunk_file",
+        "handles",
+        "begin_indexing",
+        "end_indexing",
+        "begin_folder",
+        "end_folder",
+        "begin_file",
+        "end_file",
+    ):
+        assert callable(getattr(chunker, name))
+
+
+def test_handles_matches_markdown_case_insensitively():
+    chunker = MarkdownChunker()
+    assert chunker.handles(Path("x.md")) is True
+    assert chunker.handles(Path("X.MD")) is True
+    assert chunker.handles(Path("notes.txt")) is False
+    assert chunker.handles(Path("README")) is False
+
+
+def test_chunk_folder_recursive_covers_tree_and_skips_non_markdown():
+    chunks = list(MarkdownChunker().chunk_folder(TREE, recursive=True))
+    sources = {chunk.source for chunk in chunks}
+    assert sources == {
+        "aaa.md",
+        "top.md",
+        "zebra.md",
+        "sub/nested.md",
+        "sub/deeper/leaf.md",
+    }
+    assert all(not chunk.source.endswith(".txt") for chunk in chunks)
+    for chunk in chunks:
+        path = TREE / chunk.source
+        assert chunk.source == str(path.relative_to(TREE))
+        assert chunk.chunk_id == f"{chunk.source}:{chunk.position}"
+
+
+def test_chunk_folder_non_recursive_yields_only_top_level():
+    chunks = list(MarkdownChunker().chunk_folder(TREE, recursive=False))
+    assert {chunk.source for chunk in chunks} == {"aaa.md", "top.md", "zebra.md"}
+
+
+def test_chunk_file_yields_chunks_for_one_markdown_file():
+    chunks = list(MarkdownChunker().chunk_file(TREE / "top.md"))
+    assert chunks
+    assert all(isinstance(chunk, Chunk) for chunk in chunks)
+
+
+class _RecordingChunker(MarkdownChunker):
+    """Records lifecycle hook calls to assert the ordering contract."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.events: list[tuple[str, str]] = []
+
+    def begin_indexing(self) -> None:
+        self.events.append(("begin_indexing", ""))
+
+    def end_indexing(self) -> None:
+        self.events.append(("end_indexing", ""))
+
+    def begin_folder(self, path: Path) -> None:
+        self.events.append(("begin_folder", path.name))
+
+    def end_folder(self, path: Path) -> None:
+        self.events.append(("end_folder", path.name))
+
+    def begin_file(self, path: Path) -> None:
+        self.events.append(("begin_file", path.name))
+
+    def end_file(self, path: Path) -> None:
+        self.events.append(("end_file", path.name))
+
+
+def test_hook_ordering_contract_over_tree():
+    chunker = _RecordingChunker()
+    chunker.begin_indexing()
+    list(chunker.chunk_folder(TREE, recursive=True))
+    chunker.end_indexing()
+
+    events = chunker.events
+    assert events[0] == ("begin_indexing", "")
+    assert events[-1] == ("end_indexing", "")
+
+    folder_stack: list[str] = []
+    open_file: str | None = None
+    for kind, name in events[1:-1]:
+        if kind == "begin_folder":
+            assert open_file is None
+            folder_stack.append(name)
+        elif kind == "end_folder":
+            assert open_file is None
+            assert folder_stack and folder_stack[-1] == name
+            folder_stack.pop()
+        elif kind == "begin_file":
+            assert folder_stack, "a file opened outside any folder"
+            assert open_file is None, "files must not interleave"
+            open_file = name
+        elif kind == "end_file":
+            assert open_file == name
+            open_file = None
+    assert folder_stack == []
+    assert open_file is None
+
+
+def test_each_folder_hook_fires_exactly_once_despite_sort_interleave():
+    """A directory whose files bracket a subdirectory in sorted order must
+    still open and close exactly once.
+
+    The fixture root holds ``aaa.md`` and ``zebra.md`` on either side of the
+    ``sub/`` subdirectory, so the sorted walk visits the root, descends into
+    ``sub``, then returns to the root. Grouping files by parent keeps each
+    directory's ``begin_folder``/``end_folder`` pair singular.
+    """
+    chunker = _RecordingChunker()
+    list(chunker.chunk_folder(TREE, recursive=True))
+
+    begins = [name for kind, name in chunker.events if kind == "begin_folder"]
+    ends = [name for kind, name in chunker.events if kind == "end_folder"]
+
+    # The root directory (name == TREE.name) is bracketed by aaa.md / zebra.md
+    # yet must appear only once among the begin_folder events.
+    assert begins.count(TREE.name) == 1
+    # Every directory opens exactly as many times as it closes, and no
+    # directory is opened twice.
+    assert sorted(begins) == sorted(ends)
+    assert len(begins) == len(set(begins))

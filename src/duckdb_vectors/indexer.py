@@ -1,10 +1,11 @@
-"""Index a folder of markdown into a vector store with ETag reuse.
+"""Index a folder into a vector store with ETag reuse.
 
-Walks markdown files, chunks each with a :class:`Chunker`, and embeds only the
-chunks whose content changed since the last run. An etag fingerprints each
-chunk's embedded text plus the embedder identity; a chunk whose etag already
-exists reuses the stored vector instead of paying for a fresh embedding. After
-writing, rows not touched this run (deleted or moved chunks) are purged.
+Drives a :class:`Chunker` to walk the folder — the chunker owns traversal and
+decides which files it handles — and embeds only the chunks whose content
+changed since the last run. An etag fingerprints each chunk's embedded text
+plus the embedder identity; a chunk whose etag already exists reuses the stored
+vector instead of paying for a fresh embedding. After writing, rows not touched
+this run (deleted or moved chunks) are purged.
 """
 
 import datetime
@@ -30,40 +31,41 @@ class IndexReport(BaseModel):
     pruned: int = 0
 
 
-def _iter_markdown(folder: Path, recursive: bool) -> list[Path]:
-    pattern = "**/*.md" if recursive else "*.md"
-    return sorted(folder.glob(pattern))
-
-
 def index_folder(
     store: VectorStore,
     folder: str | Path,
     chunker: Chunker | None = None,
     recursive: bool = False,
 ) -> IndexReport:
-    """Index every markdown file under ``folder`` into ``store``.
+    """Index every file ``chunker`` handles under ``folder`` into ``store``.
 
     Only chunks whose etag is new or changed are embedded; unchanged chunks
     reuse their stored vector. Chunks for files that disappeared are pruned.
 
     An explicit ``chunker`` instance wins; otherwise the chunker is resolved
     from the store's ``settings.chunker`` string (``"markdown"`` by default).
+    The chunker owns the folder walk; this function wraps it in the run-level
+    ``begin_indexing`` / ``end_indexing`` hook pair and guarantees
+    ``end_indexing`` runs even if indexing raises.
     """
     chunker = chunker or resolve_chunker(store.settings.chunker)
     folder = Path(folder)
     model_id = store.embedder.model_identifier
     dimension = store.dimensions
 
-    files = _iter_markdown(folder, recursive)
     prepared: list[Chunk] = []
-    for path in files:
-        text = path.read_text(encoding="utf-8", errors="replace")
-        source = str(path.relative_to(folder))
-        for chunk in chunker.chunk(text, source):
+    sources: set[str] = set()
+    chunker.begin_indexing()
+    try:
+        for chunk in chunker.chunk_folder(folder, recursive=recursive):
             chunk.etag = compute_etag(chunk.text, model_id, dimension)
+            sources.add(chunk.source)
             prepared.append(chunk)
+    finally:
+        chunker.end_indexing()
 
-    report = IndexReport(files=len(files), chunks=len(prepared))
+    files_seen = getattr(chunker, "_files_seen", len(sources))
+    report = IndexReport(files=files_seen, chunks=len(prepared))
     if not prepared:
         report.pruned = _purge_all(store)
         return report

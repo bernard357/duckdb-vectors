@@ -12,10 +12,13 @@ differentiation.
 
 import os
 import tempfile
+from collections.abc import Iterator
+from pathlib import Path
 
 import duckdb
 import yaml
 
+from duckdb_vectors.chunkers.filesystem import FilesystemChunker
 from duckdb_vectors.models import Chunk
 
 DEFAULT_TARGET_WORDS = 300
@@ -50,12 +53,17 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
     return {}, text
 
 
-class MarkdownChunker:
+class MarkdownChunker(FilesystemChunker):
     """Split markdown into heading-scoped chunks via the DuckDB extension.
 
     ``target_words`` is the soft upper bound per chunk; longer sections are
     windowed with ``overlap_words`` of overlap. ``max_depth`` bounds the
     heading level that opens a new section.
+
+    As a :class:`~duckdb_vectors.chunkers.filesystem.FilesystemChunker`, it
+    claims ``*.md`` files during a folder walk and reads each one in
+    ``chunk_file``; the text-level ``chunk`` method stays available for direct
+    text input and carries the windowing logic.
     """
 
     def __init__(
@@ -150,3 +158,18 @@ class MarkdownChunker:
                 )
                 position += 1
         return chunks
+
+    def handles(self, path: Path) -> bool:
+        """Claim files with a ``.md`` suffix, case-insensitively."""
+        return path.suffix.lower() == ".md"
+
+    def chunk_file(self, path: Path) -> Iterator[Chunk]:
+        """Read a markdown file and yield its chunks.
+
+        Reads with ``errors="replace"`` exactly as the folder indexer did, then
+        delegates to the text-level ``chunk`` so output is byte-identical. The
+        placeholder ``source`` given here is overwritten by
+        :meth:`FilesystemChunker.chunk_folder` with the folder-relative path.
+        """
+        text = path.read_text(encoding="utf-8", errors="replace")
+        yield from self.chunk(text, source=str(path))

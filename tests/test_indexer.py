@@ -7,6 +7,7 @@ from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
 
 FIXTURES = Path(__file__).parent / "fixtures"
+TREE = FIXTURES / "chunker_tree"
 
 DOC_A = "# Alpha\n\nAlpha body content here.\n\n## Sub\n\nSub body text.\n"
 DOC_B = "# Beta\n\nBeta body content here.\n"
@@ -83,4 +84,68 @@ def test_deleted_file_is_pruned(tmp_path):
     report = index_folder(store, docs)
     assert report.pruned >= 1
     assert store.count() < before
+    store.close()
+
+
+def _stored_rows(store):
+    return store._con.execute(
+        "SELECT chunk_id, source, position, title FROM chunks ORDER BY chunk_id"
+    ).fetchall()
+
+
+def test_markdown_tree_indexing_is_stable(tmp_path):
+    """Byte-identical regression guard: chunker-driven walk over a nested tree.
+
+    Locks the concrete chunk ids and sources the folder walk produces, then
+    exercises re-index reuse, single-file re-embed, and prune so the refactor
+    cannot silently change indexing behavior.
+    """
+    docs = tmp_path / "docs"
+    shutil.copytree(TREE, docs)
+    store = _store(tmp_path)
+
+    report = index_folder(store, docs, recursive=True)
+    assert report.files == 5
+    rows = _stored_rows(store)
+    ids = [row[0] for row in rows]
+    sources = [row[1] for row in rows]
+    assert ids == [
+        "aaa.md:0",
+        "sub/deeper/leaf.md:0",
+        "sub/nested.md:0",
+        "top.md:0",
+        "zebra.md:0",
+    ]
+    assert sources == [
+        "aaa.md",
+        "sub/deeper/leaf.md",
+        "sub/nested.md",
+        "top.md",
+        "zebra.md",
+    ]
+    assert all(row[2] == 0 for row in rows)
+    assert report.chunks == 5
+    assert report.embedded == report.chunks
+    assert report.reused == 0
+
+    rerun = index_folder(store, docs, recursive=True)
+    assert rerun.files == 5
+    assert rerun.chunks == 5
+    assert rerun.embedded == 0
+    assert rerun.reused == rerun.chunks
+    assert _stored_rows(store) == rows
+
+    (docs / "sub" / "nested.md").write_text(
+        "# Nested\n\nCompletely new nested body content here.\n"
+    )
+    edited = index_folder(store, docs, recursive=True)
+    assert edited.embedded >= 1
+    assert edited.reused >= 1
+
+    (docs / "sub" / "deeper" / "leaf.md").unlink()
+    pruned = index_folder(store, docs, recursive=True)
+    assert pruned.files == 4
+    assert pruned.pruned >= 1
+    remaining = {row[1] for row in _stored_rows(store)}
+    assert "sub/deeper/leaf.md" not in remaining
     store.close()

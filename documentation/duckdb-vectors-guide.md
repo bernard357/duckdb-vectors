@@ -144,6 +144,14 @@ from duckdb_vectors import register_chunker
 register_chunker("mychunker", lambda variant: MyChunker(variant))
 ```
 
+A chunker owns the folder walk, not just text splitting. The contract has three parts:
+
+- __Traversal__ — `chunk_folder(folder, recursive=True)` walks the tree and yields chunks for every file the chunker claims, setting each chunk's `source` to its path relative to the folder root.
+- __Per-file handling__ — `handles(path)` says which files the chunker claims (the markdown chunker claims `*.md`), and `chunk_file(path)` reads one file and yields its chunks. `chunk(text, source)` stays available for direct text input.
+- __Lifecycle hooks__ — three begin/end pairs with no-op defaults fire in a strict nesting order: `begin_indexing` / `end_indexing` wrap a whole run, `begin_folder` / `end_folder` wrap each directory, and `begin_file` / `end_file` wrap each handled file. `end_indexing` always runs, even if indexing raises.
+
+Custom chunkers subclass `FilesystemChunker` and implement only `handles` and `chunk_file`; the base provides the recursive walk, the relative-`source` assignment, and the no-op hooks. The planned PDF chunker is the next consumer: it will claim `*.pdf`, load a local OCR engine once in `begin_indexing`, and emit one chunk per page from `chunk_file`.
+
 | Chunker | Spec | Use for |
 | --- | --- | --- |
 | MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |

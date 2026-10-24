@@ -1,0 +1,1 @@
+Plain text notes that the markdown chunker must skip during a folder walk.
