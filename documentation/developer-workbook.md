@@ -45,7 +45,7 @@ for the hashing, fastembed, and Bedrock examples, and keep heavy dependencies
 behind an optional extra in `pyproject.toml`.
 
 The core `hf:<repo-id>` backend (`embedders/huggingface.py`) loads the large
-majority of ONNX embedding exports on the Hub across three graph shapes, all
+majority of ONNX embedding exports on the Hub across four graph shapes, all
 handled additively so no working model regresses:
 
 - __Simple encoders__ — `input_ids` / `attention_mask` (/ `token_type_ids`)
@@ -66,7 +66,16 @@ handled additively so no working model regresses:
   preferring `last_hidden_state`, else the first float output that is neither
   `logits` nor a `present.*` cache output — before pooling. The opt-in `model`
   test loads `onnx-community/Qwen3-Embedding-0.6B-ONNX` (external-data +
-  decoder, 1024-dimensional `last_hidden_state`) to exercise all three.
+  decoder, 1024-dimensional `last_hidden_state`).
+- __Full-pipeline exports__ — sentence-transformers models (EmbeddingGemma and
+  relatives) that bake pooling and dense projection heads into the graph and
+  expose a final 2-D `sentence_embedding` output beside `last_hidden_state`.
+  The loader prefers that pooled output (matched by name, then any 2-D float
+  output) and returns it as-is without re-pooling, so the embedding carries the
+  model's dense heads instead of a bare mean-pool of the backbone — reading
+  `last_hidden_state` here would be a silently wrong embedding. The opt-in
+  `model` test loads `onnx-community/embeddinggemma-300m-ONNX` (768-dimensional
+  `sentence_embedding`).
 
 ## How do I add a chunker?
 

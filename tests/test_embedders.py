@@ -113,8 +113,11 @@ class _StubInput:
 
 
 class _StubOutput:
-    def __init__(self, name, type="tensor(float)"):
+    def __init__(self, name, shape=None, type="tensor(float)"):
         self.name = name
+        # Default to a 3-D hidden-state shape so a bare hidden-state output is
+        # treated as non-pooled; a pooled output passes an explicit 2-D shape.
+        self.shape = shape if shape is not None else ["batch", "seq", 3]
         self.type = type
 
 
@@ -265,6 +268,63 @@ def test_hf_embedder_decoder_stub_synthesizes_feeds_and_selects_hidden_state():
     assert vectors[0] == pytest.approx([0.7, 0.8, 0.9])
 
 
+class _StubPooledSession:
+    """A full-pipeline graph exposing a baked-in sentence_embedding output.
+
+    Mirrors EmbeddingGemma's ONNX shape in miniature: a simple encoder
+    (``input_ids`` / ``attention_mask``) that emits both a 3-D
+    ``last_hidden_state`` [batch, seq, 3] and a 2-D ``sentence_embedding``
+    [batch, 4] — the latter being the final pooled + dense-projected embedding.
+    The two outputs carry deliberately different values and widths so a test
+    can tell which one the loader read and whether it re-pooled.
+    """
+
+    def __init__(self):
+        self.last_feeds = None
+
+    def get_inputs(self):
+        return [_StubInput("input_ids"), _StubInput("attention_mask")]
+
+    def get_outputs(self):
+        return [
+            _StubOutput("last_hidden_state", shape=["batch", "seq", 3]),
+            _StubOutput("sentence_embedding", shape=["batch", 4]),
+        ]
+
+    def run(self, output_names, feeds):
+        self.last_feeds = feeds
+        batch = feeds["input_ids"].shape[0]
+        seq = feeds["input_ids"].shape[1]
+        hidden = np.tile(np.array([[0.1, 0.2, 0.3]], dtype=np.float32), (batch, seq, 1))
+        # The final embedding is width 4 and unrelated to a mean-pool of hidden,
+        # so reading it (not re-pooling the backbone) is observable.
+        sentence = np.tile(
+            np.array([[1.0, 2.0, 3.0, 4.0]], dtype=np.float32), (batch, 1)
+        )
+        return [hidden, sentence]
+
+
+def test_hf_embedder_prefers_pooled_sentence_embedding_output():
+    """A graph exposing sentence_embedding is read as-is, not re-pooled.
+
+    Regression against mean-pooling the backbone when the model's own final
+    embedding is available: the loader must select the 2-D ``sentence_embedding``
+    output, return it verbatim (no mean/last-token pool), and report its width
+    as ``dimensions``.
+    """
+    session = _StubPooledSession()
+    embedder = HuggingFaceEmbedder(
+        repo_id="onnx-community/embeddinggemma-300m-ONNX",
+        session=session,
+        tokenizer=_StubTokenizer(),
+    )
+    vectors = embedder.embed(["hello", "world"])
+    assert len(vectors) == 2
+    # The verbatim sentence_embedding row, not a mean-pool of [0.1,0.2,0.3].
+    assert vectors[0] == pytest.approx([1.0, 2.0, 3.0, 4.0])
+    assert embedder.dimensions == 4
+
+
 def test_hf_embedder_external_data_colocates_onnx_and_data_file(tmp_path, monkeypatch):
     """External-data download co-locates ``model.onnx`` + ``model.onnx_data``.
 
@@ -360,3 +420,31 @@ def test_hf_embedder_loads_real_qwen_model():
     lengths = {len(vector) for vector in vectors}
     assert len(lengths) == 1
     assert lengths.pop() == embedder.dimensions
+
+
+@pytest.mark.model
+def test_hf_embedder_loads_real_embeddinggemma_pooled_output():
+    """Opt-in end-to-end: load real EmbeddingGemma and read its pooled output.
+
+    Uses ``onnx-community/embeddinggemma-300m-ONNX``: an external-data export
+    that exposes both ``last_hidden_state`` [batch, seq, 768] and a final
+    ``sentence_embedding`` [batch, 768] (pooling + dense heads baked in). The
+    loader must select the pooled output and return 768-dim vectors without
+    re-pooling. Observed dimension: 768.
+
+    Deselected from the default fast suite; the load/embed degrades to a skip
+    on any download/network failure.
+    """
+    repo = "hf:onnx-community/embeddinggemma-300m-ONNX"
+    embedder = resolve_embedder(repo)
+    assert embedder.model_identifier == repo
+    try:
+        vectors = embedder.embed(["hello world", "embedded databases are frugal"])
+    except Exception as exc:  # noqa: BLE001 - degrade to skip, never red
+        pytest.skip(f"EmbeddingGemma not loadable in this environment: {exc}")
+    assert embedder._output_is_pooled is True
+    assert len(vectors) == 2
+    assert all(vector for vector in vectors)
+    lengths = {len(vector) for vector in vectors}
+    assert len(lengths) == 1
+    assert lengths.pop() == embedder.dimensions == 768

@@ -20,6 +20,11 @@ The loader handles three ONNX shapes, additively:
   zero-length cache tensors (shapes read from the graph) so one forward pass
   runs without implementing generation, then selects the hidden-state output by
   name (never ``logits``).
+- __Full-pipeline exports__ (EmbeddingGemma and relatives): the graph bakes
+  pooling and dense projection heads in and exposes a final 2-D
+  ``sentence_embedding`` output beside ``last_hidden_state``. The loader prefers
+  that pooled output and does not re-pool it, so the embedding carries the
+  model's dense heads instead of a bare mean-pool of the backbone.
 
 Everything heavy is imported lazily inside methods so the module imports
 cleanly offline and is unit-testable with a stubbed session and tokenizer.
@@ -116,6 +121,7 @@ class HuggingFaceEmbedder:
         self._input_shapes: dict[str, list[Any]] | None = None
         self._input_types: dict[str, str] | None = None
         self._output_index: int | None = None
+        self._output_is_pooled: bool | None = None
 
     @staticmethod
     def _default_pooling(repo_id: str) -> str:
@@ -229,16 +235,41 @@ class HuggingFaceEmbedder:
             self._input_types = {inp.name: inp.type for inp in inputs}
         if self._output_index is None:
             self._output_index = self._resolve_output_index()
+            shape = self._session.get_outputs()[self._output_index].shape
+            self._output_is_pooled = len(shape) == 2
 
     def _resolve_output_index(self) -> int:
-        """Index of the hidden-state output in ``session.run`` results.
+        """Index of the output to read from ``session.run`` results.
 
-        Prefers an output literally named ``last_hidden_state``; otherwise the
-        first float output that is neither ``logits`` nor a ``present.*`` cache
-        output. Falls back to ``0`` (today's behavior) when no name qualifies —
-        covering stubs whose single output is the hidden state.
+        Preference order, most-to-least specific:
+
+        1. A final, already-pooled sentence embedding the graph exposes itself —
+           matched by name (``sentence_embedding``, ``embedding``,
+           ``pooler_output``). Sentence-transformers exports that bake pooling
+           and dense projection heads into the graph expose this; reading it
+           yields the model's true embedding instead of re-pooling the backbone.
+        2. Any 2-D ``[batch, hidden]`` float output — a pooled embedding under a
+           different name.
+        3. An output named ``last_hidden_state`` (the simple-encoder backbone).
+        4. The first float output that is neither ``logits`` nor a ``present.*``
+           cache output (decoder hidden state).
+        5. Index ``0`` — today's fallback, covering stubs whose single output is
+           the hidden state.
+
+        An output selected by (1) or (2) is 2-D and must not be pooled again;
+        :meth:`_ensure_loaded` records that in ``_output_is_pooled``.
         """
         outputs = self._session.get_outputs()
+        pooled_names = ("sentence_embedding", "embedding", "pooler_output")
+        for index, output in enumerate(outputs):
+            if output.name in pooled_names:
+                return index
+        for index, output in enumerate(outputs):
+            is_float = "float" in getattr(output, "type", "") or not getattr(
+                output, "type", ""
+            )
+            if is_float and len(output.shape) == 2:
+                return index
         for index, output in enumerate(outputs):
             if output.name == "last_hidden_state":
                 return index
@@ -333,11 +364,15 @@ class HuggingFaceEmbedder:
         feeds, attention_mask = self._encode(texts)
         outputs = self._session.run(None, feeds)
         assert self._output_index is not None
-        last_hidden_state = outputs[self._output_index]
-        if self._pooling == "last":
-            pooled = last_token_pool(last_hidden_state, attention_mask)
+        selected = outputs[self._output_index]
+        if self._output_is_pooled:
+            # The graph already applied pooling (and any dense heads); the
+            # output is the final [batch, hidden] embedding — do not pool again.
+            pooled = selected
+        elif self._pooling == "last":
+            pooled = last_token_pool(selected, attention_mask)
         else:
-            pooled = mean_pool(last_hidden_state, attention_mask)
+            pooled = mean_pool(selected, attention_mask)
         vectors = [[float(value) for value in row] for row in pooled]
         if self._dimensions is None and vectors:
             self._dimensions = len(vectors[0])
