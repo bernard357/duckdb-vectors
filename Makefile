@@ -37,6 +37,29 @@ MARKDOWN_FILES := README.md CONTRIBUTING.md $(shell find documentation -name '*.
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
+# Serve htmlcov/ over a local HTTP server and open it in the browser. HTTP (not
+# file://) is required: coverage's per-file pages touch localStorage on load,
+# which browsers forbid on a file:// origin — so a file:// report errors when
+# you click into a file instead of showing the annotated source. Picks a free
+# port on 127.0.0.1 and runs in the foreground; stop it with Ctrl-C. Kept as a
+# define so the Python reads cleanly instead of being escaped into one shell
+# line; `make serve-coverage` runs it via `python -c "$$SERVE_COVERAGE_PYSCRIPT"`.
+define SERVE_COVERAGE_PYSCRIPT
+import functools
+import http.server
+import webbrowser
+
+handler = functools.partial(
+    http.server.SimpleHTTPRequestHandler, directory="htmlcov"
+)
+server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+url = f"http://127.0.0.1:{server.server_address[1]}/index.html"
+print(f"Coverage report: {url}  (Ctrl-C to stop)")
+webbrowser.open(url)
+server.serve_forever()
+endef
+export SERVE_COVERAGE_PYSCRIPT
+
 setup: check-prerequisites setup-python setup-markdownlint setup-hadolint
 
 check-prerequisites:
@@ -103,20 +126,10 @@ coverage:
 	.venv/bin/pytest --cov=src/duckdb_vectors --cov-branch --cov-report=html --cov-report=term-missing
 	@$(MAKE) serve-coverage
 
-# Serve the generated htmlcov/ report over a local HTTP server and open it in
-# the browser. HTTP (not file://) is required: coverage's per-file pages touch
-# localStorage on load, which browsers forbid on a file:// origin — so clicking
-# into a file over file:// errors instead of showing the annotated source. The
-# server runs in the foreground and picks a free port; stop it with Ctrl-C.
+# Serve the generated htmlcov/ report (see SERVE_COVERAGE_PYSCRIPT above).
 serve-coverage:
 	@test -f htmlcov/index.html || { echo "No htmlcov/index.html — run 'make coverage' first."; exit 1; }
-	@.venv/bin/python -c "import functools, http.server, webbrowser; \
-h = functools.partial(http.server.SimpleHTTPRequestHandler, directory='htmlcov'); \
-d = http.server.HTTPServer(('127.0.0.1', 0), h); \
-url = f'http://127.0.0.1:{d.server_address[1]}/index.html'; \
-print(f'Coverage report: {url}  (Ctrl-C to stop)'); \
-webbrowser.open(url); \
-d.serve_forever()"
+	@.venv/bin/python -c "$$SERVE_COVERAGE_PYSCRIPT"
 
 build:
 	@echo "Building wheel and sdist..."
