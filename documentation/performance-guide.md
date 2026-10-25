@@ -6,13 +6,13 @@ This page is an engineering explanation of how `duckdb-vectors` stores and retri
 
 One DuckDB file is one index. It is built once and baked read-only into the agent's container image, so there is no data tier to provision and no network path to the data — a query is a local read of a local file.
 
-The per-chunk footprint follows from the defaults. A default chunk is ~300 words (the markdown chunker's `DEFAULT_TARGET_WORDS` is 300), which is roughly 1.5-2 KB of text. The default embedding (`fastembed:minishlab/potion-multilingual-128M`) is a `FLOAT[256]` vector, exactly 256 x 4 = 1,024 bytes — the smallest tier on offer. A higher-dimension backend grows this term linearly: a 384-dim model is 1,536 bytes per vector, a 1,024-dim model 4,096 bytes. On top of that each chunk carries an etag, a metadata JSON, a title, and its entry in the BM25 full-text index. The round figure is __~3-5 KB stored per chunk__ at the default dimension. The measured anchor (at 384 dims, the previous default): an index of 1,000 chunks is __9.5 MB on disk__; the 256-dim default trims the vector share further.
+The per-chunk footprint follows from the defaults. A default chunk is ~300 words (the markdown chunker's `DEFAULT_TARGET_WORDS` is 300), which is roughly 1.5-2 KB of text. The default embedding (`fastembed:minishlab/potion-multilingual-128M`) is a `FLOAT[256]` vector, exactly 256 x 4 = 1,024 bytes — the smallest tier on offer. A higher-dimension backend grows this term linearly: a 384-dim model is 1,536 bytes per vector, a 1,024-dim model 4,096 bytes. On top of that each chunk carries an etag, a metadata JSON, a title, and its entry in the BM25 full-text index. The round figure is __~3-5 KB stored per chunk__ at the default dimension. The measured anchor: an index of 1,000 chunks is __~4.5 MB on disk__ at the 256-dim default (for comparison, it was 9.5 MB at 384 dims, the previous default) — the smaller vector trims the file directly.
 
 Storage scales linearly with chunk count, and the file stays small relative to anything it ships inside:
 
 | Chunks | Approx DB size |
 | --- | --- |
-| 1,000 | ~5-10 MB (measured anchor: 9.5 MB) |
+| 1,000 | ~5-10 MB (measured anchor: 4.5 MB at 256 dims) |
 | 10,000 | ~30-50 MB |
 | 100,000 | ~300-500 MB |
 
@@ -20,18 +20,16 @@ Even at 100,000 chunks the file is a few hundred megabytes — negligible next t
 
 ## Compute
 
-Retrieval is fast and flat. On the reference machine, a full hybrid `query()` with `top_k=5` over the 1,000-chunk index runs at __p50 41 ms, p95 43 ms__ — the tail sits within ~1 ms of the median, because in-process execution has no network hop to stall on. Embedding the query string alone is __4.4 ms__.
+Retrieval is fast and flat. On the reference machine, a full hybrid `query()` with `top_k=5` over the 1,000-chunk index runs at __p50 ~27 ms, p95 ~34 ms__ at the 256-dim default — the tail sits close to the median, because in-process execution has no network hop to stall on. Embedding the query string alone is __~0.3 ms__: the default static model maps tokens to fixed vectors with no transformer forward pass, so the embed slice is effectively free.
 
-The ~41 ms breaks down as follows, measured on the same machine:
+The ~27 ms splits into two measured slices on the same machine:
 
 | Slice | Time | Share |
 | --- | --- | --- |
-| Cosine vector scan | ~32 ms | ~80% |
-| BM25 exact-token scan | ~6 ms | ~15% |
-| Reciprocal Rank Fusion | ~0.03 ms | ~0% |
-| Per-id fetch loop | ~2 ms | ~5% |
+| Query embedding | ~0.3 ms | ~1% |
+| Hybrid scan (cosine + BM25 + fusion + fetch) | ~27 ms | ~99% |
 
-The brute-force cosine scan is the budget, and it is the only term that grows linearly with chunk count. Everything else — BM25, fusion, and the per-id fetch — is a small, roughly fixed floor.
+The brute-force cosine scan dominates that scan slice, and it is the only term that grows linearly with chunk count; the BM25 exact-token scan, Reciprocal Rank Fusion, and the per-id fetch are a small, roughly fixed floor within it. With the static default's embed cost near zero, retrieval latency is almost entirely the scan — so at this default the scan is ~99% of the budget, up from ~80% when the old 384-dim contextual default paid ~4.4 ms to embed.
 
 Because the cosine scan is linear in corpus size and the rest is fixed, retrieval latency grows predictably. Extrapolating from the measured 1,000-chunk point: ~10,000 chunks lands in the tens of milliseconds, and ~100,000 chunks in the low hundreds of milliseconds. Those projections are extrapolation from the one measured point, not measurements in their own right; the scan slice grows with the corpus while the floor stays put.
 
@@ -77,7 +75,7 @@ __No re-ranking stage after chunk selection.__ Retrieval returns the fused top-k
 
 ## In-process versus a network vector database
 
-In-process retrieval is fixed and local: ~41 ms p50 at 1,000 chunks on the reference machine, with no network hop, because the index is a file in the agent's container queried by a local function call.
+In-process retrieval is fixed and local: ~27 ms p50 at 1,000 chunks on the reference machine, with no network hop, because the index is a file in the agent's container queried by a local function call.
 
 A hosted vector database pays its own compute plus a network round-trip to reach it. That round-trip is an estimated ~10-50 ms same-region, and 50-150 ms+ cross-region or on a cold connection, with a long tail that in-process execution does not have. The remote store adds this round-trip on top of its own search work, and none of the added time does any more searching.
 
