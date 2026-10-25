@@ -78,7 +78,10 @@ select = ["E", "F", "I", "UP", "B", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: tests that take more than 200ms"]
+markers = [
+    "slow: tests that take more than 200ms",
+    "model: downloads a real model; deselected by default",
+]
 
 [tool.coverage.run]
 source = ["src/duckdb_vectors"]

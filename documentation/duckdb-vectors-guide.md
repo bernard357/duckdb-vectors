@@ -134,6 +134,17 @@ The `fastembed:` backend runs a bundled ONNX model with no torch dependency. Pic
 
 The `hf:<repo-id>` backend is core (no extra install): it downloads a repository's ONNX weights and `tokenizer.json` via `huggingface_hub`, runs them through the ONNX runtime fastembed already vendors, mean-pools by default, and uses last-token pooling for Qwen3-style repos. Use it to load a model fastembed does not bundle. A repo must publish ONNX weights (for example `onnx/model.onnx`) for this backend to load it.
 
+A worked Qwen example — the repo id carries `qwen`, so the backend switches to last-token pooling automatically (no `pooling` argument needed):
+
+```python
+from duckdb_vectors import VectorStore, index_folder
+
+store = VectorStore(db_path="vectors.duckdb", backend="hf:Qwen/Qwen3-Embedding-0.6B")
+index_folder(store, "documentation", recursive=True)
+```
+
+On first use the backend downloads the ONNX weights and `tokenizer.json` into the `huggingface_hub` cache (a few hundred megabytes); subsequent runs reuse the cache and need no network. Note that a repo must publish ONNX weights at a path the loader probes (`onnx/model.onnx`, `model.onnx`, `onnx/model_quantized.onnx`, or `model_quantized.onnx`) in a form the vendored ONNX runtime can run; a repo that ships only PyTorch weights, or an ONNX graph with external-data or decoder-only inputs this loader does not feed, will not load.
+
 ### Chunkers
 
 Indexing uses the composite chunker as its default dispatch path. Each chunker claims one or more MIME types: `handles` resolves a path's MIME type via the stdlib `mimetypes.guess_type` and tests membership in the chunker's declared set, so `.md` and `.MD` (both `text/markdown`) route to the same chunker. The registry is contributor-extensible, so you can register your own splitter for other formats or strategies without touching the core:

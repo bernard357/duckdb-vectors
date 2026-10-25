@@ -119,7 +119,7 @@ format:
 
 test:
 	@echo "Running tests..."
-	.venv/bin/pytest -q
+	.venv/bin/pytest -q -m "not model"
 
 coverage:
 	@echo "Running tests with coverage..."

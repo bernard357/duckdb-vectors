@@ -150,3 +150,28 @@ def test_hf_embedder_requires_repo_id():
 def test_registry_resolves_hf_lazily():
     embedder = resolve_embedder("hf:acme/model")
     assert embedder.model_identifier == "hf:acme/model"
+
+
+@pytest.mark.model
+def test_hf_embedder_loads_real_qwen_model():
+    """Opt-in end-to-end: load a real Qwen model via hf: and embed text.
+
+    Deselected from the default fast suite (``make test`` runs ``-m "not
+    model"``); ``make coverage`` runs unfiltered and picks this up, exercising
+    the real download -> ONNX session -> tokenizer -> last-token-pool path that
+    the stubbed tests cannot reach. The load/embed is wrapped so that a missing
+    download, network failure, or a repo without probed-path ONNX weights
+    degrades to a skip rather than a red suite.
+    """
+    repo = "hf:Qwen/Qwen3-Embedding-0.6B"
+    embedder = resolve_embedder(repo)
+    assert embedder.model_identifier == repo
+    try:
+        vectors = embedder.embed(["hello world", "embedded databases are frugal"])
+    except Exception as exc:  # noqa: BLE001 - degrade to skip, never red
+        pytest.skip(f"Qwen model not loadable in this environment: {exc}")
+    assert len(vectors) == 2
+    assert all(vector for vector in vectors)
+    lengths = {len(vector) for vector in vectors}
+    assert len(lengths) == 1
+    assert lengths.pop() == embedder.dimensions

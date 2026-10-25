@@ -64,7 +64,7 @@ Measured candidate models (hardware: MacBook Pro M1 (2021); embed p50 over 20 it
 | `fastembed:BAAI/bge-large-en-v1.5` | 1024 | 35.2 ms | 1.00 | 1.00 |
 | `hf:Qwen/Qwen3-Embedding-0.6B` | TODO | TODO | TODO | TODO |
 
-The `hf:Qwen/Qwen3-Embedding-0.6B` row is a TODO: the Qwen3 repository does not publish ONNX weights in a location this loader probes, so it was not run in this environment. The static 256-dim default embeds in ~0.1 ms — two orders of magnitude faster than the 1,024-dim contextual tiers — and the tiny relevance bank does not separate the tiers; measure on your own corpus before trading the default's size and speed for a larger model.
+The `hf:Qwen/Qwen3-Embedding-0.6B` row is still not run, re-verified against the live Hugging Face repo: `Qwen/Qwen3-Embedding-0.6B` publishes no ONNX weights at any path this loader probes (`onnx/model.onnx`, `model.onnx`, `onnx/model_quantized.onnx`, `model_quantized.onnx` all return 404). The one ONNX re-export found at a probed path ships the graph with external data the ONNX runtime rejects from the Hugging Face cache, and exports Qwen3 as a decoder graph expecting `position_ids` and key/value-cache inputs this loader does not feed — so no Qwen embedding repo loads and embeds through the `hf:` loader as it stands. No latency, dimension, or `hit@k` number is fabricated for it; the benchmark script records the same honest "not run" outcome. The static 256-dim default embeds in ~0.1 ms — two orders of magnitude faster than the 1,024-dim contextual tiers — and the tiny relevance bank does not separate the tiers; measure on your own corpus before trading the default's size and speed for a larger model.
 
 ## Deliberate omissions
 

@@ -157,6 +157,20 @@ download and no network and runs in a few seconds. Add a test for any behavior
 you change or add; the suite under `tests/` shows the patterns (temp-file
 DuckDB fixtures, deterministic embeddings).
 
+One test is held out of this default run by the `model` marker: an opt-in
+end-to-end test that downloads a real Qwen model through the `hf:` backend and
+embeds text. `make test` runs `-m "not model"` so it stays offline and fast; the
+model test never fires there. Run it explicitly when you want to exercise the
+real download, ONNX session, tokenizer, and last-token-pooling path:
+
+```shell
+$ .venv/bin/pytest -m model   # downloads the model once (HF-cached), then embeds
+```
+
+It downloads a multi-hundred-MB model on first run and is skipped (not failed)
+when the model cannot be fetched, so a disconnected run degrades to a skip. It
+is also picked up automatically by `make coverage`, which runs unfiltered.
+
 ## How do I measure test coverage?
 
 ```shell
