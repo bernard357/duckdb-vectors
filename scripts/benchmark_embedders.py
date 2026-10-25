@@ -8,7 +8,8 @@ results are emitted as a markdown pipe table matching the docs house style.
 
 Candidates span the ``fastembed:`` multilingual ladder (256/384/768/1024), the
 English ``BAAI/bge`` tiers (384/1024), and one ``hf:`` model
-(``Qwen/Qwen3-Embedding-0.6B``) exercising the core Hugging Face ONNX loader.
+(``onnx-community/Qwen3-Embedding-0.6B-ONNX``) exercising the core Hugging Face
+ONNX loader on a decoder-style, external-data export.
 
 Run it from the repository root with the project venv, offline where the models
 are already cached:
@@ -47,7 +48,7 @@ CANDIDATES = (
     "fastembed:intfloat/multilingual-e5-large",
     "fastembed:BAAI/bge-small-en-v1.5",
     "fastembed:BAAI/bge-large-en-v1.5",
-    "hf:Qwen/Qwen3-Embedding-0.6B",
+    "hf:onnx-community/Qwen3-Embedding-0.6B-ONNX",
 )
 
 DEFAULT_WARMUP = 2
