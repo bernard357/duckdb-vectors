@@ -132,18 +132,27 @@ The `fastembed:` backend runs a bundled ONNX model with no torch dependency. Pic
 | Bedrock Titan | `bedrock:titan` | 1024 | cloud embedding |
 | Hashing (deterministic, no deps) | `hashing` | 384 | tests and CI only, not relevance |
 
-The `hf:<repo-id>` backend is core (no extra install): it downloads a repository's ONNX weights and `tokenizer.json` via `huggingface_hub`, runs them through the ONNX runtime fastembed already vendors, mean-pools by default, and uses last-token pooling for Qwen3-style repos. Use it to load a model fastembed does not bundle. A repo must publish ONNX weights (for example `onnx/model.onnx`) for this backend to load it.
+The `hf:<repo-id>` backend is core (no extra install): it downloads a repository's ONNX weights and `tokenizer.json` via `huggingface_hub`, runs them through the ONNX runtime fastembed already vendors, mean-pools by default, and uses last-token pooling for Qwen3-style repos. Use it to load a model fastembed does not bundle. It now loads the large majority of ONNX embedding exports on the Hub, not just single-file sentence-transformer encoders. A repo must publish ONNX weights (for example `onnx/model.onnx`) for this backend to load it.
+
+The loader handles three ONNX shapes:
+
+- __Simple encoders__ (bge/e5/sentence-transformers): `input_ids` / `attention_mask` (/ `token_type_ids`) feeding a `last_hidden_state` output.
+- __External-data ONNX__: larger exports whose weights live in a sibling `model.onnx_data`. The loader snapshot-downloads the ONNX folder and co-locates the real files in one directory so the ONNX runtime finds the data file beside the graph.
+- __Decoder-style embedding graphs__ (Qwen3-Embedding and relatives): graphs that declare `position_ids` and per-layer `past_key_values.*` cache inputs. The loader synthesizes `position_ids` from the attention mask, feeds zero-length cache tensors (shapes read from the graph), and selects the hidden-state output by name (never the vocabulary `logits`).
 
 A worked Qwen example — the repo id carries `qwen`, so the backend switches to last-token pooling automatically (no `pooling` argument needed):
 
 ```python
 from duckdb_vectors import VectorStore, index_folder
 
-store = VectorStore(db_path="vectors.duckdb", backend="hf:Qwen/Qwen3-Embedding-0.6B")
+store = VectorStore(
+    db_path="vectors.duckdb",
+    backend="hf:onnx-community/Qwen3-Embedding-0.6B-ONNX",
+)
 index_folder(store, "documentation", recursive=True)
 ```
 
-On first use the backend downloads the ONNX weights and `tokenizer.json` into the `huggingface_hub` cache (a few hundred megabytes); subsequent runs reuse the cache and need no network. Note that a repo must publish ONNX weights at a path the loader probes (`onnx/model.onnx`, `model.onnx`, `onnx/model_quantized.onnx`, or `model_quantized.onnx`) in a form the vendored ONNX runtime can run; a repo that ships only PyTorch weights, or an ONNX graph with external-data or decoder-only inputs this loader does not feed, will not load.
+`onnx-community/Qwen3-Embedding-0.6B-ONNX` is an external-data, decoder-style export (external `model.onnx_data`, `position_ids` plus 28 layers of KV-cache inputs) that emits a 1024-dimensional `last_hidden_state`; it exercises every part of the generalized loader. On first use the backend downloads the ONNX weights and `tokenizer.json` into the `huggingface_hub` cache (a few hundred megabytes); subsequent runs reuse the cache and need no network. A repo must publish ONNX weights at a path the loader probes (`onnx/model.onnx`, `model.onnx`, `onnx/model_quantized.onnx`, or `model_quantized.onnx`) in a form the vendored ONNX runtime can run; a repo that ships only PyTorch weights will not load.
 
 ### Chunkers
 

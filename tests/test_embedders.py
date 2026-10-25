@@ -106,21 +106,88 @@ class _StubTokenizer:
 
 
 class _StubInput:
-    def __init__(self, name):
+    def __init__(self, name, shape=None, type="tensor(int64)"):
         self.name = name
+        self.shape = shape if shape is not None else ["batch", "seq"]
+        self.type = type
+
+
+class _StubOutput:
+    def __init__(self, name, type="tensor(float)"):
+        self.name = name
+        self.type = type
 
 
 class _StubSession:
-    """Return one deterministic hidden-state row per text, hidden size 3."""
+    """Return one deterministic hidden-state row per text, hidden size 3.
+
+    Records the feeds passed to ``run`` so tests can assert which inputs the
+    embedder fed.
+    """
+
+    def __init__(self):
+        self.last_feeds = None
 
     def get_inputs(self):
         return [_StubInput("input_ids"), _StubInput("attention_mask")]
 
+    def get_outputs(self):
+        return [_StubOutput("last_hidden_state")]
+
     def run(self, output_names, feeds):
+        self.last_feeds = feeds
         batch = feeds["input_ids"].shape[0]
         seq = feeds["input_ids"].shape[1]
         hidden = np.tile(np.array([[0.1, 0.2, 0.3]], dtype=np.float32), (batch, seq, 1))
         return [hidden]
+
+
+class _StubDecoderSession:
+    """A decoder-style graph: position_ids + one KV-cache pair, two outputs.
+
+    Mirrors the Qwen3-Embedding ONNX shape in miniature: it declares
+    ``position_ids`` and a ``past_key_values.0.{key,value}`` pair whose shapes
+    expose kv_heads=4 / head_dim=16, and it emits a named ``last_hidden_state``
+    output ahead of a ``logits`` output. ``run`` records the feeds and returns
+    deterministic arrays so tests can assert synthesis, empty-cache shapes, and
+    output-by-name selection.
+    """
+
+    def __init__(self):
+        self.last_feeds = None
+
+    def get_inputs(self):
+        return [
+            _StubInput("input_ids"),
+            _StubInput("attention_mask"),
+            _StubInput("position_ids"),
+            _StubInput(
+                "past_key_values.0.key",
+                shape=["batch", 4, "past_seq", 16],
+                type="tensor(float)",
+            ),
+            _StubInput(
+                "past_key_values.0.value",
+                shape=["batch", 4, "past_seq", 16],
+                type="tensor(float)",
+            ),
+        ]
+
+    def get_outputs(self):
+        return [_StubOutput("last_hidden_state"), _StubOutput("logits")]
+
+    def run(self, output_names, feeds):
+        self.last_feeds = feeds
+        batch = feeds["input_ids"].shape[0]
+        seq = feeds["input_ids"].shape[1]
+        # Hidden state: last token carries a distinctive value so last-token
+        # pooling is observable; logits is a different, larger tensor.
+        hidden = np.tile(np.array([[0.1, 0.2, 0.3]], dtype=np.float32), (batch, seq, 1))
+        # Mark the second row (the last unpadded token for a [1,1,0] mask) so
+        # last-token pooling is observable.
+        hidden[:, 1, :] = np.array([0.7, 0.8, 0.9], dtype=np.float32)
+        logits = np.zeros((batch, seq, 100), dtype=np.float32)
+        return [hidden, logits]
 
 
 def test_hf_embedder_with_injected_session_and_tokenizer():
@@ -135,6 +202,117 @@ def test_hf_embedder_with_injected_session_and_tokenizer():
     # Mean-pool of two identical [0.1, 0.2, 0.3] rows is the same vector.
     assert vectors[0] == pytest.approx([0.1, 0.2, 0.3])
     assert embedder.dimensions == 3
+
+
+def test_hf_embedder_simple_encoder_feeds_only_declared_inputs():
+    """The simple-encoder path is unchanged: no position_ids, no KV-cache.
+
+    Regression guard for the additive generalization — a graph that declares
+    only ``input_ids`` / ``attention_mask`` must never be fed ``position_ids``
+    or ``past_key_values.*``, and the single hidden-state output is read.
+    """
+    session = _StubSession()
+    embedder = HuggingFaceEmbedder(
+        repo_id="BAAI/bge-small-en-v1.5",
+        session=session,
+        tokenizer=_StubTokenizer(),
+    )
+    vectors = embedder.embed(["hello"])
+    assert session.last_feeds is not None
+    assert set(session.last_feeds) == {"input_ids", "attention_mask"}
+    assert "position_ids" not in session.last_feeds
+    assert not any(k.startswith("past_key_values") for k in session.last_feeds)
+    # Mean-pooled hidden state of the stub, hidden size 3.
+    assert vectors[0] == pytest.approx([0.1, 0.2, 0.3])
+
+
+def test_hf_embedder_decoder_stub_synthesizes_feeds_and_selects_hidden_state():
+    """Decoder-shaped graph: position_ids synthesis, empty cache, output name.
+
+    Exercises the decoder plumbing against a stub mirroring the Qwen3-Embedding
+    ONNX shape: ``position_ids`` is synthesized (cumsum-1 clamped), the
+    ``past_key_values.*`` inputs are fed zero-length tensors whose kv_heads /
+    head_dim come from the declared shapes, the ``last_hidden_state`` output
+    (not ``logits``) is pooled, and last-token pooling applies for the
+    qwen-like repo id.
+    """
+    session = _StubDecoderSession()
+
+    class _ThreeTokenTokenizer:
+        def encode_batch(self, texts):
+            # Two real tokens then one pad, so last-token pooling is observable.
+            return [_StubTokenizerEncoding([5, 6, 0], [1, 1, 0]) for _ in texts]
+
+    embedder = HuggingFaceEmbedder(
+        repo_id="onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        session=session,
+        tokenizer=_ThreeTokenTokenizer(),
+    )
+    vectors = embedder.embed(["hello world"])
+
+    feeds = session.last_feeds
+    assert feeds is not None
+    # position_ids = cumsum(mask) - 1, clamped at 0 -> [0, 1, 1] (int64).
+    assert feeds["position_ids"].tolist() == [[0, 1, 1]]
+    assert feeds["position_ids"].dtype == np.int64
+    # Empty KV-cache, shape [batch, kv_heads=4, 0, head_dim=16], float32.
+    for key in ("past_key_values.0.key", "past_key_values.0.value"):
+        assert feeds[key].shape == (1, 4, 0, 16)
+        assert feeds[key].dtype == np.float32
+    # last_hidden_state (index 0), not logits, is pooled; last-token pooling
+    # selects the final unpadded row [0.7, 0.8, 0.9].
+    assert embedder._pooling == "last"
+    assert vectors[0] == pytest.approx([0.7, 0.8, 0.9])
+
+
+def test_hf_embedder_external_data_colocates_onnx_and_data_file(tmp_path, monkeypatch):
+    """External-data download co-locates ``model.onnx`` + ``model.onnx_data``.
+
+    Mocks ``snapshot_download`` to a temp snapshot dir holding a fake
+    ``onnx/model.onnx`` + ``onnx/model.onnx_data`` (+ ``tokenizer.json``) and a
+    stubbed ``onnxruntime.InferenceSession``, then asserts the session is built
+    from a real directory where both files co-exist, with no network.
+    """
+    import os
+    import sys
+    import types
+
+    snapshot = tmp_path / "snapshot"
+    (snapshot / "onnx").mkdir(parents=True)
+    (snapshot / "onnx" / "model.onnx").write_bytes(b"fake-onnx-graph")
+    (snapshot / "onnx" / "model.onnx_data").write_bytes(b"fake-external-weights")
+    (snapshot / "tokenizer.json").write_text("{}")
+
+    seen = {}
+
+    def fake_snapshot_download(repo_id, allow_patterns=None):
+        seen["patterns"] = allow_patterns
+        return str(snapshot)
+
+    hub_module = types.ModuleType("huggingface_hub")
+    hub_module.snapshot_download = fake_snapshot_download  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub_module)
+
+    class _FakeSession:
+        def __init__(self, onnx_path):
+            # The data file must sit beside the graph in a real directory.
+            built_dir = os.path.dirname(onnx_path)
+            assert os.path.basename(onnx_path) == "model.onnx"
+            assert os.path.exists(os.path.join(built_dir, "model.onnx_data"))
+            seen["onnx_path"] = onnx_path
+
+    ort_module = types.ModuleType("onnxruntime")
+    ort_module.InferenceSession = _FakeSession  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "onnxruntime", ort_module)
+
+    embedder = HuggingFaceEmbedder(repo_id="janni-t/qwen3-embedding-0.6b-tei-onnx")
+    session = embedder._build_session()
+
+    assert isinstance(session, _FakeSession)
+    assert "onnx_path" in seen
+    # The build must not reuse the snapshot dir directly (symlinks), but a fresh
+    # materialized directory with the real co-located files.
+    assert os.path.dirname(seen["onnx_path"]) != str(snapshot / "onnx")
 
 
 def test_hf_embedder_uses_last_token_pooling_for_qwen():
@@ -154,16 +332,23 @@ def test_registry_resolves_hf_lazily():
 
 @pytest.mark.model
 def test_hf_embedder_loads_real_qwen_model():
-    """Opt-in end-to-end: load a real Qwen model via hf: and embed text.
+    """Opt-in end-to-end: load a real Qwen3-Embedding ONNX and embed text.
+
+    Uses ``onnx-community/Qwen3-Embedding-0.6B-ONNX``: an external-data,
+    decoder-style graph (``input_ids`` / ``attention_mask`` / ``position_ids``
+    + 28 layers of ``past_key_values.{N}.{key,value}`` with kv_heads 8 /
+    head_dim 128) that emits ``last_hidden_state`` (dimension 1024). Chosen
+    because it loads after external-data co-location AND exposes a hidden-state
+    output, so it exercises the FULL generalization: snapshot co-location,
+    position_ids synthesis, empty KV-cache feeds, and output-by-name selection.
+    Observed dimension: 1024.
 
     Deselected from the default fast suite (``make test`` runs ``-m "not
-    model"``); ``make coverage`` runs unfiltered and picks this up, exercising
-    the real download -> ONNX session -> tokenizer -> last-token-pool path that
-    the stubbed tests cannot reach. The load/embed is wrapped so that a missing
-    download, network failure, or a repo without probed-path ONNX weights
-    degrades to a skip rather than a red suite.
+    model"``); ``make coverage`` runs unfiltered and picks this up. The
+    load/embed is wrapped so a missing download, network failure, or a repo
+    without probed-path ONNX weights degrades to a skip rather than a red suite.
     """
-    repo = "hf:Qwen/Qwen3-Embedding-0.6B"
+    repo = "hf:onnx-community/Qwen3-Embedding-0.6B-ONNX"
     embedder = resolve_embedder(repo)
     assert embedder.model_identifier == repo
     try:

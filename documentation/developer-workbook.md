@@ -44,6 +44,30 @@ the registry is designed for a growing set. See `src/duckdb_vectors/embedders/`
 for the hashing, fastembed, and Bedrock examples, and keep heavy dependencies
 behind an optional extra in `pyproject.toml`.
 
+The core `hf:<repo-id>` backend (`embedders/huggingface.py`) loads the large
+majority of ONNX embedding exports on the Hub across three graph shapes, all
+handled additively so no working model regresses:
+
+- __Simple encoders__ — `input_ids` / `attention_mask` (/ `token_type_ids`)
+  feeding a `last_hidden_state` output (bge, e5, sentence-transformers).
+- __External-data ONNX__ — larger exports whose weights sit in a sibling
+  `model.onnx_data`. `snapshot_download` fetches the ONNX folder, and the
+  loader copies the real files into one directory so the ONNX runtime finds the
+  data file beside the graph; `hf_hub_download` of the single file would
+  symlink the graph away from its data file ("External data path escapes model
+  directory").
+- __Decoder-style graphs__ — Qwen3-Embedding and relatives that declare
+  `position_ids` and per-layer `past_key_values.*` cache inputs. The loader
+  feeds `position_ids` synthesized from the attention mask (`cumsum − 1`,
+  clamped at 0, int64), feeds zero-length cache tensors shaped
+  `[batch, kv_heads, 0, head_dim]` with `kv_heads` / `head_dim` read as
+  concrete ints from `session.get_inputs()` shapes (never hardcoded), and then
+  selects the hidden-state output by name from `session.get_outputs()` —
+  preferring `last_hidden_state`, else the first float output that is neither
+  `logits` nor a `present.*` cache output — before pooling. The opt-in `model`
+  test loads `onnx-community/Qwen3-Embedding-0.6B-ONNX` (external-data +
+  decoder, 1024-dimensional `last_hidden_state`) to exercise all three.
+
 ## How do I add a chunker?
 
 Subclass `FilesystemChunker` and declare a `mimetypes` frozenset of the MIME
@@ -158,10 +182,12 @@ you change or add; the suite under `tests/` shows the patterns (temp-file
 DuckDB fixtures, deterministic embeddings).
 
 One test is held out of this default run by the `model` marker: an opt-in
-end-to-end test that downloads a real Qwen model through the `hf:` backend and
-embeds text. `make test` runs `-m "not model"` so it stays offline and fast; the
-model test never fires there. Run it explicitly when you want to exercise the
-real download, ONNX session, tokenizer, and last-token-pooling path:
+end-to-end test that downloads the real `onnx-community/Qwen3-Embedding-0.6B-ONNX`
+export through the `hf:` backend and embeds text (external-data + decoder graph,
+1024-dimensional output). `make test` runs `-m "not model"` so it stays offline
+and fast; the model test never fires there. Run it explicitly when you want to
+exercise the real download, external-data co-location, ONNX session, tokenizer,
+position_ids / empty-KV-cache plumbing, and last-token-pooling path:
 
 ```shell
 $ .venv/bin/pytest -m model   # downloads the model once (HF-cached), then embeds
