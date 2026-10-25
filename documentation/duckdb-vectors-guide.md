@@ -42,7 +42,7 @@ $ duckdb-vectors index --help    # options for a specific verb
 
 ## How to gather content?
 
-Collect the documents you want searchable in one place. Markdown is the first-class input because the default chunker understands headings. PDF is first-class too, through the `pdf` chunker — it reads per-page text and falls back to local OCR for scanned pages (see [PDF ingestion](#pdf-ingestion) below). Convert other formats (HTML, docx) to markdown first.
+Collect the documents you want searchable in one place. Markdown is first-class input because the markdown chunker understands headings. PDF is first-class too, through the `pdf` chunker — it reads per-page text and falls back to local OCR for scanned pages (see [PDF ingestion](#pdf-ingestion) below). Both are claimed automatically by the composite default via their MIME type; convert other formats (HTML, docx) to markdown first.
 
 ```text
 documentation/
@@ -77,7 +77,7 @@ Indexing chunks each document, embeds the chunks, and writes them to a DuckDB fi
 
 You can use either the CLI or the python interface.
 
-Two choices matter for indexing: the __chunker__ that splits documents and the __embedding backend__ that vectorises the chunks. Both default sensibly (`markdown` chunker, `fastembed:minishlab/potion-multilingual-128M` embedder) and both are selectable by string — see [Chunkers](#chunkers) and [Embedding backends](#embedding-backends) below. The embedding backend identity is folded into each chunk's ETag, so switching backends re-embeds everything correctly.
+Two choices matter for indexing: the __chunker__ that splits documents and the __embedding backend__ that vectorises the chunks. Both default sensibly — the composite chunker dispatches each file to the registered chunker claiming its MIME type, and `fastembed:minishlab/potion-multilingual-128M` is the default embedder. The embedding backend is selectable by string; see [Chunkers](#chunkers) and [Embedding backends](#embedding-backends) below. The embedding backend identity is folded into each chunk's ETag, so switching backends re-embeds everything correctly.
 
 Here is an example of indexing with python:
 
@@ -105,7 +105,6 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
-| Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ### Embedding backends
@@ -136,7 +135,7 @@ The `hf:<repo-id>` backend is core (no extra install): it downloads a repository
 
 ### Chunkers
 
-A chunker is resolved from a string the same way — a bare name (`markdown`) or a `name:variant` pair — selectable by the `chunker` argument or the `DUCKDB_VECTORS_CHUNKER` environment variable. `markdown` is the default. The registry is contributor-extensible, so you can register your own splitter for other formats or strategies without touching the core:
+Indexing uses the composite chunker as its default dispatch path. Each chunker claims one or more MIME types: `handles` resolves a path's MIME type via the stdlib `mimetypes.guess_type` and tests membership in the chunker's declared set, so `.md` and `.MD` (both `text/markdown`) route to the same chunker. The registry is contributor-extensible, so you can register your own splitter for other formats or strategies without touching the core:
 
 ```python
 from duckdb_vectors import register_chunker
@@ -147,25 +146,25 @@ register_chunker("mychunker", lambda variant: MyChunker(variant))
 A chunker owns the folder walk, not just text splitting. The contract has three parts:
 
 - __Traversal__ — `chunk_folder(folder, recursive=True)` walks the tree and yields chunks for every file the chunker claims, setting each chunk's `source` to its path relative to the folder root.
-- __Per-file handling__ — `handles(path)` says which files the chunker claims (the markdown chunker claims `*.md`), and `chunk_file(path)` reads one file and yields its chunks. `chunk(text, source)` stays available for direct text input.
+- __Per-file handling__ — a chunker declares a `mimetypes` frozenset of the MIME types it claims (the markdown chunker claims `text/markdown`), and the base `handles(path)` matches a path's MIME type against it; a subclass may still override `handles` when MIME detection is ambiguous. `chunk_file(path)` reads one file and yields its chunks. `chunk(text, source)` stays available for direct text input.
 - __Lifecycle hooks__ — three begin/end pairs with no-op defaults fire in a strict nesting order: `begin_indexing` / `end_indexing` wrap a whole run, `begin_folder` / `end_folder` wrap each directory, and `begin_file` / `end_file` wrap each handled file. `end_indexing` always runs, even if indexing raises.
 
-Custom chunkers subclass `FilesystemChunker` and implement only `handles` and `chunk_file`; the base provides the recursive walk, the relative-`source` assignment, and the no-op hooks. The `pdf` chunker is the second consumer: it claims `*.pdf`, loads a local OCR engine once in `begin_indexing`, and emits one chunk per page from `chunk_file` (see [PDF ingestion](#pdf-ingestion)).
+Custom chunkers subclass `FilesystemChunker` and implement only the `mimetypes` declaration and `chunk_file`; the base provides MIME-based matching, the recursive walk, the relative-`source` assignment, and the no-op hooks. The `pdf` chunker is the second consumer: it claims `application/pdf`, loads a local OCR engine once in `begin_indexing`, and emits one chunk per page from `chunk_file` (see [PDF ingestion](#pdf-ingestion)).
 
-| Chunker | Spec | Use for |
+| Chunker | MIME type(s) | Use for |
 | --- | --- | --- |
-| MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
-| PdfChunker | `pdf` | per-page text with local OCR for scanned pages |
-| CompositeChunker | `composite` | dispatches a mixed folder to the matching chunker per file in one pass |
+| MarkdownChunker | `text/markdown` | heading-scoped sections with word-window splitting |
+| PdfChunker | `application/pdf` | per-page text with local OCR for scanned pages |
+| CompositeChunker | dispatches by MIME type | default; dispatches a mixed folder to the matching chunker per file in one pass |
 
 ### Indexing a mixed folder in one pass
 
-A real folder often mixes formats — some `.md`, some `.pdf`. The `composite` chunker indexes them together in a single pass: it dispatches each file to the first registered chunker that claims it, so markdown files go to the markdown chunker and PDFs go to the PDF chunker, with ids byte-identical to what each chunker would produce on its own.
+A real folder often mixes formats — some `.md`, some `.pdf`. The composite chunker is the default indexing path, so `index_folder` handles a mixed folder in a single pass with no selector: it dispatches each file to the first registered chunker that claims its MIME type, so markdown files go to the markdown chunker and PDFs go to the PDF chunker, with ids byte-identical to what each chunker would produce on its own.
 
 ```python
 from duckdb_vectors import VectorStore, index_folder
 
-store = VectorStore(db_path="vectors.duckdb", chunker="composite")
+store = VectorStore(db_path="vectors.duckdb")
 report = index_folder(store, "documents", recursive=True)
 ```
 
@@ -173,13 +172,13 @@ The composite builds its members from every other registered chunker, so coverag
 
 ### PDF ingestion
 
-The `pdf` chunker reads a PDF one page at a time. Select it like any chunker, by the `chunker` argument or the `DUCKDB_VECTORS_CHUNKER` environment variable:
+The `pdf` chunker reads a PDF one page at a time. The composite default already dispatches `.pdf` files to it, but you can force PDF-only indexing with the code-level `chunker=` override:
 
 ```python
-from duckdb_vectors import VectorStore, index_folder
+from duckdb_vectors import PdfChunker, VectorStore, index_folder
 
-store = VectorStore(db_path="vectors.duckdb", chunker="pdf")
-report = index_folder(store, "pdfs", recursive=True)
+store = VectorStore(db_path="vectors.duckdb")
+report = index_folder(store, "pdfs", chunker=PdfChunker(), recursive=True)
 ```
 
 Each chunk is page-scoped: `metadata["page"]` carries the 1-based page number and the chunk id is `{source}#p{N}:{pos}`, so re-indexing upserts in place even as pages shift. A page's text is split into the same overlapping word windows the markdown chunker uses, and one chunk is emitted per window.

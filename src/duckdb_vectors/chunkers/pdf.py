@@ -48,9 +48,11 @@ class PdfChunker(FilesystemChunker):
     page before OCR.
 
     As a :class:`~duckdb_vectors.chunkers.filesystem.FilesystemChunker` it
-    claims ``*.pdf`` files during a folder walk and reads each one in
+    claims ``application/pdf`` files during a folder walk and reads each one in
     ``chunk_file``; the OCR engine is built once per run in ``begin_indexing``.
     """
+
+    mimetypes = frozenset({"application/pdf"})
 
     def __init__(
         self,
@@ -64,10 +66,6 @@ class PdfChunker(FilesystemChunker):
         self._min_chars = min_chars
         self._ocr_scale = ocr_scale
         self._engine: Any = None
-
-    def handles(self, path: Path) -> bool:
-        """Claim files with a ``.pdf`` suffix, case-insensitively."""
-        return path.suffix.lower() == ".pdf"
 
     def begin_indexing(self) -> None:
         """Build the local OCR engine once for the whole run.

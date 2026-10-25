@@ -141,6 +141,19 @@ def test_handles_matches_markdown_case_insensitively():
     assert chunker.handles(Path("README")) is False
 
 
+def test_markdown_handles_md_and_markdown_via_mime():
+    """Both markdown suffixes resolve to ``text/markdown`` through the stdlib
+    mapping seeded at import, and ``guess_type`` lowercases the suffix so an
+    uppercase ``.MD`` matches too."""
+    import mimetypes
+
+    assert mimetypes.guess_type("x.MD")[0] == "text/markdown"
+    assert mimetypes.guess_type("x.markdown")[0] == "text/markdown"
+    chunker = MarkdownChunker()
+    assert chunker.handles(Path("x.MD")) is True
+    assert chunker.handles(Path("x.markdown")) is True
+
+
 def test_chunk_folder_recursive_covers_tree_and_skips_non_markdown():
     chunks = list(MarkdownChunker().chunk_folder(TREE, recursive=True))
     sources = {chunk.source for chunk in chunks}

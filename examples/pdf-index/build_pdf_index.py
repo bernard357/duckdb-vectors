@@ -1,9 +1,10 @@
 """Index a folder of PDFs with the pdf chunker.
 
-The pdf chunker is selected the same way markdown is — by the ``chunker=``
-setting (or the ``DUCKDB_VECTORS_CHUNKER`` environment variable). It extracts
-per-page text, falls back to local OCR for scanned pages, and emits one chunk
-per page window.
+Indexing uses the composite chunker by default, which dispatches each file to
+the registered chunker claiming its MIME type. This example forces PDF-only
+indexing by passing an explicit ``PdfChunker`` through the code-level
+``chunker=`` override. The PDF chunker extracts per-page text, falls back to
+local OCR for scanned pages, and emits one chunk per page window.
 
 Usage::
 
@@ -12,7 +13,7 @@ Usage::
 
 import sys
 
-from duckdb_vectors import VectorStore, index_folder
+from duckdb_vectors import PdfChunker, VectorStore, index_folder
 
 
 def main() -> None:
@@ -20,10 +21,9 @@ def main() -> None:
     store = VectorStore(
         db_path=db_path,
         backend="fastembed:minishlab/potion-multilingual-128M",
-        chunker="pdf",
     )
     try:
-        report = index_folder(store, pdf_folder, recursive=True)
+        report = index_folder(store, pdf_folder, chunker=PdfChunker(), recursive=True)
         print(f"indexed {report.files} files, {report.chunks} chunks")
     finally:
         store.close()

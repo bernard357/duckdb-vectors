@@ -3,6 +3,11 @@
 import shutil
 from pathlib import Path
 
+from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+from duckdb_vectors.chunkers.composite import CompositeChunker
+from duckdb_vectors.chunkers.pdf import PdfChunker
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
 
@@ -15,6 +20,39 @@ DOC_B = "# Beta\n\nBeta body content here.\n"
 
 def _store(tmp_path):
     return VectorStore(db_path=str(tmp_path / "idx.duckdb"), backend="hashing")
+
+
+def _add_text_page(writer: PdfWriter, words: str) -> None:
+    """Append a page carrying ``words`` as a real embedded text layer."""
+    page = writer.add_blank_page(width=612, height=792)
+    font = DictionaryObject()
+    font[NameObject("/Type")] = NameObject("/Font")
+    font[NameObject("/Subtype")] = NameObject("/Type1")
+    font[NameObject("/BaseFont")] = NameObject("/Helvetica")
+    resources = DictionaryObject()
+    fonts = DictionaryObject()
+    fonts[NameObject("/F1")] = writer._add_object(font)
+    resources[NameObject("/Font")] = fonts
+    page[NameObject("/Resources")] = resources
+    stream = DecodedStreamObject()
+    stream.set_data(f"BT /F1 24 Tf 72 700 Td ({words}) Tj ET".encode("latin-1"))
+    page[NameObject("/Contents")] = writer._add_object(stream)
+
+
+def _write_born_digital(path: Path, pages: list[str]) -> Path:
+    writer = PdfWriter()
+    for words in pages:
+        _add_text_page(writer, words)
+    with open(path, "wb") as handle:
+        writer.write(handle)
+    return path
+
+
+class _StubEngine:
+    """Stand in for RapidOCR so born-digital tests never touch a model."""
+
+    def __call__(self, image):  # pragma: no cover - born-digital never OCRs
+        return [], 0.0
 
 
 def test_first_run_embeds_all(tmp_path):
@@ -148,4 +186,39 @@ def test_markdown_tree_indexing_is_stable(tmp_path):
     assert pruned.pruned >= 1
     remaining = {row[1] for row in _stored_rows(store)}
     assert "sub/deeper/leaf.md" not in remaining
+    store.close()
+
+
+def test_default_chunker_is_composite_over_mixed_folder(tmp_path, monkeypatch):
+    """With no explicit ``chunker``, ``index_folder`` dispatches through the
+    composite chunker, indexing both a ``.md`` and a ``.pdf`` file in one pass.
+
+    The PDF members' OCR engine is stubbed so born-digital pages never download
+    a model; the mixed folder carries one markdown file and one born-digital
+    PDF.
+    """
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text(DOC_A)
+    _write_born_digital(
+        docs / "b.pdf",
+        ["Alpha content for the first page", "Beta content for the second page"],
+    )
+
+    original = CompositeChunker.begin_indexing
+
+    def _stub_begin(self) -> None:
+        for member in self._chunkers:
+            if isinstance(member, PdfChunker):
+                member._engine = _StubEngine()
+        original(self)
+
+    monkeypatch.setattr(CompositeChunker, "begin_indexing", _stub_begin)
+
+    store = _store(tmp_path)
+    report = index_folder(store, docs, recursive=True)
+    sources = {row[1] for row in _stored_rows(store)}
+    assert "a.md" in sources
+    assert "b.pdf" in sources
+    assert report.files == 2
     store.close()

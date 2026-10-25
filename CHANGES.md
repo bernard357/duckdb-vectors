@@ -3,6 +3,22 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
+## Unreleased
+
+### Breaking
+
+- __`CHUNKER` env var and `chunker` setting removed.__ The
+  `DUCKDB_VECTORS_CHUNKER` environment variable and the `chunker` field on
+  `Settings` are gone, together with the single-chunker selector. Indexing is
+  now composite by default: `index_folder` dispatches each file to the
+  registered chunker that claims its MIME type.
+- __Chunkers claim files by MIME type instead of file suffix.__ A chunker
+  declares a `mimetypes` frozenset; `FilesystemChunker.handles` resolves a
+  path's MIME type via the stdlib `mimetypes.guess_type` and tests membership,
+  so `.md`, `.MD`, and `.markdown` all map to `text/markdown`.
+- The explicit `chunker=` argument on `index_folder` is retained as a
+  code-level override for indexing a single format.
+
 ## v261024
 
 A large feature release: measured performance guidance, a reworked embedding

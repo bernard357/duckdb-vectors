@@ -119,7 +119,6 @@ Settings resolve with the precedence: explicit argument >
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
-| Chunker | `chunker` | `DUCKDB_VECTORS_CHUNKER` | `markdown` |
 | Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ## Embedding backends
@@ -148,10 +147,14 @@ The `fastembed:` backend runs a bundled ONNX model with no torch dependency; pic
 
 ## Chunking backends
 
-A chunker is resolved from a string: a bare name (`markdown`) or a
-`name:variant` pair. `markdown` is the default and the minimum viable setup for
-end users. The registry is contributor-extensible — register your own splitter
-without touching the core:
+Indexing uses the composite chunker by default: `index_folder` dispatches each
+file to the registered chunker whose declared MIME type matches the file's
+`mimetypes.guess_type`. Each chunker claims one or more MIME types rather than a
+file suffix, so `.md` and `.MD` (both `text/markdown`) go to the same chunker.
+
+Contributing a new file type means writing a `FilesystemChunker` subclass that
+declares its `mimetypes` frozenset and a `chunk_file` method, then registering
+it. A newly registered chunker participates in the composite automatically:
 
 ```python
 from duckdb_vectors import register_chunker
@@ -159,9 +162,15 @@ from duckdb_vectors import register_chunker
 register_chunker("mychunker", lambda variant: MyChunker(variant))
 ```
 
-| Chunker | Spec | Use for |
+For a code-level override, pass an explicit chunker instance to `index_folder`
+(for example `index_folder(store, folder, chunker=PdfChunker())`) to index only
+that format.
+
+| Chunker | MIME type(s) | Use for |
 | --- | --- | --- |
-| MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
+| MarkdownChunker | `text/markdown` (`.md`, `.markdown`) | heading-scoped sections with word-window splitting |
+| PdfChunker | `application/pdf` (`.pdf`) | per-page text with a local OCR fallback for scanned pages |
+| CompositeChunker | dispatches by MIME type | default; indexes a mixed-type folder in one pass |
 
 ## Metadata-aware search (injectable ranking SQL)
 

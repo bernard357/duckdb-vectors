@@ -62,10 +62,12 @@ class MarkdownChunker(FilesystemChunker):
     heading level that opens a new section.
 
     As a :class:`~duckdb_vectors.chunkers.filesystem.FilesystemChunker`, it
-    claims ``*.md`` files during a folder walk and reads each one in
+    claims ``text/markdown`` files during a folder walk and reads each one in
     ``chunk_file``; the text-level ``chunk`` method stays available for direct
     text input and carries the windowing logic.
     """
+
+    mimetypes = frozenset({"text/markdown"})
 
     def __init__(
         self,
@@ -148,10 +150,6 @@ class MarkdownChunker(FilesystemChunker):
                 )
                 position += 1
         return chunks
-
-    def handles(self, path: Path) -> bool:
-        """Claim files with a ``.md`` suffix, case-insensitively."""
-        return path.suffix.lower() == ".md"
 
     def chunk_file(self, path: Path) -> Iterator[Chunk]:
         """Read a markdown file and yield its chunks.

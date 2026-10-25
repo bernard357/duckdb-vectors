@@ -74,7 +74,6 @@ def _read_only(settings: Settings) -> Settings:
     return Settings(
         db_path=settings.db_path,
         backend=settings.backend,
-        chunker=settings.chunker,
         read_only=True,
         vector_sql=settings.vector_sql,
         text_sql=settings.text_sql,

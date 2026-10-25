@@ -46,11 +46,15 @@ behind an optional extra in `pyproject.toml`.
 
 ## How do I add a chunker?
 
-Subclass `FilesystemChunker` and implement two methods: `handles(path)` — which
-file types the chunker claims (for example `*.pdf`) — and `chunk_file(path)` —
-read one file and yield its chunks with stable ids. The base provides the
-recursive `chunk_folder` walk, sets each chunk's `source` to its folder-relative
-path, and gives no-op defaults for the three lifecycle hook pairs
+Subclass `FilesystemChunker` and declare a `mimetypes` frozenset of the MIME
+types the chunker claims (for example `frozenset({"application/pdf"})`), then
+implement `chunk_file(path)` — read one file and yield its chunks with stable
+ids. The base `handles(path)` resolves a path's MIME type via the stdlib
+`mimetypes.guess_type` and matches it against the declared set, so a chunker
+claims files by MIME type rather than by suffix; `handles` stays overridable as
+a hook for refining matching when MIME detection is ambiguous. The base provides
+the recursive `chunk_folder` walk, sets each chunk's `source` to its
+folder-relative path, and gives no-op defaults for the three lifecycle hook pairs
 (`begin_indexing` / `end_indexing`, `begin_folder` / `end_folder`,
 `begin_file` / `end_file`). The run-level pair is where to acquire and release an
 expensive resource once — for example the planned PDF chunker will load a local

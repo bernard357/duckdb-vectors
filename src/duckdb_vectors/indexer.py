@@ -42,13 +42,14 @@ def index_folder(
     Only chunks whose etag is new or changed are embedded; unchanged chunks
     reuse their stored vector. Chunks for files that disappeared are pruned.
 
-    An explicit ``chunker`` instance wins; otherwise the chunker is resolved
-    from the store's ``settings.chunker`` string (``"markdown"`` by default).
-    The chunker owns the folder walk; this function wraps it in the run-level
-    ``begin_indexing`` / ``end_indexing`` hook pair and guarantees
-    ``end_indexing`` runs even if indexing raises.
+    An explicit ``chunker`` instance wins. With no explicit ``chunker``,
+    indexing uses the composite chunker, which dispatches each file to the
+    registered chunker that claims its MIME type. The chunker owns the folder
+    walk; this function wraps it in the run-level ``begin_indexing`` /
+    ``end_indexing`` hook pair and guarantees ``end_indexing`` runs even if
+    indexing raises.
     """
-    chunker = chunker or resolve_chunker(store.settings.chunker)
+    chunker = chunker or resolve_chunker("composite")
     folder = Path(folder)
     model_id = store.embedder.model_identifier
     dimension = store.dimensions

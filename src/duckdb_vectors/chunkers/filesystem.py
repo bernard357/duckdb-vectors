@@ -2,29 +2,44 @@
 
 :class:`FilesystemChunker` owns the recursive folder walk and the lifecycle
 hooks described on :class:`~duckdb_vectors.chunkers.base.Chunker`. A concrete
-chunker subclasses it and implements only two methods:
+chunker subclasses it and implements only two things:
 
-- ``handles(path)`` — which files this chunker claims (for example ``*.md``).
+- ``mimetypes`` — the set of MIME types this chunker claims (for example
+  ``frozenset({"text/markdown"})``); the base ``handles`` resolves a path's
+  MIME type and tests membership.
 - ``chunk_file(path)`` — read one file and yield its chunks.
 
 The base provides no-op implementations of all six lifecycle hooks, so a
 subclass overrides only the ones it needs. ``begin_indexing`` / ``end_indexing``
 are the natural place to load and release a run-scoped resource once (for
 example a local OCR engine for a future PDF chunker).
+
+File matching is MIME-based: ``handles`` resolves ``path`` to a MIME type via
+the stdlib :func:`mimetypes.guess_type` and tests membership in the chunker's
+declared ``mimetypes`` set. The stdlib does not always know the markdown
+suffixes, so the missing mappings are registered once at import time below;
+``guess_type`` lowercases the suffix, so ``.MD`` resolves through the ``.md``
+mapping. A subclass may still override ``handles`` to refine matching when MIME
+detection is ambiguous.
 """
 
+import mimetypes
 from collections.abc import Iterator
 from pathlib import Path
 
 from duckdb_vectors.models import Chunk
 
+mimetypes.add_type("text/markdown", ".md")
+mimetypes.add_type("text/markdown", ".markdown")
+
 
 class FilesystemChunker:
     """Walk a folder, claim files via ``handles``, and chunk them.
 
-    Subclasses implement ``handles`` and ``chunk_file``; everything else —
-    traversal order, folder/file hook firing, and relative-``source``
-    assignment — is handled here so every format chunker behaves identically.
+    Subclasses declare ``mimetypes`` and implement ``chunk_file``; everything
+    else — MIME-based matching, traversal order, folder/file hook firing, and
+    relative-``source`` assignment — is handled here so every format chunker
+    behaves identically.
 
     ``_files_seen`` records how many handled files the last ``chunk_folder``
     walk visited, including files that yielded no chunks, so the indexer can
@@ -32,10 +47,19 @@ class FilesystemChunker:
     """
 
     _files_seen: int = 0
+    mimetypes: frozenset[str] = frozenset()
 
     def handles(self, path: Path) -> bool:
-        """Return whether this chunker claims ``path``. Override in subclasses."""
-        return False
+        """Return whether this chunker claims ``path`` by MIME type.
+
+        Resolves ``path`` to a MIME type via :func:`mimetypes.guess_type` and
+        returns whether it is in the declared ``mimetypes`` set. A subclass may
+        override this to refine matching when MIME detection is ambiguous.
+        """
+        if not self.mimetypes:
+            return False
+        guessed = mimetypes.guess_type(str(path))[0]
+        return guessed in self.mimetypes
 
     def chunk_file(self, path: Path) -> Iterator[Chunk]:
         """Read ``path`` and yield its chunks. Override in subclasses."""

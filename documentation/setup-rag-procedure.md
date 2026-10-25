@@ -4,13 +4,15 @@ Here we build an answering machine over your own documents with `duckdb-vectors`
 
 ## Step 1 — get chunkable documents
 
-`duckdb-vectors` chunks markdown first-class, because the default chunker splits
-on headings. Convert other sources to markdown before indexing:
+Indexing uses the composite chunker by default, dispatching each file to the
+registered chunker claiming its MIME type. The markdown chunker is one
+registered chunker: it splits markdown on headings. For formats no chunker
+claims, convert to markdown first:
 
 - Already markdown (documentation, wikis, READMEs): use as-is.
 - HTML or web pages: convert to markdown (for example with a reader/clipper).
-- PDFs and scans: run OCR, then convert the text to markdown; keep headings so
-  the chunker can split on them.
+- PDFs and scans: handled directly by the PDF chunker (per-page text with a
+  local OCR fallback), so no manual markdown conversion is required.
 - Office documents: export or convert to markdown.
 
 Aim for documents with clear headings and sections of roughly a few hundred
@@ -39,9 +41,11 @@ embedding backend:
 $ duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
-- __Chunking options.__ The default `MarkdownChunker` splits on headings and
-  windows long sections to ~300 words. Supply a custom `Chunker` (any object
-  with `chunk(text, source)`) for other formats or sizes.
+- __Chunking options.__ Indexing dispatches each file through the composite
+  chunker to the registered chunker claiming its MIME type; the `MarkdownChunker`
+  splits markdown on headings and windows long sections to ~300 words, and the
+  `PdfChunker` handles PDFs per page. Supply a custom `Chunker` (any object with
+  `chunk(text, source)`) for other formats or sizes.
 - __Embedding options.__ `fastembed:minishlab/potion-multilingual-128M`
   (offline, 256-dim static multilingual) is the default and the minimum viable
   setup for real relevance; other `fastembed:` tiers and `hf:<repo-id>` trade

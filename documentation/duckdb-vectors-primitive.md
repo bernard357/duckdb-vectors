@@ -81,9 +81,12 @@ Each block is small and replaceable. You can use the defaults or swap any one.
   embeds in the cloud; `hashing` is a deterministic, dependency-free fixture
   for tests and CI, not for relevance. Contributors add more with
   `register_embedder(name, factory)` without touching the core.
-- __Chunker__ — splits a source document into indexable chunks. The default
-  `MarkdownChunker` uses the DuckDB `markdown` extension to split on headings.
-  Supply any object with a `chunk(text, source)` method to replace it.
+- __Chunker__ — splits a source document into indexable chunks. Indexing
+  defaults to the composite chunker, which dispatches each file to the
+  registered chunker claiming its MIME type; the `MarkdownChunker` uses the
+  DuckDB `markdown` extension to split markdown on headings, and the
+  `PdfChunker` reads PDFs per page. Supply any object with a
+  `chunk(text, source)` method to replace it.
 - __Indexer__ — `index_folder` walks a folder of markdown, chunks each file,
   and embeds only the chunks whose content changed since the last run (ETag
   reuse), then prunes chunks for files that disappeared.

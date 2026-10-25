@@ -46,6 +46,12 @@ class Chunker(Protocol):
     re-index of the same source upserts rather than duplicates.
     """
 
+    mimetypes: frozenset[str]
+    """The set of MIME types this chunker claims during a folder walk.
+
+    ``handles`` resolves a path's MIME type and tests membership in this set.
+    """
+
     def chunk(self, text: str, source: str) -> list[Chunk]:
         """Return the chunks for one document, in document order."""
         ...

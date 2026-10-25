@@ -15,7 +15,7 @@ flowchart LR
 
 ## Step 1 — gather a folder of documents
 
-Collect the documents you want Kilo Code to draw on into one folder. Markdown is first-class, because the default chunker splits on headings; convert other formats (HTML, PDF, office documents) to markdown first, or index PDFs directly with the `pdf` chunker.
+Collect the documents you want Kilo Code to draw on into one folder. Indexing defaults to the composite chunker, which dispatches each file to the registered chunker claiming its MIME type: the markdown chunker splits markdown on headings and the PDF chunker reads PDFs directly, so both are first-class; convert other formats (HTML, office documents) to markdown first.
 
 ```text
 knowledge/
