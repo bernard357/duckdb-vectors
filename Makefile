@@ -3,8 +3,8 @@ help:
 	@echo "$$ make setup     - Check prerequisites, create the venv, install tooling"
 	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
-	@echo "$$ make coverage  - Run tests with coverage, then serve the HTML report"
-	@echo "$$ make serve-coverage - Serve the existing HTML coverage report"
+	@echo "$$ make coverage  - Run tests with coverage and write the HTML report"
+	@echo "$$ make serve-coverage - Serve the HTML coverage report in a browser"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make clean     - Remove build artifacts and caches"
@@ -124,7 +124,7 @@ test:
 coverage:
 	@echo "Running tests with coverage..."
 	.venv/bin/pytest --cov=src/duckdb_vectors --cov-branch --cov-report=html --cov-report=term-missing
-	@$(MAKE) serve-coverage
+	@echo "HTML report written to htmlcov/ — run 'make serve-coverage' to view it in a browser."
 
 # Serve the generated htmlcov/ report (see SERVE_COVERAGE_PYSCRIPT above).
 serve-coverage:
