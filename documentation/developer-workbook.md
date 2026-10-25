@@ -117,7 +117,8 @@ The `Makefile` consolidates the most frequent commands used throughout this proj
 - `make setup` — check prerequisites, create the `.venv`, install tooling
 - `make lint` — Ruff, mypy, Markdown, and Dockerfile checks
 - `make test` — the pytest suite
-- `make coverage` — the pytest suite under coverage, HTML report opened in the browser
+- `make coverage` — the pytest suite under coverage, then serve the HTML report
+- `make serve-coverage` — serve an already-generated HTML coverage report
 - `make format` — apply Ruff formatting
 - `make push` — rebase onto `main`, then push
 - `make build` — build the wheel and sdist with uv
@@ -159,15 +160,23 @@ DuckDB fixtures, deterministic embeddings).
 ## How do I measure test coverage?
 
 ```shell
-$ make coverage    # pytest --cov, writes htmlcov/ and opens it in the browser
+$ make coverage        # pytest --cov, write htmlcov/, then serve and open it
+$ make serve-coverage  # serve an already-generated htmlcov/ report
 ```
 
 `make coverage` runs the same suite under `pytest-cov` (in the `[dev]` extra),
 scoped to `src/duckdb_vectors` with line and branch measurement. It prints a
-`term-missing` summary, writes an HTML report to `htmlcov/`, and opens it in
-your default browser via a `file://` URL — click into a file to see which lines
-and branches the tests never hit. In a headless environment the browser step is
-a no-op and the printed `file://` URL still points at the report on disk.
+`term-missing` summary, writes an HTML report to `htmlcov/`, then hands off to
+`make serve-coverage`, which serves the report over a local HTTP server and
+opens it in your browser — click into a file to see which lines and branches
+the tests never hit.
+
+The report is served over HTTP rather than opened as a `file://` path on
+purpose: coverage's per-file pages use `localStorage`, which browsers block on
+a `file://` origin, so a file-opened report errors when you click into a file.
+The server picks a free port on `127.0.0.1`, runs in the foreground, and prints
+its URL; stop it with Ctrl-C. Run `make serve-coverage` on its own to re-open an
+existing `htmlcov/` without re-running the suite.
 
 The report is advisory: there is no `--cov-fail-under` gate, so `make coverage`
 never fails on a low number. Both `htmlcov/` and the `.coverage` data file are

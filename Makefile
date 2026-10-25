@@ -3,7 +3,8 @@ help:
 	@echo "$$ make setup     - Check prerequisites, create the venv, install tooling"
 	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
-	@echo "$$ make coverage  - Run tests with coverage and open the HTML report"
+	@echo "$$ make coverage  - Run tests with coverage, then serve the HTML report"
+	@echo "$$ make serve-coverage - Serve the existing HTML coverage report"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make clean     - Remove build artifacts and caches"
@@ -100,7 +101,22 @@ test:
 coverage:
 	@echo "Running tests with coverage..."
 	.venv/bin/pytest --cov=src/duckdb_vectors --cov-branch --cov-report=html --cov-report=term-missing
-	.venv/bin/python -c "import pathlib, webbrowser; url = pathlib.Path('htmlcov/index.html').resolve().as_uri(); print(f'HTML report: {url}'); webbrowser.open(url)" || true
+	@$(MAKE) serve-coverage
+
+# Serve the generated htmlcov/ report over a local HTTP server and open it in
+# the browser. HTTP (not file://) is required: coverage's per-file pages touch
+# localStorage on load, which browsers forbid on a file:// origin — so clicking
+# into a file over file:// errors instead of showing the annotated source. The
+# server runs in the foreground and picks a free port; stop it with Ctrl-C.
+serve-coverage:
+	@test -f htmlcov/index.html || { echo "No htmlcov/index.html — run 'make coverage' first."; exit 1; }
+	@.venv/bin/python -c "import functools, http.server, webbrowser; \
+h = functools.partial(http.server.SimpleHTTPRequestHandler, directory='htmlcov'); \
+d = http.server.HTTPServer(('127.0.0.1', 0), h); \
+url = f'http://127.0.0.1:{d.server_address[1]}/index.html'; \
+print(f'Coverage report: {url}  (Ctrl-C to stop)'); \
+webbrowser.open(url); \
+d.serve_forever()"
 
 build:
 	@echo "Building wheel and sdist..."
