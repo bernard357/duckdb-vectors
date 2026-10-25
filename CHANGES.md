@@ -3,7 +3,12 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
-## Unreleased
+## v261025
+
+A general Hugging Face embedding loader, composite-by-default chunking with
+MIME-type matching, a measured performance guide spanning the embedding ladder
+plus Qwen and EmbeddingGemma, a `make coverage` target, and a CLI `--version`
+flag.
 
 ### Breaking
 
@@ -18,6 +23,37 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   so `.md`, `.MD`, and `.markdown` all map to `text/markdown`.
 - The explicit `chunker=` argument on `index_folder` is retained as a
   code-level override for indexing a single format.
+
+### Added
+
+- __General Hugging Face ONNX loader.__ The `hf:<repo-id>` backend now loads the
+  large majority of ONNX embedding exports, across four graph shapes handled
+  additively: simple encoders, external-data ONNX (co-locating the sibling
+  `model.onnx_data`), decoder-style graphs (synthesizing `position_ids` and
+  feeding an empty KV-cache, e.g. Qwen3-Embedding), and full-pipeline exports
+  that expose a baked-in `sentence_embedding` output (e.g. EmbeddingGemma),
+  which the loader prefers over re-pooling the backbone.
+- __`make coverage`__ runs the suite under `pytest-cov` and writes an HTML
+  report; __`make serve-coverage`__ serves it over a local HTTP server (file
+  pages need an HTTP origin). `coverage` is non-blocking for CI and suggests
+  `serve-coverage` for interactive viewing.
+- __CLI `--version`__ prints the tag-derived package version and exits.
+- __Measured performance guide.__ A re-measured retrieval headline at the
+  256-dim default (query p50 ~27 ms, embed ~0.3 ms, ~4.5 MB per 1,000 chunks on
+  the reference machine), the embedding-model ladder with per-model latency and
+  relevance, and measured rows for `hf:onnx-community/Qwen3-Embedding-0.6B-ONNX`
+  (1024-dim) and `hf:onnx-community/embeddinggemma-300m-ONNX` (768-dim).
+- An opt-in `model` pytest marker (deselected by `make test`) for real-model
+  download-and-embed integration tests.
+
+### Changed
+
+- __Entry-point docs state Markdown and PDF indexing clearly__, and describe the
+  composite chunker and MIME-type dispatch, replacing the former markdown-only
+  framing.
+- __Default embedding stays `fastembed:minishlab/potion-multilingual-128M`__
+  (256-dim); README and `index.md` now reflect the 256-dim `FLOAT[256]` column
+  and the re-measured latency rather than the previous 384-dim figures.
 
 ## v261024
 
