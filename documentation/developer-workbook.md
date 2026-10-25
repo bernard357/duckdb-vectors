@@ -117,6 +117,7 @@ The `Makefile` consolidates the most frequent commands used throughout this proj
 - `make setup` — check prerequisites, create the `.venv`, install tooling
 - `make lint` — Ruff, mypy, Markdown, and Dockerfile checks
 - `make test` — the pytest suite
+- `make coverage` — the pytest suite under coverage, HTML report opened in the browser
 - `make format` — apply Ruff formatting
 - `make push` — rebase onto `main`, then push
 - `make build` — build the wheel and sdist with uv
@@ -154,3 +155,20 @@ The suite uses the dependency-free `hashing` backend, so it needs no model
 download and no network and runs in a few seconds. Add a test for any behavior
 you change or add; the suite under `tests/` shows the patterns (temp-file
 DuckDB fixtures, deterministic embeddings).
+
+## How do I measure test coverage?
+
+```shell
+$ make coverage    # pytest --cov, writes htmlcov/ and opens it in the browser
+```
+
+`make coverage` runs the same suite under `pytest-cov` (in the `[dev]` extra),
+scoped to `src/duckdb_vectors` with line and branch measurement. It prints a
+`term-missing` summary, writes an HTML report to `htmlcov/`, and opens
+`htmlcov/index.html` in your default browser — click into a file to see which
+lines and branches the tests never hit. In a headless environment the browser
+step is a no-op and the printed `htmlcov/index.html` path still applies.
+
+The report is advisory: there is no `--cov-fail-under` gate, so `make coverage`
+never fails on a low number. Both `htmlcov/` and the `.coverage` data file are
+gitignored and removed by `make clean`.

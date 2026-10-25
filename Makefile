@@ -3,6 +3,7 @@ help:
 	@echo "$$ make setup     - Check prerequisites, create the venv, install tooling"
 	@echo "$$ make lint      - Run Ruff, Markdown, and Dockerfile lint checks"
 	@echo "$$ make test      - Run the pytest suite"
+	@echo "$$ make coverage  - Run tests with coverage and open the HTML report"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make clean     - Remove build artifacts and caches"
@@ -96,6 +97,12 @@ test:
 	@echo "Running tests..."
 	.venv/bin/pytest -q
 
+coverage:
+	@echo "Running tests with coverage..."
+	.venv/bin/pytest --cov=src/duckdb_vectors --cov-branch --cov-report=html --cov-report=term-missing
+	@echo "HTML report: htmlcov/index.html"
+	.venv/bin/python -m webbrowser -t htmlcov/index.html || true
+
 build:
 	@echo "Building wheel and sdist..."
 	uv build
@@ -147,5 +154,7 @@ clean:
 	@echo "Removing build artifacts and caches..."
 	rm -rf dist build *.egg-info src/*.egg-info *.out
 	rm -rf .ruff_cache .pytest_cache
+	@echo "Removing coverage artifacts..."
+	rm -rf htmlcov .coverage
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
