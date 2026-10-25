@@ -7,9 +7,10 @@ of query/expected-doc pairs ranked by cosine, reported as hit@1 / hit@3). The
 results are emitted as a markdown pipe table matching the docs house style.
 
 Candidates span the ``fastembed:`` multilingual ladder (256/384/768/1024), the
-English ``BAAI/bge`` tiers (384/1024), and one ``hf:`` model
-(``onnx-community/Qwen3-Embedding-0.6B-ONNX``) exercising the core Hugging Face
-ONNX loader on a decoder-style, external-data export.
+English ``BAAI/bge`` tiers (384/1024), and two ``hf:`` models exercising the
+core Hugging Face ONNX loader: ``onnx-community/Qwen3-Embedding-0.6B-ONNX`` (a
+decoder-style, external-data export) and ``onnx-community/embeddinggemma-300m-ONNX``
+(a full-pipeline export with a baked-in ``sentence_embedding`` output).
 
 Run it from the repository root with the project venv, offline where the models
 are already cached:
@@ -49,6 +50,7 @@ CANDIDATES = (
     "fastembed:BAAI/bge-small-en-v1.5",
     "fastembed:BAAI/bge-large-en-v1.5",
     "hf:onnx-community/Qwen3-Embedding-0.6B-ONNX",
+    "hf:onnx-community/embeddinggemma-300m-ONNX",
 )
 
 DEFAULT_WARMUP = 2
