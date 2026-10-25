@@ -1,5 +1,7 @@
 """CLI smoke tests for index / report / search via CliRunner."""
 
+import importlib.metadata
+
 from typer.testing import CliRunner
 
 from duckdb_vectors.cli import app
@@ -42,3 +44,21 @@ def test_index_report_search_flow(tmp_path):
     )
     assert searched.exit_code == 0, searched.output
     assert "intro.md" in searched.output
+
+
+def test_version_flag_prints_tag_version():
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0, result.output
+    assert result.output.strip() == importlib.metadata.version("duckdb-vectors")
+
+
+def test_version_flag_fallback_when_metadata_missing(monkeypatch):
+    def raise_not_found(name):
+        raise importlib.metadata.PackageNotFoundError(name)
+
+    monkeypatch.setattr(
+        "duckdb_vectors.cli.importlib.metadata.version", raise_not_found
+    )
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0, result.output
+    assert "0.0.0+unknown" in result.output

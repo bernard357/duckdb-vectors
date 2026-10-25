@@ -60,6 +60,7 @@ $ duckdb-vectors index ./docs            # index a folder of markdown
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
 $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
+$ duckdb-vectors --version                # print the tag-derived package version
 ```
 
 The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide) for a complete integration.

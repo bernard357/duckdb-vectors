@@ -38,6 +38,7 @@ The install brings the `duckdb-vectors` command. Run it with no arguments, or wi
 ```shell
 $ duckdb-vectors --help          # list the index, report, search, and mcp verbs
 $ duckdb-vectors index --help    # options for a specific verb
+$ duckdb-vectors --version       # print the tag-derived package version
 ```
 
 ## How to gather content?

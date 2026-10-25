@@ -5,6 +5,7 @@ and ``search`` the index. All honor the ``DUCKDB_VECTORS_*`` environment
 variables and the ``--db`` / ``--backend`` overrides.
 """
 
+import importlib.metadata
 import json as json_module
 
 import typer
@@ -17,6 +18,33 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+
+def _version() -> str:
+    """Return the installed, tag-derived package version."""
+    try:
+        return importlib.metadata.version("duckdb-vectors")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.0.0+unknown"
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(_version())
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        None,
+        "--version",
+        is_eager=True,
+        help="Show the version and exit.",
+        callback=_version_callback,
+    ),
+) -> None:
+    """Embeddable semantic search over a local DuckDB database."""
 
 
 @app.command()
