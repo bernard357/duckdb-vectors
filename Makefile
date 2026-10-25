@@ -100,8 +100,7 @@ test:
 coverage:
 	@echo "Running tests with coverage..."
 	.venv/bin/pytest --cov=src/duckdb_vectors --cov-branch --cov-report=html --cov-report=term-missing
-	@echo "HTML report: htmlcov/index.html"
-	.venv/bin/python -m webbrowser -t htmlcov/index.html || true
+	.venv/bin/python -c "import pathlib, webbrowser; url = pathlib.Path('htmlcov/index.html').resolve().as_uri(); print(f'HTML report: {url}'); webbrowser.open(url)" || true
 
 build:
 	@echo "Building wheel and sdist..."

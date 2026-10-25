@@ -164,10 +164,10 @@ $ make coverage    # pytest --cov, writes htmlcov/ and opens it in the browser
 
 `make coverage` runs the same suite under `pytest-cov` (in the `[dev]` extra),
 scoped to `src/duckdb_vectors` with line and branch measurement. It prints a
-`term-missing` summary, writes an HTML report to `htmlcov/`, and opens
-`htmlcov/index.html` in your default browser — click into a file to see which
-lines and branches the tests never hit. In a headless environment the browser
-step is a no-op and the printed `htmlcov/index.html` path still applies.
+`term-missing` summary, writes an HTML report to `htmlcov/`, and opens it in
+your default browser via a `file://` URL — click into a file to see which lines
+and branches the tests never hit. In a headless environment the browser step is
+a no-op and the printed `file://` URL still points at the report on disk.
 
 The report is advisory: there is no `--cov-fail-under` gate, so `make coverage`
 never fails on a low number. Both `htmlcov/` and the `.coverage` data file are
