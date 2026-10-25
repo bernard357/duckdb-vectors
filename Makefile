@@ -5,6 +5,7 @@ help:
 	@echo "$$ make test      - Run the pytest suite"
 	@echo "$$ make coverage  - Run tests with coverage and write the HTML report"
 	@echo "$$ make serve-coverage - Serve the HTML coverage report in a browser"
+	@echo "$$ make prune     - Report dead-code candidates with vulture (advisory)"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make clean     - Remove build artifacts and caches"
@@ -130,6 +131,10 @@ coverage:
 serve-coverage:
 	@test -f htmlcov/index.html || { echo "No htmlcov/index.html — run 'make coverage' first."; exit 1; }
 	@.venv/bin/python -c "$$SERVE_COVERAGE_PYSCRIPT"
+
+prune:
+	@echo "Scanning for dead-code candidates with vulture (advisory)..."
+	@.venv/bin/vulture || true
 
 build:
 	@echo "Building wheel and sdist..."

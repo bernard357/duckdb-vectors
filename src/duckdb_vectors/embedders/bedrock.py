@@ -10,7 +10,6 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-DEFAULT_MODEL_ID = "amazon.titan-embed-text-v2:0"
 _MODEL_IDS = {
     "titan": "amazon.titan-embed-text-v2:0",
     "titan-v1": "amazon.titan-embed-text-v1",
