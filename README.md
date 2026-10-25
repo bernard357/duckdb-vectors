@@ -28,6 +28,7 @@ For the common case — a few thousand documents, read-mostly, packaged with one
 A few deliberate choices shape how `duckdb-vectors` retrieves, and they are backed by measurement rather than assumption:
 
 - __One DuckDB file is one index__, baked read-only into the agent's container image — no external vector database and no network hop on the query path.
+- __Indexes Markdown and PDF out of the box__: a composite chunker dispatches each file by MIME type — Markdown is split on headings, PDF is read per page with a local OCR fallback for scanned pages. Other formats are a small chunker extension point.
 - __Hybrid retrieval__: a brute-force exact cosine scan (`array_cosine_distance` over a `FLOAT[256]` ARRAY column at the default dimension — the width follows the chosen embedding model) fused with a BM25 exact-token scan via Reciprocal Rank Fusion. The BM25 index is built without stemming or stopwords on purpose, for language-agnostic exact-token matching.
 - __No ANN index by default__: the schema is HNSW-ready (a fixed-size ARRAY column), but the default path is brute force, because measurement shows HNSW is not worth the recall and persistence cost at the package's target scale.
 - __Local embedding by default__ (offline, in-process); cloud embedding (Bedrock Titan) is opt-in.
@@ -56,7 +57,7 @@ $ pip install duckdb-vectors             # install once, batteries included
 Indexing a set of Markdown pages directly from the command-line. This produces a single DuckDB file:
 
 ```shell
-$ duckdb-vectors index ./docs            # index a folder of markdown
+$ duckdb-vectors index ./docs            # index a folder of markdown and PDF
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
 $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
@@ -92,7 +93,7 @@ The default configuration of `duckdb-vectors` makes it workable out of the box. 
 
 - Choose your embedding model by string. The default is a compact 256-dimension multilingual model; step up the `fastembed:` dimension ladder (384 / 768 / 1024) for more relevance, load any Hugging Face ONNX repo with `hf:<repo-id>`, or embed in the cloud with `bedrock:titan`. See [Embedding backends](#embedding-backends) below.
 
-- Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown files. You may have other kinds of documents to ingest.
+- Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown and PDF files. You may have other kinds of documents to ingest.
 
 Adding an embedding backend or a chunker is a great first contribution — the registries are built for it. See [CONTRIBUTING.md](https://github.com/bernard357/duckdb-vectors/blob/main/CONTRIBUTING.md) to get started.
 
