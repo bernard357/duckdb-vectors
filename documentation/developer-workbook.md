@@ -61,6 +61,10 @@ The text-level `chunk(text, source)` method stays available for feeding raw text
 directly. See `src/duckdb_vectors/chunkers/` for the base and the markdown
 chunker, and pass your chunker to `index_folder` or the store.
 
+Once registered with `register_chunker`, a new chunker participates in the
+`composite` chunker for free: `composite` dispatches matching files to it with
+no extra wiring, so a mixed-format folder picks up your format automatically.
+
 ## What are the documentation conventions?
 
 Documentation lives in `documentation/`, GitHub-Flavored Markdown with mermaid

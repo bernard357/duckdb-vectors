@@ -156,6 +156,20 @@ Custom chunkers subclass `FilesystemChunker` and implement only `handles` and `c
 | --- | --- | --- |
 | MarkdownChunker | `markdown` | default; heading-scoped sections with word-window splitting |
 | PdfChunker | `pdf` | per-page text with local OCR for scanned pages |
+| CompositeChunker | `composite` | dispatches a mixed folder to the matching chunker per file in one pass |
+
+### Indexing a mixed folder in one pass
+
+A real folder often mixes formats — some `.md`, some `.pdf`. The `composite` chunker indexes them together in a single pass: it dispatches each file to the first registered chunker that claims it, so markdown files go to the markdown chunker and PDFs go to the PDF chunker, with ids byte-identical to what each chunker would produce on its own.
+
+```python
+from duckdb_vectors import VectorStore, index_folder
+
+store = VectorStore(db_path="vectors.duckdb", chunker="composite")
+report = index_folder(store, "documents", recursive=True)
+```
+
+The composite builds its members from every other registered chunker, so coverage grows with the registry. There are two ways to extend format coverage: open a __PR against an existing chunker__ (for example to teach the PDF chunker a new OCR path), or __register a new chunker__ with `register_chunker` for a format no chunker claims yet. A newly registered chunker is picked up by the composite automatically — no extra wiring.
 
 ### PDF ingestion
 

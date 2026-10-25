@@ -54,5 +54,29 @@ def _pdf_factory(variant: str | None) -> Chunker:
     return PdfChunker()
 
 
+def _composite_factory(variant: str | None) -> Chunker:
+    """Build a composite over every other real format chunker.
+
+    Members are every currently-registered chunker except ``composite`` itself
+    (to avoid infinite recursion), resolved through the registry and kept only
+    when they are :class:`FilesystemChunker` instances. That filter includes
+    ``markdown`` and ``pdf`` and excludes test-only entries that are not
+    filesystem chunkers, keeping the composite deterministic regardless of
+    registration order.
+    """
+    from duckdb_vectors.chunkers.composite import CompositeChunker
+    from duckdb_vectors.chunkers.filesystem import FilesystemChunker
+
+    members: list[FilesystemChunker] = []
+    for name in sorted(_REGISTRY):
+        if name == "composite":
+            continue
+        chunker = resolve_chunker(name)
+        if isinstance(chunker, FilesystemChunker):
+            members.append(chunker)
+    return CompositeChunker(members)
+
+
 register_chunker("markdown", _markdown_factory)
 register_chunker("pdf", _pdf_factory)
+register_chunker("composite", _composite_factory)
