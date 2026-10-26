@@ -26,7 +26,7 @@ def indexed_db(tmp_path):
             "a lazy dog sleeps all day",
             "duckdb analytical database engine",
         ],
-        metadatas=[{}, {}, {}],
+        metadatas=[{}, {}, {"kind": "reference", "topic": "database"}],
         titles=["Fox", "Dog", "DuckDB"],
     )
     writer.close()
@@ -51,7 +51,11 @@ def test_search_tool_returns_ranked_hits(indexed_db):
     assert result.is_error is False
     hits = result.structured_content["result"]
     assert hits[0]["chunk_id"] == "db"
-    assert {"chunk_id", "text", "source", "title", "score"} <= set(hits[0])
+    assert {"chunk_id", "text", "source", "title", "metadata", "score"} == set(hits[0])
+    # metadata round-trips, and internal scoring is not exposed.
+    assert hits[0]["metadata"] == {"kind": "reference", "topic": "database"}
+    assert "vector_rank" not in hits[0]
+    assert "text_rank" not in hits[0]
 
 
 def test_search_tool_respects_top_k(indexed_db):

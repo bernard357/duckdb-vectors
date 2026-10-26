@@ -33,7 +33,17 @@ def build_server(settings: Settings | None = None) -> MCPServer:
 
     @server.tool()
     def search(query: str, top_k: int = 5) -> list[dict]:
-        """Hybrid semantic + exact-token search; returns ranked chunks."""
+        """Search the knowledge base for passages relevant to a query.
+
+        Runs hybrid retrieval over a local document index — semantic (vector)
+        search for meaning plus exact-token (keyword) search for literal
+        strings. Reach for it to ground a request that goes beyond the agent's
+        general knowledge, or one that contains acronyms, product codes,
+        identifiers, or other keywords that must match literally. Returns a
+        JSON array of the top-ranked chunks, best first, each an object with
+        ``chunk_id``, ``text``, ``source``, ``title``, ``metadata`` (the
+        chunk's frontmatter/attributes), and ``score``.
+        """
         store = VectorStore(settings=resolved)
         try:
             results = store.query(query, top_k=top_k)
@@ -45,6 +55,7 @@ def build_server(settings: Settings | None = None) -> MCPServer:
                 "text": result.chunk.text,
                 "source": result.chunk.source,
                 "title": result.chunk.title,
+                "metadata": result.chunk.metadata,
                 "score": result.score,
             }
             for result in results
@@ -52,7 +63,14 @@ def build_server(settings: Settings | None = None) -> MCPServer:
 
     @server.tool()
     def report() -> dict:
-        """Introspect the index: db path, backend, dimensions, chunks, sources."""
+        """Describe the knowledge base itself, to judge what it contains.
+
+        Returns meta-information about the index rather than its content: a
+        JSON object with the database path, the embedding backend, the vector
+        dimensions, the chunk count, and the list of sources. Use it to
+        evaluate whether the knowledge base is worth searching and what topics
+        it covers before or instead of a ``search`` call.
+        """
         store = VectorStore(settings=resolved)
         try:
             chunks = store.list_vectors()

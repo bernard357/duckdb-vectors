@@ -182,8 +182,8 @@ resolved from the usual configuration (`--db` / `--backend` or the
 
 | Tool | Does |
 | --- | --- |
-| `search` | Hybrid search for a query string; returns ranked chunks |
-| `report` | Read-only introspection: database path, backend, dimensions, chunk count, sources |
+| `search` | Hybrid semantic + keyword search over the knowledge base; returns a JSON array of ranked chunks (`chunk_id`, `text`, `source`, `title`, `metadata`, `score`) |
+| `report` | Meta-information about the knowledge base: database path, backend, dimensions, chunk count, sources |
 
 A client wires it in by command, not by discovery. For example, a Docker Agent
 `mcp` toolset points at the command directly:

@@ -74,10 +74,10 @@ A few things to get right:
 
 ## Step 4 — confirm it works
 
-After saving the config, Kilo Code starts the server and lists its tools. `duckdb-vectors mcp` registers two read-only tools:
+After saving the config, Kilo Code starts the server and lists its tools. `duckdb-vectors mcp` registers two query-only tools:
 
-- `search(query, top_k=5)` — hybrid semantic + exact-token search; returns ranked chunks (`chunk_id`, `text`, `source`, `title`, `score`).
-- `report()` — the index's database path, backend, dimensions, chunk count, and sources.
+- `search(query, top_k=5)` — hybrid semantic + exact-token search over the knowledge base; returns a JSON array of ranked chunks (`chunk_id`, `text`, `source`, `title`, `metadata`, `score`).
+- `report()` — meta-information about the knowledge base (database path, backend, dimensions, chunk count, and sources), for judging what it contains.
 
 Ask the assistant something your documents answer and confirm it calls `search` and grounds its reply in the returned chunks. You can also verify the server independently of Kilo Code:
 

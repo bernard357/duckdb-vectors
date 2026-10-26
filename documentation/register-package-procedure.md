@@ -33,7 +33,7 @@ Copy-paste these fields into any submission form, catalog entry, or pull request
 - __Description:__ `duckdb-vectors` indexes a modest, read-mostly corpus into a single DuckDB file and answers hybrid semantic + exact-token queries with a local function call in tens of milliseconds. The file bakes into the agent's own container image, so there is no external vector database to run, pay for, or keep alive. Embedding and chunking are pluggable; the surface is S3-Vectors-flavored. It also ships an MCP-over-stdio server so any MCP client can call its read-only retrieval tools.
 - __Keywords:__ duckdb, vectors, embeddings, semantic-search, rag, bm25, agents, mcp, llm, vector-search
 - __Install:__ `pip install duckdb-vectors` (add `[bedrock]` for the Amazon Titan embedder)
-- __MCP tool:__ `duckdb-vectors mcp` is an MCP-over-stdio server exposing two read-only tools — `search(query, top_k=5)` for hybrid retrieval and `report()` for index introspection. An MCP client spawns it as a child process and talks to it over stdin/stdout.
+- __MCP tool:__ `duckdb-vectors mcp` is an MCP-over-stdio server exposing two query-only tools — `search(query, top_k=5)` for hybrid semantic + keyword retrieval over the knowledge base (JSON ranked chunks with metadata) and `report()` for knowledge-base introspection. An MCP client spawns it as a child process and talks to it over stdin/stdout.
 - __License:__ MIT
 - __Links:__
   - PyPI: <https://pypi.org/project/duckdb-vectors/>

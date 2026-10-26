@@ -19,10 +19,10 @@ flowchart LR
 
 ## The tools exposed
 
-`duckdb-vectors mcp` registers two read-only tools:
+`duckdb-vectors mcp` registers two query-only tools:
 
-- `search(query, top_k=5)` — hybrid semantic + exact-token search; returns the ranked chunks (`chunk_id`, `text`, `source`, `title`, `score`).
-- `report()` — introspects the index: database path, backend, dimensions, chunk count, and sources.
+- `search(query, top_k=5)` — hybrid semantic + exact-token search over the knowledge base; returns a JSON array of ranked chunks (`chunk_id`, `text`, `source`, `title`, `metadata`, `score`).
+- `report()` — meta-information about the knowledge base: database path, backend, dimensions, chunk count, and sources.
 
 Both open the index resolved from the `DUCKDB_VECTORS_*` environment variables and only query it — the tools never write, matching the baked-index serving lifecycle.
 
