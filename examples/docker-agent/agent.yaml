@@ -21,4 +21,3 @@ agents:
         tools: ["search", "report"]
         env:
           DUCKDB_VECTORS_DB_PATH: ${env.DUCKDB_VECTORS_DB_PATH}
-          DUCKDB_VECTORS_READ_ONLY: "true"

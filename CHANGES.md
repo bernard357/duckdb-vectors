@@ -3,6 +3,18 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
+## Unreleased
+
+### Breaking
+
+- __Read-only store mode removed.__ The `read_only` field on `Settings`, the
+  `DUCKDB_VECTORS_READ_ONLY` environment variable, the `read_only` argument on
+  `VectorStore`, and the `ReadOnlyError` class are all gone. A `VectorStore`
+  now always opens writable and ensures its schema — one store mode for both
+  reading and writing. The flag had no defined use case and blocked
+  write-on-startup patterns (indexing and incremental re-indexing); callers
+  passing `read_only=...` or catching `ReadOnlyError` must drop it.
+
 ## v261025
 
 A general Hugging Face embedding loader, composite-by-default chunking with

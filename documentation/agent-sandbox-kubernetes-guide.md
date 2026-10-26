@@ -31,7 +31,7 @@ flowchart LR
     Build --> Image[(sandbox image + vectors.duckdb)]
     Sandbox[Sandbox CRD] --> Pod[sandbox pod]
     Image --> Pod
-    Pod --> Store[VectorStore read-only]
+    Pod --> Store[VectorStore]
     Store --> Hits[ranked chunks]
     Hits --> Agent[agent in pod]
 ```
@@ -51,7 +51,6 @@ RUN duckdb-vectors index /app/documentation \
     --db /app/vectors.duckdb --backend fastembed:minishlab/potion-multilingual-128M
 COPY agent.py /app/agent.py
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 WORKDIR /app
 ```
 
@@ -72,7 +71,7 @@ resolve the index without an explicit path:
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="/app/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="/app/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 hits = store.query("how is a search answered?", top_k=5)
 for hit in hits:

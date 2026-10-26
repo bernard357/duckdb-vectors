@@ -3,7 +3,7 @@
 # Stage 1 installs the fastembed backend, downloads its ONNX model, and
 # indexes the project's documentation/ folder into a frozen DuckDB file. Stage 2
 # copies only the agent code, the frozen index, and the model cache, so the
-# container answers read-only and fully offline with no build tooling.
+# container answers fully offline with no build tooling.
 #
 # Build from the repository root:
 #   docker build -f examples/containerized-agent/Dockerfile -t duckdb-vectors-agent .
@@ -32,6 +32,5 @@ COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 # Carry the downloaded fastembed model so the container needs no network.
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]
 CMD ["what is duckdb-vectors?"]

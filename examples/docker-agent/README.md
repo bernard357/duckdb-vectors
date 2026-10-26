@@ -26,7 +26,7 @@ $ export DUCKDB_VECTORS_DB_PATH="$PWD/vectors.duckdb"
 $ docker agent run examples/docker-agent/agent.yaml "how is a search answered?"
 ```
 
-The agent calls the `search` tool, which opens the index read-only and returns
+The agent calls the `search` tool, which opens the index and returns
 ranked chunks; the model grounds its answer in them.
 
 ## Configuration
@@ -35,5 +35,4 @@ ranked chunks; the model grounds its answer in them.
 
 - `command: duckdb-vectors` and `args: ["mcp"]` start the stdio server.
 - `tools: ["search", "report"]` whitelists the exposed tools.
-- `env:` points the server at the index via `DUCKDB_VECTORS_DB_PATH` and keeps
-  it read-only with `DUCKDB_VECTORS_READ_ONLY`.
+- `env:` points the server at the index via `DUCKDB_VECTORS_DB_PATH`.

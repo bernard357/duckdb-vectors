@@ -17,7 +17,7 @@ file opened read-only once at import.
 flowchart LR
     User[question] --> Agent[Strands Agent]
     Agent -->|call search tool| Tool["@tool search"]
-    Tool -->|read-only| DB[(vectors.duckdb)]
+    Tool --> DB[(vectors.duckdb)]
     Tool -->|ranked chunks| Agent
     Agent -->|grounded answer| User
 ```
@@ -52,7 +52,7 @@ from strands import Agent, tool
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 
 

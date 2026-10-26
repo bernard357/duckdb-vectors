@@ -5,5 +5,5 @@ fixed-size embedding column, and fuses vector and BM25 rankings.
 
 ## Read-only mode
 
-A frozen index baked into a container image opens read-only and never writes,
+A frozen index baked into a container image is opened and queried locally,
 which is the fastest path for serving.

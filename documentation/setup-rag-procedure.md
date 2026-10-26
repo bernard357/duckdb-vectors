@@ -67,7 +67,7 @@ serving, retrieve per request, and hand the chunks to your LLM:
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 
 
 def answer(question: str) -> str:
@@ -96,7 +96,6 @@ WORKDIR /app
 RUN pip install "duckdb-vectors"
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 ```
 
 The container now holds the database and answers read-only with no external

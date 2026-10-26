@@ -6,8 +6,8 @@ Search is hybrid by default: a brute-force cosine scan and a BM25 full-text
 scan are fused with Reciprocal Rank Fusion into one ranked list.
 
 The schema is HNSW-ready — the embedding is a fixed-size ``FLOAT[dim]`` ARRAY
-column — but no index is created, so the store opens read-only without the
-experimental persistence flag. Brute-force cosine is sub-10ms at the few- to
+column — but no index is created, so the store needs no experimental
+persistence flag. Brute-force cosine is sub-10ms at the few- to
 tens-of-thousands-of-chunks scale this component targets.
 """
 
@@ -49,16 +49,13 @@ LIMIT {top_k}
 """
 
 
-class ReadOnlyError(RuntimeError):
-    """Raised when a write is attempted on a read-only store."""
-
-
 class VectorStore:
     """A DuckDB-backed vector index with hybrid search.
 
     Open with a backend spec (``"fastembed"``, ``"hashing"``, ``"bedrock:titan"``)
-    or an explicit :class:`Embedder`. ``read_only`` opens the file without
-    allowing writes — the mode used when a frozen index is baked into an image.
+    or an explicit :class:`Embedder`. The store always opens writable and ensures
+    its schema, so the same file serves reads and accepts updates (indexing and
+    re-indexing) in one mode.
     """
 
     def __init__(
@@ -66,20 +63,15 @@ class VectorStore:
         db_path: str | None = None,
         backend: str | None = None,
         embedder: Embedder | None = None,
-        read_only: bool | None = None,
         settings: Settings | None = None,
     ) -> None:
-        self.settings = settings or Settings(
-            db_path=db_path, backend=backend, read_only=read_only
-        )
+        self.settings = settings or Settings(db_path=db_path, backend=backend)
         self.embedder = embedder or resolve_embedder(self.settings.backend)
         self._dimensions = self.embedder.dimensions
-        self._read_only = self.settings.read_only
         self._vector_sql = self.settings.vector_sql
         self._text_sql = self.settings.text_sql
-        self._con = duckdb.connect(self.settings.db_path, read_only=self._read_only)
-        if not self._read_only:
-            self._ensure_schema()
+        self._con = duckdb.connect(self.settings.db_path)
+        self._ensure_schema()
 
     def _ensure_schema(self) -> None:
         self._con.execute(
@@ -101,12 +93,6 @@ class VectorStore:
             "CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON chunks (chunk_id)"
         )
         self._con.execute("CREATE INDEX IF NOT EXISTS idx_chunks_etag ON chunks (etag)")
-
-    def _guard_writable(self) -> None:
-        if self._read_only:
-            raise ReadOnlyError(
-                "This store was opened read-only; writes are not allowed."
-            )
 
     @property
     def dimensions(self) -> int:
@@ -140,7 +126,6 @@ class VectorStore:
         Each chunk's etag is computed from its text and the embedder identity.
         Existing rows with the same ``chunk_id`` are replaced.
         """
-        self._guard_writable()
         if not chunks:
             return
         vectors = self.embedder.embed([chunk.text for chunk in chunks])
@@ -224,7 +209,6 @@ class VectorStore:
 
     def delete_vectors(self, chunk_ids: list[str]) -> int:
         """Delete chunks by id; returns the number of rows removed."""
-        self._guard_writable()
         if not chunk_ids:
             return 0
         placeholders = ", ".join(["?"] * len(chunk_ids))

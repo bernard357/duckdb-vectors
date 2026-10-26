@@ -16,7 +16,7 @@ the n8n container.
 ```mermaid
 flowchart LR
     Trigger[question] --> Code[Code node]
-    Code -->|read-only| DB[(vectors.duckdb)]
+    Code --> DB[(vectors.duckdb)]
     Code -->|ranked chunks| Model[LLM node]
     Model -->|grounded answer| Out[response]
 ```
@@ -51,7 +51,7 @@ them:
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="/data/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="/data/vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 question = _input.item.json["question"]
 hits = store.query(question, top_k=5)

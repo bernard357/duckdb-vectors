@@ -4,7 +4,7 @@ import pytest
 
 from duckdb_vectors.config import DEFAULT_BACKEND, Settings
 from duckdb_vectors.models import Chunk
-from duckdb_vectors.store import ReadOnlyError, VectorStore
+from duckdb_vectors.store import VectorStore
 
 
 @pytest.fixture
@@ -12,8 +12,8 @@ def db_path(tmp_path):
     return str(tmp_path / "test.duckdb")
 
 
-def _store(db_path, read_only=False):
-    return VectorStore(db_path=db_path, backend="hashing", read_only=read_only)
+def _store(db_path):
+    return VectorStore(db_path=db_path, backend="hashing")
 
 
 def test_put_get_list_delete_roundtrip(db_path):
@@ -48,18 +48,20 @@ def test_upsert_replaces_by_id(db_path):
     store.close()
 
 
-def test_read_only_rejects_writes(db_path):
+def test_reopened_store_reads_and_accepts_writes(db_path):
     writer = _store(db_path)
     writer.add_texts(ids=["a"], texts=["seed"])
     writer.close()
 
-    reader = _store(db_path, read_only=True)
-    assert reader.count() == 1
-    with pytest.raises(ReadOnlyError):
-        reader.add_texts(ids=["b"], texts=["blocked"])
-    with pytest.raises(ReadOnlyError):
-        reader.delete_vectors(["a"])
-    reader.close()
+    # Reopening the same file reads the seeded data and, in the single
+    # writable mode, accepts further writes.
+    reopened = _store(db_path)
+    assert reopened.count() == 1
+    reopened.add_texts(ids=["b"], texts=["added later"])
+    assert reopened.count() == 2
+    assert reopened.delete_vectors(["a"]) == 1
+    assert reopened.count() == 1
+    reopened.close()
 
 
 def test_vector_search_orders_by_similarity(db_path):

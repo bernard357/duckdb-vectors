@@ -12,7 +12,7 @@ Docker Agent (the `cagent` multi-agent runtime) runs agents defined in a YAML fi
 flowchart LR
     User[question] --> Agent[Docker Agent]
     Agent -->|spawn: duckdb-vectors mcp| MCP[MCP stdio server]
-    MCP -->|read-only| DB[(vectors.duckdb)]
+    MCP --> DB[(vectors.duckdb)]
     MCP -->|ranked chunks| Agent
     Agent -->|grounded answer| User
 ```
@@ -24,7 +24,7 @@ flowchart LR
 - `search(query, top_k=5)` — hybrid semantic + exact-token search; returns the ranked chunks (`chunk_id`, `text`, `source`, `title`, `score`).
 - `report()` — introspects the index: database path, backend, dimensions, chunk count, and sources.
 
-Both open the index read-only, resolved from the `DUCKDB_VECTORS_*` environment variables. The serving contract is read-only by design, matching the baked-index lifecycle.
+Both open the index resolved from the `DUCKDB_VECTORS_*` environment variables and only query it — the tools never write, matching the baked-index serving lifecycle.
 
 ## The Docker Agent configuration
 
@@ -54,7 +54,6 @@ agents:
         tools: ["search", "report"]
         env:
           DUCKDB_VECTORS_DB_PATH: ${env.DUCKDB_VECTORS_DB_PATH}
-          DUCKDB_VECTORS_READ_ONLY: "true"
 ```
 
 The runnable config and a companion README live in [`examples/docker-agent/`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/agent.yaml).

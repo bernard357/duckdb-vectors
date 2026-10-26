@@ -36,7 +36,7 @@ def build_index(docs: str, db_path: str) -> None:
 
 def answer(question: str, db_path: str, top_k: int = 5) -> list[dict]:
     """Return the top-k retrieved chunks for a question."""
-    store = VectorStore(db_path=db_path, backend=BACKEND, read_only=True)
+    store = VectorStore(db_path=db_path, backend=BACKEND)
     try:
         hits = store.query(question, top_k=top_k)
         return [

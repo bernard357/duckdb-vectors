@@ -8,7 +8,7 @@ Python SDK, the command-line interface, and an MCP server for agents.
 
 A baked-in index makes the container self-contained: no external vector database, no network dependency at query time, and a reproducible artifact that is identical in every environment. The build-then-freeze lifecycle opens the file read-only at run time, which needs no experimental persistence flags because the default ranking is a plain cosine scan.
 
-You can also expand the database during the execution of the container. Open the store read-write at startup and append a registry (for example a set of tools or skills), then search it. A writable DuckDB file is single-writer, so keep writes to one process. For a read-only frozen index, open with `read_only=True`, which also refuses accidental writes. 
+You can also expand the database during the execution of the container. The store opens writable, so you can append a registry (for example a set of tools or skills) at startup and then search it. A writable DuckDB file is single-writer, so keep writes to one process. A frozen index baked into an image is simply opened and queried — reads and writes share one store mode. 
 
 Given a search query, the container returns the most
 relevant chunks of text. 
@@ -169,14 +169,14 @@ The third surface turns retrieval into a tool an agent can call over the
 starts a Model Context Protocol server over stdio: it reads JSON-RPC from
 stdin and writes to stdout, so any MCP client — Docker Agent, Claude Desktop,
 Claude Code, Cursor — spawns it as a local subprocess and talks to it
-in-process, with no network and no port. It is the same read-only serving path
+in-process, with no network and no port. It is the same serving path
 as the SDK and CLI, exposed as callable tools.
 
 ```shell
 $ duckdb-vectors mcp                       # serve over stdio (reads a baked index)
 ```
 
-The server exposes two read-only tools, backed by a read-only `VectorStore`
+The server exposes two query-only tools, backed by a `VectorStore`
 resolved from the usual configuration (`--db` / `--backend` or the
 `DUCKDB_VECTORS_*` environment variables):
 
@@ -195,7 +195,6 @@ toolsets:
     args: ["mcp"]
     env:
       DUCKDB_VECTORS_DB_PATH: /app/vectors.duckdb
-      DUCKDB_VECTORS_READ_ONLY: "true"
 ```
 
 See the [Docker Agent guide](docker-agent-guide.md) for a complete, runnable

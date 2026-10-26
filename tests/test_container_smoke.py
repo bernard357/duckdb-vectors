@@ -21,8 +21,8 @@ def test_build_then_open_readonly_and_search(tmp_path):
     builder.close()
     assert report.chunks > 0
 
-    # Runtime: open read-only and search.
-    reader = VectorStore(db_path=db, backend="hashing", read_only=True)
+    # Runtime: reopen the baked index and search.
+    reader = VectorStore(db_path=db, backend="hashing")
     try:
         results = reader.query("how are retries handled?", top_k=3)
         assert results

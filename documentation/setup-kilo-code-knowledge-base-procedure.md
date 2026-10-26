@@ -52,8 +52,7 @@ Kilo Code reads MCP servers from a JSON config. Add a server that spawns `duckdb
       "command": "duckdb-vectors",
       "args": ["mcp"],
       "env": {
-        "DUCKDB_VECTORS_DB_PATH": "/absolute/path/to/knowledge.duckdb",
-        "DUCKDB_VECTORS_READ_ONLY": "true"
+        "DUCKDB_VECTORS_DB_PATH": "/absolute/path/to/knowledge.duckdb"
       }
     }
   }

@@ -19,7 +19,7 @@ flowchart LR
     Docs[documentation/*.md] --> Build[index at build]
     Build --> DB[(vectors.duckdb in artifact)]
     User[invoke payload] --> Entry["@app.entrypoint"]
-    DB --> Retrieve[VectorStore read-only]
+    DB --> Retrieve[VectorStore]
     Entry --> Retrieve
     Retrieve --> Model[Strands Agent + Bedrock model]
     Model --> Answer[result]
@@ -63,7 +63,7 @@ from duckdb_vectors import VectorStore
 
 app = BedrockAgentCoreApp()
 agent = Agent()
-store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 
 
 @app.entrypoint

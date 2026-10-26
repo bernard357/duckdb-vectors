@@ -34,7 +34,7 @@ answer from them.
 ```mermaid
 flowchart LR
     Event["{question}"] --> Handler[Lambda handler]
-    DB[(vectors.duckdb in image)] --> Store[VectorStore read-only]
+    DB[(vectors.duckdb in image)] --> Store[VectorStore]
     Handler --> Store
     Store --> Context[top-k chunks]
     Context --> Bedrock[bedrock InvokeModel]
@@ -69,7 +69,7 @@ import boto3
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 bedrock = boto3.client("bedrock-runtime")
 MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"

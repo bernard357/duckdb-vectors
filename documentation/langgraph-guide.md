@@ -15,7 +15,7 @@ that reads those chunks and asks the model to answer from them.
 ```mermaid
 flowchart LR
     Start[question in state] --> Retrieve[retrieve node]
-    Retrieve -->|read-only| DB[(vectors.duckdb)]
+    Retrieve --> DB[(vectors.duckdb)]
     Retrieve -->|chunks into state| Generate[generate node]
     Generate -->|grounded answer| End[answer in state]
 ```
@@ -53,7 +53,7 @@ from langgraph.graph import START, StateGraph
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 model = init_chat_model("openai:gpt-4o-mini")
 

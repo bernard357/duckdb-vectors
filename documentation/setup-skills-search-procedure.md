@@ -60,7 +60,7 @@ A folder of `SKILL.md` files can be indexed the same way with
 Wrap retrieval as a function the agent can call to find relevant skills:
 
 ```python
-store = VectorStore(db_path="skills.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="skills.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 
 
 def find_skills(task: str, k: int = 3) -> list[str]:

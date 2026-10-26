@@ -34,7 +34,7 @@ def indexed_db(tmp_path):
 
 
 def _server(db):
-    return build_server(Settings(db_path=db, backend="hashing", read_only=True))
+    return build_server(Settings(db_path=db, backend="hashing"))
 
 
 def test_tools_are_registered(indexed_db):

@@ -16,7 +16,7 @@ read-only once at import; every tool call reuses it.
 flowchart LR
     User[question] --> Agent[LangChain agent]
     Agent -->|call search tool| Tool["@tool search"]
-    Tool -->|read-only| DB[(vectors.duckdb)]
+    Tool --> DB[(vectors.duckdb)]
     Tool -->|ranked chunks| Agent
     Agent -->|grounded answer| User
 ```
@@ -53,7 +53,7 @@ from langchain_core.tools import tool
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 
 

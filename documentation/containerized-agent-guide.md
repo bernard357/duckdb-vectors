@@ -22,7 +22,7 @@ flowchart LR
         Index --> DB[(vectors.duckdb)]
     end
     subgraph run[docker run]
-        Q[question] --> Store[VectorStore read-only]
+        Q[question] --> Store[VectorStore]
         DB --> Store
         Store --> Hits[ranked chunks]
     end
@@ -52,7 +52,7 @@ def build_index(docs: str, db_path: str) -> None:
 
 
 def answer(question: str, db_path: str, top_k: int = 5):
-    store = VectorStore(db_path=db_path, backend=BACKEND, read_only=True)
+    store = VectorStore(db_path=db_path, backend=BACKEND)
     try:
         return store.query(question, top_k=top_k)
     finally:
@@ -115,7 +115,6 @@ COPY examples/containerized-agent/agent.py .
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]
 CMD ["what is duckdb-vectors?"]
 ```

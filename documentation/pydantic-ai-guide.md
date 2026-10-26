@@ -17,7 +17,7 @@ DuckDB file opened read-only once at import.
 flowchart LR
     User[question] --> Agent[Pydantic AI Agent]
     Agent -->|call search tool| Tool["@agent.tool_plain search"]
-    Tool -->|read-only| DB[(vectors.duckdb)]
+    Tool --> DB[(vectors.duckdb)]
     Tool -->|ranked chunks| Agent
     Agent -->|grounded answer| User
 ```
@@ -52,7 +52,7 @@ from pydantic_ai import Agent
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 agent = Agent("openai:gpt-4o-mini")
 

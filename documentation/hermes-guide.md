@@ -17,7 +17,7 @@ function wires a JSON schema (what the model sees) to a handler that calls
 flowchart LR
     User[question] --> Hermes[Hermes agent]
     Hermes -->|call search tool| Handler[plugin handler]
-    Handler -->|read-only| DB[(vectors.duckdb)]
+    Handler --> DB[(vectors.duckdb)]
     Handler -->|ranked chunks| Hermes
     Hermes -->|grounded answer| User
 ```
@@ -64,7 +64,7 @@ import json
 from duckdb_vectors import VectorStore
 
 store = VectorStore(
-    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True
+    db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M"
 )
 
 schema = {
@@ -148,7 +148,6 @@ mcp_servers:
     args: ["mcp"]
     env:
       DUCKDB_VECTORS_DB_PATH: vectors.duckdb
-      DUCKDB_VECTORS_READ_ONLY: "true"
 ```
 
 The MCP server resolves the index from the `DUCKDB_VECTORS_*` environment

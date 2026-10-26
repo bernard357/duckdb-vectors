@@ -38,7 +38,7 @@ def answer(question: str, db_path: str, top_k: int = 5) -> list[dict]:
     A real agent would pass these chunks to an LLM as grounding; here we return
     them directly so the example stays dependency-free and testable.
     """
-    store = VectorStore(db_path=db_path, backend=BACKEND, read_only=True)
+    store = VectorStore(db_path=db_path, backend=BACKEND)
     try:
         hits = store.query(question, top_k=top_k)
         return [
@@ -66,7 +66,7 @@ def _print_hits(hits: list[dict]) -> None:
 
 def chat(db_path: str, top_k: int = 5) -> None:
     """Interactive loop: read a question, print the top retrieved chunks."""
-    store = VectorStore(db_path=db_path, backend=BACKEND, read_only=True)
+    store = VectorStore(db_path=db_path, backend=BACKEND)
     print("duckdb-vectors doc agent. Ask a question, or type 'exit' to quit.")
     try:
         while True:

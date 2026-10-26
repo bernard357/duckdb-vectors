@@ -84,7 +84,7 @@ def report(
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Report on database content."""
-    store = VectorStore(db_path=db, backend=backend, read_only=True)
+    store = VectorStore(db_path=db, backend=backend)
     try:
         chunks = store.list_vectors()
         sources = sorted({chunk.source for chunk in chunks if chunk.source})
@@ -120,7 +120,7 @@ def mcp(
     from duckdb_vectors.config import Settings
     from duckdb_vectors.mcp_server import run_stdio
 
-    run_stdio(Settings(db_path=db, backend=backend, read_only=True))
+    run_stdio(Settings(db_path=db, backend=backend))
 
 
 @app.command()
@@ -134,7 +134,7 @@ def search(
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Hybrid search the index."""
-    store = VectorStore(db_path=db, backend=backend, read_only=True)
+    store = VectorStore(db_path=db, backend=backend)
     try:
         results = store.query(query, top_k=top_k)
     finally:

@@ -78,7 +78,7 @@ from the retrieved pages:
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 hits = store.query("what did we conclude about pricing?", top_k=5)
 for hit in hits:
     print(hit.chunk.source, hit.chunk.title)

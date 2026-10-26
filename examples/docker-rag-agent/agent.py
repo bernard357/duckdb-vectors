@@ -80,7 +80,7 @@ def generate(question: str, chunks: list[dict]) -> str:
 
 def answer(question: str, db_path: str, top_k: int = TOP_K) -> dict:
     """Retrieve and assemble a grounded answer; return answer plus sources."""
-    store = VectorStore(db_path=db_path, backend=BACKEND, read_only=True)
+    store = VectorStore(db_path=db_path, backend=BACKEND)
     try:
         hits = store.query(question, top_k=top_k)
         chunks = [{"source": h.chunk.source, "text": h.chunk.text} for h in hits]

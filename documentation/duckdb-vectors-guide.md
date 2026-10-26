@@ -96,7 +96,6 @@ store.close()
 - `db_path` — the DuckDB file (default `vectors.duckdb`).
 - `backend` — the embedding backend spec, e.g. `fastembed:<model>` or `bedrock:titan` (default `fastembed:minishlab/potion-multilingual-128M`).
 - `chunker` — the chunker spec, e.g. `markdown` or `pdf` (default `markdown`).
-- `read_only` — open the file without writing; the serving default (default `false`).
 - `embedder` — pass a ready `Embedder` instance to bypass backend resolution.
 - `settings` — pass a fully-built `Settings` object instead of the individual arguments.
 
@@ -106,7 +105,6 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
-| Read-only | `read_only` | `DUCKDB_VECTORS_READ_ONLY` | `false` |
 
 ### Embedding backends
 
@@ -237,7 +235,7 @@ Query with a natural-language string. Search is hybrid by default: semantic
 similarity plus exact-token BM25, fused with Reciprocal Rank Fusion.
 
 ```python
-store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 for hit in store.query("how do retries work?", top_k=5):
     print(f"{hit.score:.4f}  {hit.chunk.source}  {hit.chunk.title}")
 ```
@@ -277,7 +275,7 @@ Inside an agent, retrieval becomes context. The pattern is: open the store at st
 ```python
 from duckdb_vectors import VectorStore
 
-store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M", read_only=True)
+store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 
 def retrieve_context(question: str, k: int = 5) -> str:
     hits = store.query(question, top_k=k)
@@ -317,7 +315,6 @@ WORKDIR /app
 RUN pip install duckdb-vectors
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 
 COPY agent.py /app/agent.py
 ENTRYPOINT ["python", "/app/agent.py", "--db", "/app/vectors.duckdb"]

@@ -44,6 +44,5 @@ COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 COPY --from=builder /opt/hf_cache /opt/hf_cache
 ENV DUCKDB_VECTORS_DB_PATH=/app/vectors.duckdb
-ENV DUCKDB_VECTORS_READ_ONLY=true
 ENTRYPOINT ["python", "agent.py", "--db", "/app/vectors.duckdb"]
 CMD ["how is a search answered?"]

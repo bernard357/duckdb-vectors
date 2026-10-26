@@ -134,21 +134,18 @@ ORDER BY score DESC;
 With stemming off, `run` does not match `running`; only the exact token does.
 The index lives in the `fts_main_chunks` schema created by the pragma.
 
-## How to open a read-only database?
+## How does the store open the database?
 
-Opening read-only is the serving mode: a frozen index baked into an image, read
-by many requests, never written.
+`duckdb-vectors` opens the file in one mode — writable — and ensures its
+schema, so the same store serves reads and accepts updates (indexing and
+incremental re-indexing). Because the default ranking is a plain
+`array_cosine_distance` scan with no persisted vector index, opening needs no
+experimental flags.
 
-```python
-import duckdb
-
-con = duckdb.connect("vectors.duckdb", read_only=True)
-```
-
-Because the default ranking is a plain `array_cosine_distance` scan with no
-persisted vector index, read-only open needs no experimental flags. In
-`duckdb-vectors` this is `VectorStore(..., read_only=True)`, which also refuses
-writes with a clear error.
+DuckDB itself still offers an engine-level read-only connection if you open a
+raw connection outside the store, `duckdb.connect("vectors.duckdb",
+read_only=True)`, but the store does not use or expose it: a baked, frozen
+index is simply opened and queried like any other.
 
 ## How to troubleshoot DuckDB issues?
 

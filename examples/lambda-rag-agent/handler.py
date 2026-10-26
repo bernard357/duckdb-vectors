@@ -1,6 +1,6 @@
 """AWS Lambda RAG handler over the duckdb-vectors documentation.
 
-Opens the baked, read-only index, retrieves the most relevant chunks for the
+Opens the baked index, retrieves the most relevant chunks for the
 incoming question, and assembles a grounded answer with Amazon Nova Pro through
 the Bedrock Converse API. The index is embedded with Amazon Titan Embed at
 build time; both model calls use the function's execution-role credentials.
@@ -21,7 +21,7 @@ DB_PATH = os.environ.get("DUCKDB_VECTORS_DB_PATH", "vectors.duckdb")
 TOP_K = int(os.environ.get("PING_TOP_K", "5"))
 
 # Opened once per execution environment, reused across warm invocations.
-_store = VectorStore(db_path=DB_PATH, backend="bedrock:titan", read_only=True)
+_store = VectorStore(db_path=DB_PATH, backend="bedrock:titan")
 _bedrock = boto3.client("bedrock-runtime", region_name=REGION)
 
 
