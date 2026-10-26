@@ -3,7 +3,11 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
-## Unreleased
+## v261026
+
+A zero-setup MCP deployment (auto-index on startup, `uvx` launch), the removal
+of the read-only store mode, a dead-code sweep, and cross-surface navigation
+across the README, docs site, and PyPI.
 
 ### Breaking
 
@@ -14,6 +18,25 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   reading and writing. The flag had no defined use case and blocked
   write-on-startup patterns (indexing and incremental re-indexing); callers
   passing `read_only=...` or catching `ReadOnlyError` must drop it.
+
+### Added
+
+- __Auto-index on MCP startup.__ `duckdb-vectors mcp --index <folder>` (with
+  optional `--recursive`) indexes the folder into the database before serving,
+  so an MCP deployment needs no separate indexing step. Indexing is incremental,
+  so an unchanged folder is near-instant on restart; the index report is written
+  to stderr, keeping stdout clean for the MCP protocol.
+- __`uvx` launch for the editor use case.__ The Kilo Code knowledge-base
+  procedure now launches the server with `uvx duckdb-vectors mcp --index …`, so
+  an end-user needs neither a manual `pip install` nor a pre-built index.
+
+### Changed
+
+- __Cross-surface navigation.__ Every CLI/install documentation page now links
+  PyPI inline at the point of use; the docs site gained a per-page "Edit on
+  GitHub" link; the Kilo Code knowledge base is surfaced as a fourth use case.
+- __Dead-code sweep.__ Added an advisory `make prune` (vulture) and removed the
+  unused `DEFAULT_MODEL_ID` constant.
 
 ## v261025
 
