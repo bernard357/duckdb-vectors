@@ -101,15 +101,21 @@ def build_server(settings: Settings | None = None) -> MCPServer:
         - ``text`` (str): the chunk's text — the passage itself, to read or
           quote as grounding. This is the only field carrying the retrieved
           content.
-        - ``source`` (str): where the chunk came from, typically the indexed
-          file path or document identifier. Empty string when the source was
-          not recorded at index time. Use it to cite or group by document.
-        - ``title`` (str): a human-readable title for the source (e.g. a
-          document or section heading), or empty string when none was captured.
-        - ``metadata`` (object): the chunk's frontmatter and custom attributes
-          as captured during indexing (for example ``audience``, ``kind``,
-          ``date``, ``tags``). An empty object when the chunk carried none.
-          Use it to filter or prioritise hits by attribute.
+        - ``source`` (str): where the chunk came from — the folder-relative
+          file path the indexer assigns to every chunk it ingests. Populated by
+          indexing, so a served knowledge base always carries it; use it to
+          cite or group hits by document. (Empty only for a chunk written
+          directly through the SDK without a source.)
+        - ``title`` (str): a human-readable title the indexer derives from the
+          document's structure — the Markdown section heading, or ``Page N``
+          for a PDF page. Populated by indexing; empty only for a chunk written
+          directly through the SDK without a title.
+        - ``metadata`` (object): attributes the indexer attaches to the chunk —
+          the source document's frontmatter (for example ``audience``,
+          ``kind``, ``date``, ``tags``) plus the ``section_path`` of the
+          heading the chunk sits under for Markdown. An empty object when the
+          document carried no such attributes. Use it to filter or prioritise
+          hits by attribute.
         - ``score`` (number): the fused relevance score, higher is better. It
           is a Reciprocal Rank Fusion score (a small positive float, the sum of
           ``1 / (60 + rank)`` over the signals that surfaced the chunk), not a
