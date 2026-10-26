@@ -46,6 +46,8 @@ Measured on a MacBook Pro M1 (2021): ~27 ms p50 retrieval over a 1,000-chunk ind
 
 - __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](https://bernard357.github.io/duckdb-vectors/setup-llm-wiki-to-rag-procedure).
 
+- __Plug a knowledge base into your editor__ — You work in an MCP-capable editor such as Kilo Code and want the assistant to search your own documents as you go, without sending anything to a cloud retrieval service. `duckdb-vectors mcp` is a local MCP server over stdio, so the editor spawns it and gains a read-only `search` tool over your indexed folder. [Wire a knowledge base into Kilo Code](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure).
+
 ## Quick start
 
 Get `duckdb-vectors` from the PyPI repository:
@@ -79,7 +81,7 @@ for hit in store.query("how does an embedded database work?", top_k=3):
     print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
 ```
 
-Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, or add a semantic skills registry, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
+Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, add a semantic skills registry, or wire a knowledge base into Kilo Code, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
 
 ## Customization
 

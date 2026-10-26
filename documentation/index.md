@@ -41,6 +41,8 @@ Measured on a MacBook Pro M1 (2021): ~27 ms p50 retrieval over a 1,000-chunk ind
 
 - __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](setup-llm-wiki-to-rag-procedure.md).
 
+- __Plug a knowledge base into your editor__ — You work in an MCP-capable editor such as Kilo Code and want the assistant to search your own documents as you go, without sending anything to a cloud retrieval service. `duckdb-vectors mcp` is a local MCP server over stdio, so the editor spawns it and gains a read-only `search` tool over your indexed folder. [Wire a knowledge base into Kilo Code](setup-kilo-code-knowledge-base-procedure.md).
+
 ## Quick start
 
 Get `duckdb-vectors` from the PyPI repository:
@@ -96,8 +98,9 @@ Pick the entry point that matches where you are:
 
 - Building a specific capability? Follow a step-by-step procedure:
   [RAG answering machine](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-rag-procedure.md),
-  [LLM wiki to RAG](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md), or
-  [semantic skills search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md).
+  [LLM wiki to RAG](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-llm-wiki-to-rag-procedure.md),
+  [semantic skills search](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-skills-search-procedure.md), or
+  [Kilo Code knowledge base](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/setup-kilo-code-knowledge-base-procedure.md).
 
 - New to DuckDB? See the [DuckDB workbook](https://github.com/bernard357/duckdb-vectors/blob/main/documentation/duckdb-workbook.md).
 
