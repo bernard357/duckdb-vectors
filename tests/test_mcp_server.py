@@ -68,3 +68,52 @@ def test_report_tool_describes_index(indexed_db):
     assert payload["backend"] == "hashing"
     assert payload["chunks"] == 3
     assert payload["dimensions"] == 384
+
+
+def test_index_before_serving_builds_the_database(tmp_path, capsys):
+    """`mcp --index <folder>` indexes the folder into the DB before serving.
+
+    Exercises the startup-index path (`_index_before_serving`) directly: a
+    fresh DB is built from a markdown folder, a reopened store sees the chunks,
+    and the index report is written to stderr (stdout stays clean for MCP).
+    """
+    from duckdb_vectors.mcp_server import _index_before_serving
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text("# Alpha\n\nThe quick brown fox jumps.\n")
+    (docs / "b.md").write_text("# Beta\n\nDuckDB is an analytical database.\n")
+    db = str(tmp_path / "served.duckdb")
+
+    settings = Settings(db_path=db, backend="hashing")
+    _index_before_serving(settings, str(docs), recursive=False)
+
+    reopened = VectorStore(settings=Settings(db_path=db, backend="hashing"))
+    try:
+        assert reopened.count() >= 2
+    finally:
+        reopened.close()
+
+    err = capsys.readouterr().err
+    assert "Indexed" in err  # report went to stderr, not stdout
+    assert capsys.readouterr().out == ""
+
+
+def test_index_before_serving_is_incremental(tmp_path):
+    """A second index of an unchanged folder re-embeds nothing (etag reuse)."""
+    from duckdb_vectors.indexer import index_folder as run_index
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text("# Alpha\n\nThe quick brown fox jumps.\n")
+    db = str(tmp_path / "served.duckdb")
+
+    store = VectorStore(db_path=db, backend="hashing")
+    try:
+        first = run_index(store, str(docs))
+        second = run_index(store, str(docs))
+    finally:
+        store.close()
+    assert first.embedded > 0
+    assert second.embedded == 0
+    assert second.reused >= first.chunks

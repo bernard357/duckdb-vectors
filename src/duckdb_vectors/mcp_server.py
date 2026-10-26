@@ -70,6 +70,40 @@ def build_server(settings: Settings | None = None) -> MCPServer:
     return server
 
 
-def run_stdio(settings: Settings | None = None) -> None:
-    """Build the server and serve it over stdio until the client disconnects."""
-    build_server(settings).run(transport="stdio")
+def run_stdio(
+    settings: Settings | None = None,
+    index_folder: str | None = None,
+    recursive: bool = False,
+) -> None:
+    """Build the server and serve it over stdio until the client disconnects.
+
+    When ``index_folder`` is given, the target folder is indexed into the
+    database before the server starts, so a client can launch a self-contained
+    server with no separate indexing step. Indexing is incremental (etag reuse),
+    so an unchanged folder is near-instant on restart. The index report is
+    written to stderr; stdout is reserved for the MCP protocol.
+    """
+    resolved = settings or Settings()
+    if index_folder is not None:
+        _index_before_serving(resolved, index_folder, recursive)
+    build_server(resolved).run(transport="stdio")
+
+
+def _index_before_serving(settings: Settings, folder: str, recursive: bool) -> None:
+    """Index ``folder`` into the configured database, logging to stderr."""
+    import sys
+
+    from duckdb_vectors.indexer import index_folder as run_index
+
+    store = VectorStore(settings=settings)
+    try:
+        report = run_index(store, folder, recursive=recursive)
+    finally:
+        store.close()
+    print(
+        f"Indexed {report.files} files, {report.chunks} chunks "
+        f"({report.embedded} embedded, {report.reused} reused, "
+        f"{report.pruned} pruned) from {folder}.",
+        file=sys.stderr,
+        flush=True,
+    )

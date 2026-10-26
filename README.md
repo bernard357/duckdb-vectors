@@ -66,7 +66,7 @@ $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio serv
 $ duckdb-vectors --version                # print the tag-derived package version
 ```
 
-The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide) for a complete integration.
+The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its `search` tool. With `--index <folder>` the server indexes the folder on startup, so launched via `uvx` it needs no manual install and no separate indexing step — `uvx duckdb-vectors mcp --index ./docs --db vectors.duckdb`. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide) and the [Kilo Code procedure](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure) for complete integrations.
 
 You can also index content dynamically from the harnessing code. This is required if the agent gets new skills dynamically for example.
 

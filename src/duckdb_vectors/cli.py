@@ -115,12 +115,30 @@ def mcp(
     backend: str | None = typer.Option(
         None, "--backend", help="Embedding backend spec."
     ),
+    index: str | None = typer.Option(
+        None,
+        "--index",
+        help="Folder to index into the database before serving.",
+    ),
+    recursive: bool = typer.Option(
+        False, "--recursive", help="Recurse into sub-folders when indexing."
+    ),
 ) -> None:
-    """Serve retrieval as an MCP server over stdio."""
+    """Serve retrieval as an MCP server over stdio.
+
+    With ``--index <folder>`` the server indexes that folder into ``--db``
+    before serving, so a client can launch a fully self-contained server with
+    no separate indexing step. Indexing is incremental, so an unchanged folder
+    is near-instant on restart.
+    """
     from duckdb_vectors.config import Settings
     from duckdb_vectors.mcp_server import run_stdio
 
-    run_stdio(Settings(db_path=db, backend=backend))
+    run_stdio(
+        Settings(db_path=db, backend=backend),
+        index_folder=index,
+        recursive=recursive,
+    )
 
 
 @app.command()

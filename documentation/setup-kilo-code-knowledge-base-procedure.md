@@ -26,48 +26,51 @@ knowledge/
 
 A local folder is all that is needed at index time — it can be a working copy, a git checkout, or a wiki export.
 
-## Step 2 — index the folder
+## Step 2 — note the folder and database paths
 
-Install the package from [PyPI](https://pypi.org/project/duckdb-vectors/) (the `mcp` verb ships in the base install) and build a single DuckDB file from the folder:
-
-```shell
-$ pip install duckdb-vectors
-$ duckdb-vectors index ./knowledge --recursive --db knowledge.duckdb
-```
-
-The first run downloads the default local embedding model; later runs reuse the cache. Check what landed with the `report` verb:
-
-```shell
-$ duckdb-vectors report --db knowledge.duckdb
-```
+No manual install or indexing step is needed: the MCP server indexes the folder
+on startup (incrementally, so an unchanged folder is near-instant on restart).
+Just decide two __absolute__ paths — the folder of documents to index and the
+DuckDB file to build — because Kilo Code spawns the subprocess with its own
+working directory. For example `/abs/path/to/knowledge` and
+`/abs/path/to/knowledge.duckdb`.
 
 ## Step 3 — add the MCP server to Kilo Code
 
-Kilo Code reads MCP servers from a JSON config. Add a server that spawns `duckdb-vectors mcp` over stdio and points it at the index you built. Use an __absolute__ database path, because Kilo Code spawns the subprocess with its own working directory:
+Kilo Code reads MCP servers from a JSON config. Add a server launched with
+[`uvx`](https://docs.astral.sh/uv/), which fetches and runs the latest published
+[`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) on demand — no
+manual `pip install`. Point it at your folder with `--index` and at the database
+with `--db`; the server indexes on startup, then serves:
 
 ```json
 {
   "mcpServers": {
     "knowledge": {
-      "command": "duckdb-vectors",
-      "args": ["mcp"],
-      "env": {
-        "DUCKDB_VECTORS_DB_PATH": "/absolute/path/to/knowledge.duckdb"
-      }
+      "command": "uvx",
+      "args": [
+        "duckdb-vectors",
+        "mcp",
+        "--index",
+        "/abs/path/to/knowledge",
+        "--recursive",
+        "--db",
+        "/abs/path/to/knowledge.duckdb"
+      ]
     }
   }
 }
 ```
 
+The first start downloads the package and the default local embedding model;
+later starts reuse the `uv` and model caches, and the incremental index makes an
+unchanged folder near-instant.
+
 A few things to get right:
 
 - __Use the `mcpServers` key__, not VS Code's native `servers` key. Kilo Code follows the Claude/Cursor convention; a snippet copied from VS Code's own MCP documentation will not register.
 - __Scope.__ Put this in the project-level config so the knowledge base travels with the workspace, or in the global (user-level) config for a personal library shared across projects. Kilo Code's [MCP documentation](https://kilo.ai/docs/automate/mcp/using-in-kilo-code) gives the exact file name and location for each scope — check it, as the extension owns these paths.
-- __`command` on PATH vs an absolute venv path.__ `"duckdb-vectors"` works when the package is installed on the PATH the extension inherits. VS Code does not always inherit a shell PATH, so if the server fails to start, pin the absolute venv binary instead:
-
-```json
-"command": "/absolute/path/to/.venv/bin/duckdb-vectors"
-```
+- __`uvx` on PATH.__ The config assumes `uvx` is on the PATH the extension inherits. VS Code does not always inherit a shell PATH, so if the server fails to start, pin the absolute `uvx` path (for example `/absolute/path/to/uvx`), or install the package and point `command` at the absolute `duckdb-vectors` binary instead.
 
 ## Step 4 — confirm it works
 
@@ -84,10 +87,4 @@ $ DUCKDB_VECTORS_DB_PATH="$PWD/knowledge.duckdb" duckdb-vectors report
 
 ## Keeping the index fresh
 
-The index is a static file, built once; edits to the source folder are not picked up live. When the documents change, re-run the indexer and reconnect the server:
-
-```shell
-$ duckdb-vectors index ./knowledge --recursive --db knowledge.duckdb
-```
-
-The running MCP server opens the file read-only, so reconnect (or restart) it in Kilo Code after re-indexing to serve the updated content.
+The index is built on startup, not live; edits to the source folder are not picked up while the server runs. When the documents change, __restart (or reconnect) the server in Kilo Code__ — it re-indexes the folder on startup, and because indexing is incremental only the changed, added, and removed files are reconciled, so the refresh is fast. No separate indexing command is needed.
