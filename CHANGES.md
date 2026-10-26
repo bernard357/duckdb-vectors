@@ -3,6 +3,28 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
+## Unreleased
+
+A one-shot search skill for agents and a single machine-readable output
+contract across the CLI.
+
+### Breaking
+
+- __`--json` removed; `--output {json,yaml}` added.__ The `--json` flag is gone
+  from every verb. `index`, `report`, and `search` now take `--output` with
+  `json` (the default) or `yaml`, and the human-readable text branches are
+  removed — structured output is the standard for every invocation. Scripts
+  passing `--json` must drop it (JSON is already the default); pass
+  `--output yaml` for YAML.
+
+### Added
+
+- __`search-duckdb-vectors` skill.__ A `SKILL.md` under `skills/` that lets an
+  agent drive the package directly — index a folder and run hybrid semantic +
+  keyword search over `uvx`, or launch `duckdb-vectors mcp` in the agent's
+  process space — with a self-selecting description so the agent can identify
+  and leverage it.
+
 ## v261026
 
 A zero-setup MCP deployment (auto-index on startup, `uvx` launch), the removal

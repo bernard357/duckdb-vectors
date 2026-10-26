@@ -155,12 +155,12 @@ The CLI covers the three operational verbs and honors the same configuration (co
 
 ```shell
 $ duckdb-vectors index ./docs --backend fastembed:minishlab/potion-multilingual-128M      # index a folder
-$ duckdb-vectors report --json                      # stats on the database
+$ duckdb-vectors report                             # stats on the database (JSON)
 $ duckdb-vectors search "how do retries work?" --top-k 5
 ```
 
 Common options: `--db` (file path), `--backend` (embedder spec), `--top-k`,
-`--recursive` (on `index`), and `--json` (machine-readable output).
+`--recursive` (on `index`), and `--output` (`json` by default, or `yaml`).
 
 ## The MCP surface
 

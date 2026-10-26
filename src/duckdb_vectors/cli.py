@@ -7,8 +7,10 @@ variables and the ``--db`` / ``--backend`` overrides.
 
 import importlib.metadata
 import json as json_module
+from enum import StrEnum
 
 import typer
+import yaml
 
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
@@ -18,6 +20,30 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+
+
+class OutputFormat(StrEnum):
+    """Structured output formats accepted by ``--output`` (default json)."""
+
+    json = "json"
+    yaml = "yaml"
+
+
+_OUTPUT_OPTION = typer.Option(
+    OutputFormat.json, "--output", help="Structured output format: json or yaml."
+)
+
+
+def _emit(data: object, output: OutputFormat) -> None:
+    """Print ``data`` as JSON (default) or YAML on stdout.
+
+    Both formats serialize the same plain data, so they never diverge. JSON is
+    the standard for every invocation; YAML is offered for readability.
+    """
+    if output is OutputFormat.yaml:
+        typer.echo(yaml.safe_dump(data, sort_keys=False, allow_unicode=True).rstrip())
+    else:
+        typer.echo(json_module.dumps(data, indent=2))
 
 
 def _version() -> str:
@@ -57,7 +83,7 @@ def index(
     recursive: bool = typer.Option(
         False, "--recursive", help="Recurse into sub-folders."
     ),
-    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+    output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Index a folder of markdown into the database."""
     store = VectorStore(db_path=db, backend=backend)
@@ -65,14 +91,7 @@ def index(
         report = index_folder(store, folder, recursive=recursive)
     finally:
         store.close()
-    if as_json:
-        typer.echo(report.model_dump_json())
-    else:
-        typer.echo(
-            f"Indexed {report.files} files, {report.chunks} chunks "
-            f"({report.embedded} embedded, {report.reused} reused, "
-            f"{report.pruned} pruned)."
-        )
+    _emit(report.model_dump(), output)
 
 
 @app.command()
@@ -81,7 +100,7 @@ def report(
     backend: str | None = typer.Option(
         None, "--backend", help="Embedding backend spec."
     ),
-    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+    output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Report on database content."""
     store = VectorStore(db_path=db, backend=backend)
@@ -97,16 +116,7 @@ def report(
         }
     finally:
         store.close()
-    if as_json:
-        typer.echo(json_module.dumps(payload, indent=2))
-    else:
-        typer.echo(f"Database : {payload['db_path']}")
-        typer.echo(f"Backend  : {payload['backend']}")
-        typer.echo(f"Dimension: {payload['dimensions']}")
-        typer.echo(f"Chunks   : {payload['chunks']}")
-        typer.echo(f"Sources  : {len(sources)}")
-        for source in sources:
-            typer.echo(f"  - {source}")
+    _emit(payload, output)
 
 
 @app.command()
@@ -149,7 +159,7 @@ def search(
         None, "--backend", help="Embedding backend spec."
     ),
     top_k: int = typer.Option(5, "--top-k", help="Number of results."),
-    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+    output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Hybrid search the index."""
     store = VectorStore(db_path=db, backend=backend)
@@ -157,14 +167,7 @@ def search(
         results = store.query(query, top_k=top_k)
     finally:
         store.close()
-    if as_json:
-        typer.echo(
-            json_module.dumps([result.model_dump() for result in results], indent=2)
-        )
-    else:
-        for result in results:
-            snippet = result.chunk.text[:80].replace("\n", " ")
-            typer.echo(f"{result.score:.4f}  {result.chunk.chunk_id}  {snippet}")
+    _emit([result.model_dump() for result in results], output)
 
 
 if __name__ == "__main__":

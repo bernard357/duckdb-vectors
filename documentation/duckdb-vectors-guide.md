@@ -220,13 +220,13 @@ Or from the shell:
 $ duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M
 ```
 
-The `index` verb takes `--db` (file path), `--backend` (embedding spec), `--recursive` (descend into sub-folders), and `--json` (emit the report as JSON instead of a human-readable line).
+The `index` verb takes `--db` (file path), `--backend` (embedding spec), `--recursive` (descend into sub-folders), and `--output` (the structured format, `json` by default or `yaml`). Every verb emits structured output — JSON unless you pass `--output yaml`.
 
 Check what landed in the database with the `report` verb — it prints the file path, backend, embedding dimensions, chunk count, and the indexed sources:
 
 ```shell
 $ duckdb-vectors report                  # summary of database content
-$ duckdb-vectors report --json           # same, as JSON
+$ duckdb-vectors report --output yaml    # same, as YAML (JSON is the default)
 ```
 
 ## How to search for matching content?
@@ -259,7 +259,8 @@ For a quick check from the shell, the `search` verb runs the same hybrid query a
 
 ```shell
 $ duckdb-vectors search "how do retries work?" --top-k 5
-$ duckdb-vectors search "how do retries work?" --json      # structured output
+$ duckdb-vectors search "how do retries work?"             # JSON by default
+$ duckdb-vectors search "how do retries work?" --output yaml   # or YAML
 ```
 
 The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.

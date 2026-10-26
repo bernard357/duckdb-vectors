@@ -71,7 +71,7 @@ return [
 Each `hit` is a `SearchResult`: `hit.score` is the fused rank and `hit.chunk`
 carries `source`, `title`, and `text`. If you prefer to shell out, an Execute
 Command node running `duckdb-vectors search "$question" --db
-/data/vectors.duckdb --json` returns the same chunks as JSON.
+/data/vectors.duckdb` returns the same chunks as JSON (the default output).
 
 ## Step 3 — ground the answer
 
