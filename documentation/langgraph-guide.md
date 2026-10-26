@@ -1,7 +1,7 @@
 # LangGraph guide
 
 Wire a [LangGraph](https://langchain-ai.github.io/langgraph/) graph to
-`duckdb-vectors` as a retrieval node. The node calls `store.query` and writes
+[`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) as a retrieval node. The node calls `store.query` and writes
 the chunks into graph state, so later nodes — a model call, a formatter — read
 them from state. The primary path imports the SDK and calls it in the same
 process; the alternative reuses the stdio MCP server as a tool node.

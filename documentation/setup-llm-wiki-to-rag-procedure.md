@@ -1,7 +1,7 @@
 # Leverage an LLM-managed wiki into an agent
 
 Here we turn an LLM-maintained wiki into an answering
-machine with `duckdb-vectors`. This positions the component downstream of the
+machine with [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/). This positions the component downstream of the
 LLM Wiki pattern: the wiki is kept current by an LLM, and `duckdb-vectors`
 makes it searchable at agent scale.
 

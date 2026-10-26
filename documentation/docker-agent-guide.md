@@ -1,6 +1,6 @@
 # Docker Agent guide
 
-Wire an agent running on [Docker Agent](https://docs.docker.com/ai/docker-agent/) to `duckdb-vectors` through the Model Context Protocol (MCP). Docker Agent spawns `duckdb-vectors mcp` as a local subprocess and calls its `search` tool over stdio — no bespoke glue, no external vector service.
+Wire an agent running on [Docker Agent](https://docs.docker.com/ai/docker-agent/) to [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) through the Model Context Protocol (MCP). Docker Agent spawns `duckdb-vectors mcp` as a local subprocess and calls its `search` tool over stdio — no bespoke glue, no external vector service.
 
 This is the __integrate into an existing agent runtime__ path. It is complementary to the [containerized agent guide](containerized-agent-guide.md), which bakes a self-contained image that embeds both the retrieval code and a frozen index. Here, Docker Agent owns the agent loop and the model, and `duckdb-vectors` plugs in as one retrieval tool.
 

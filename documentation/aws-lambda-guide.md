@@ -17,7 +17,7 @@ multi-turn sessions, tool orchestration, and managed memory.
 
 [AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) runs a
 function in response to an event and scales to zero when idle. For
-`duckdb-vectors` this is the simplest useful shape: a stateless function that
+[`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) this is the simplest useful shape: a stateless function that
 takes a question, retrieves grounding chunks from a baked-in index, makes one
 direct Bedrock call to generate an answer, and returns it — no agentic loop, no
 session. The index ships inside the function's container image and is opened

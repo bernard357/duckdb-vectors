@@ -1,7 +1,7 @@
 # Containerized agent guide
 
 A teach-by-example walk-through: package a small agent in a container that
-answers questions about `duckdb-vectors` itself. The agent indexes this very
+answers questions about [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) itself. The agent indexes this very
 `documentation/` folder at build time and serves answers from a frozen,
 read-only index — the canonical build-then-freeze lifecycle.
 

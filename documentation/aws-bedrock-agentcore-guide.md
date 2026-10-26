@@ -1,6 +1,6 @@
 # AWS Bedrock AgentCore guide
 
-A teach-by-example walk-through: build an agent that answers questions about `duckdb-vectors`, bake the documentation index into it, and deploy it on Amazon Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the [containerized agent guide](containerized-agent-guide.md) but targets the managed AgentCore runtime instead of a plain container.
+A teach-by-example walk-through: build an agent that answers questions about [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/), bake the documentation index into it, and deploy it on Amazon Bedrock AgentCore Runtime with the AgentCore CLI. It mirrors the [containerized agent guide](containerized-agent-guide.md) but targets the managed AgentCore runtime instead of a plain container.
 
 ## Understand AgentCore deployment
 

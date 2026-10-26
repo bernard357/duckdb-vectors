@@ -1,6 +1,6 @@
 # Pydantic AI guide
 
-Wire a [Pydantic AI](https://ai.pydantic.dev/) agent to `duckdb-vectors` as a
+Wire a [Pydantic AI](https://ai.pydantic.dev/) agent to [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) as a
 retrieval tool. The fit is natural: both sit on pydantic, so the chunks
 `store.query` returns are already pydantic models and need no reshaping. The
 primary path registers a tool that imports the SDK in the same process; the

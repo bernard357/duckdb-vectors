@@ -28,7 +28,7 @@ A local folder is all that is needed at index time — it can be a working copy,
 
 ## Step 2 — index the folder
 
-Install the package (the `mcp` verb ships in the base install) and build a single DuckDB file from the folder:
+Install the package from [PyPI](https://pypi.org/project/duckdb-vectors/) (the `mcp` verb ships in the base install) and build a single DuckDB file from the folder:
 
 ```shell
 $ pip install duckdb-vectors

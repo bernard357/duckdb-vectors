@@ -1,6 +1,6 @@
 # Strands Agents guide
 
-Wire a [Strands Agents](https://strandsagents.com/) agent to `duckdb-vectors`
+Wire a [Strands Agents](https://strandsagents.com/) agent to [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/)
 as a retrieval tool. Strands is model-driven: you give an agent a model and a
 set of tools, and the agent loop decides when to call them. The `@tool`
 decorator turns a plain function into a tool, so wrapping `store.query` is one

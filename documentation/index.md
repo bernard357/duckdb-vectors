@@ -45,7 +45,7 @@ Measured on a MacBook Pro M1 (2021): ~27 ms p50 retrieval over a 1,000-chunk ind
 
 ## Quick start
 
-Get `duckdb-vectors` from the PyPI repository:
+Get [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) from the PyPI repository:
 
 ```shell
 $ pip install duckdb-vectors             # install once, batteries included

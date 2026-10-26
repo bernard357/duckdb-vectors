@@ -1,6 +1,6 @@
 # n8n guide
 
-Wire an [n8n](https://docs.n8n.io/) workflow to `duckdb-vectors` without
+Wire an [n8n](https://docs.n8n.io/) workflow to [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) without
 writing a service. n8n is low-code: a node runs the retrieval, and the rest of
 the workflow routes the question and the answer. The primary path calls the
 CLI or SDK in the same container as n8n; the alternative reaches the stdio MCP

@@ -1,6 +1,6 @@
 # Turn an existing markdown folder into a RAG agentic capability
 
-Here we build an answering machine over your own documents with `duckdb-vectors`. Follow the steps in order; each is a concrete action you can replay.
+Here we build an answering machine over your own documents with [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/). Follow the steps in order; each is a concrete action you can replay.
 
 ## Step 1 — get chunkable documents
 

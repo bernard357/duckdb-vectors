@@ -2,7 +2,7 @@
 
 Here we expose a folder of agent skills to an agent through
 semantic search. Instead of listing every skill in the prompt, the agent
-searches a `duckdb-vectors` index and selects the few skills relevant to the
+searches a [`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) index and selects the few skills relevant to the
 task — scaling to hundreds of skills without inflating context.
 
 ## Why search skills instead of listing them

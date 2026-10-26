@@ -25,7 +25,7 @@ For where "a few thousand items" actually tops out — the chunk-count ceiling, 
 
 ## How to install `duckdb-vectors`?
 
-This package is exposed publicly from PyPI.
+This package is exposed publicly from [PyPI](https://pypi.org/project/duckdb-vectors/).
 
 ```shell
 $ pip install duckdb-vectors             # install once, batteries included

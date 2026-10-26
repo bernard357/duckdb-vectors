@@ -1,7 +1,7 @@
 # LangChain guide
 
 Wire a [LangChain](https://python.langchain.com/docs/introduction/) agent to
-`duckdb-vectors` as a retrieval tool. The agent owns the model and the loop;
+[`duckdb-vectors`](https://pypi.org/project/duckdb-vectors/) as a retrieval tool. The agent owns the model and the loop;
 `duckdb-vectors` plugs in as one tool that opens a local, read-only index and
 returns ranked chunks. The primary path imports the SDK and calls it in the
 same process; the alternative reuses the stdio MCP server.
