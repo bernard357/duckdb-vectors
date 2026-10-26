@@ -34,6 +34,11 @@ export default withMermaid(
           link: 'https://github.com/bernard357/duckdb-vectors',
         },
       ],
+      editLink: {
+        pattern:
+          'https://github.com/bernard357/duckdb-vectors/edit/main/documentation/:path',
+        text: 'Edit this page on GitHub',
+      },
       sidebar: [
         {
           text: 'Start here',
