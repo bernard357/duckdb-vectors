@@ -205,7 +205,7 @@ store.query("latest guidance", hybrid=False, vector_sql=decayed)
 ```
 
 The injected SELECT is caller-authored SQL run against your own database
-(opened read-only in the serving path); the query text and embedding are
+(the query path only reads it); the query text and embedding are
 parameter-bound.
 
 ## Design note: lexical search without stemming
