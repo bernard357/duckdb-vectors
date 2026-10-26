@@ -24,6 +24,14 @@ contract across the CLI.
   keyword search over `uvx`, or launch `duckdb-vectors mcp` in the agent's
   process space — with a self-selecting description so the agent can identify
   and leverage it.
+- __Self-describing MCP tools and server.__ The `search` and `report` tool
+  descriptions are rewritten so an agent can decide when and how to call them,
+  and `search` now returns each chunk's `metadata` alongside `chunk_id`,
+  `text`, `source`, `title`, and `score`. The server itself now carries a
+  `description`, an `instructions` block (scope with `report`, ground with
+  `search`; read-only; JSON), and the installed package `version`, so an MCP
+  client gets whole-server framing at the `initialize` handshake rather than
+  only the per-tool descriptions.
 
 ## v261026
 

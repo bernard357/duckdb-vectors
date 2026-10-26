@@ -26,6 +26,8 @@ flowchart LR
 
 Both open the index resolved from the `DUCKDB_VECTORS_*` environment variables and only query it — the tools never write, matching the baked-index serving lifecycle.
 
+At the `initialize` handshake the server also returns a server-level `description` and an `instructions` block framing the two tools as a pair — scope the index with `report`, then ground answers with `search`; read-only; JSON — so the agent gets whole-server guidance, not just the per-tool descriptions.
+
 ## The Docker Agent configuration
 
 The local-stdio `mcp` toolset accepts `command`, `args`, `tools`, `env`, and `working_dir` (verified against the [Docker Agent MCP tool reference](https://docs.docker.com/ai/docker-agent/tools/mcp/)). Point `command` at `duckdb-vectors`, pass `mcp` as the argument, and set the index location through `env`:

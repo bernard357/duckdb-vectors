@@ -185,6 +185,12 @@ resolved from the usual configuration (`--db` / `--backend` or the
 | `search` | Hybrid semantic + keyword search over the knowledge base; returns a JSON array of ranked chunks (`chunk_id`, `text`, `source`, `title`, `metadata`, `score`) |
 | `report` | Meta-information about the knowledge base: database path, backend, dimensions, chunk count, sources |
 
+The server is self-describing at the `initialize` handshake: alongside the
+per-tool descriptions it returns a server-level `description` and an
+`instructions` block that frame the two tools as a pair — scope the index with
+`report`, then ground answers with `search`; both are read-only and return
+JSON — so a client gets that guidance even with no skill or docs wired in.
+
 A client wires it in by command, not by discovery. For example, a Docker Agent
 `mcp` toolset points at the command directly:
 

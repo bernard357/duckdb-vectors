@@ -43,6 +43,46 @@ def test_tools_are_registered(indexed_db):
     assert {"search", "report"} <= names
 
 
+def test_tool_descriptions_are_non_trivial(indexed_db):
+    server = _server(indexed_db)
+    tools = {
+        tool.name: tool.description or "" for tool in asyncio.run(server.list_tools())
+    }
+    assert "knowledge base" in tools["search"].lower()
+    assert "keyword" in tools["search"].lower()
+    assert "knowledge base" in tools["report"].lower()
+
+
+def test_server_carries_description_and_instructions(indexed_db):
+    """The server is self-describing at the MCP `initialize` handshake.
+
+    Beyond the per-tool docstrings, the client sees a server-level
+    `description` and an `instructions` block framing the two tools as a pair
+    (scope with `report`, ground with `search`; read-only; JSON).
+    """
+    server = _server(indexed_db)
+    assert "knowledge base" in (server.description or "").lower()
+    instructions = (server.instructions or "").lower()
+    assert "report" in instructions
+    assert "search" in instructions
+    assert "read-only" in instructions
+
+
+def test_server_version_resolution_is_graceful(monkeypatch):
+    """`build_server` never raises when distribution metadata is absent."""
+    from importlib.metadata import PackageNotFoundError
+
+    import duckdb_vectors.mcp_server as mcp_server
+
+    def _missing(_name):
+        raise PackageNotFoundError
+
+    monkeypatch.setattr(mcp_server, "_dist_version", _missing)
+    assert mcp_server._resolve_version() == ""
+    server = mcp_server.build_server(Settings(backend="hashing"))
+    assert server.version == ""
+
+
 def test_search_tool_returns_ranked_hits(indexed_db):
     server = _server(indexed_db)
     result = asyncio.run(
