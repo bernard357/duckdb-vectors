@@ -5,10 +5,10 @@ Wire your own folder of documents into [Kilo Code](https://kilo.ai) — the agen
 This is the __plug into an existing editor__ path. The index is a single DuckDB file on your disk, and the MCP server runs as a local subprocess Kilo Code spawns — no network on the query path.
 
 ```mermaid
-flowchart LR
+flowchart TD
     You[question in Kilo Code] --> Kilo[Kilo Code / VS Code]
     Kilo -->|spawn: duckdb-vectors mcp| MCP[MCP stdio server]
-    MCP -->|read-only| DB[(vectors.duckdb)]
+    MCP <--> DB[(vectors.duckdb)]
     MCP -->|ranked chunks| Kilo
     Kilo -->|grounded answer| You
 ```
