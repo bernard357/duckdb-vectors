@@ -21,7 +21,7 @@ Most agents we build at work are specialists, not oracles. The honest requiremen
 
 ![Two ways to add semantic search to an agent: the usual external vector database with a network round trip, versus a DuckDB file baked into the agent's own container.](https://raw.githubusercontent.com/bernard357/duckdb-vectors/main/documentation/media/duckdb-vectors.excalidraw.png)
 
-For the common case — a few thousand documents, read-mostly, packaged with one agent — you can skip the external vector database entirely. Index the corpus into a single [DuckDB](https://duckdb.org) file, bake that file into the agent's container image, and answer semantic queries with a local function call in milliseconds. No MCP, no network round-trip. We packaged this pattern as `duckdb-vectors`, a compact open-source Python package.
+For the common case — a few thousand documents, read-mostly, packaged with one agent — you can skip the external vector database entirely. Index the corpus into a single [DuckDB](https://duckdb.org) file, bake that file into the agent's container image, and answer semantic queries with a local function call in milliseconds. No MCP, no network round-trip. We packaged this pattern as `duckdb-vectors`, a compact open-source Python package. The story behind the design is told in [A frugal building block for semantic search](https://boringsteps.org/duckdb-vectors) on the Boring Steps blog.
 
 ## Data architecture decisions and facts
 

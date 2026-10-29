@@ -57,6 +57,7 @@ duckdb-vectors = "duckdb_vectors.cli:app"
 Homepage = "https://github.com/bernard357/duckdb-vectors"
 Repository = "https://github.com/bernard357/duckdb-vectors"
 Documentation = "https://bernard357.github.io/duckdb-vectors/"
+Blog = "https://boringsteps.org/duckdb-vectors"
 Issues = "https://github.com/bernard357/duckdb-vectors/issues"
 Changelog = "https://github.com/bernard357/duckdb-vectors/blob/main/CHANGES.md"
 
