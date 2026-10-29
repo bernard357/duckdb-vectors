@@ -1,0 +1,39 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "search",
+        "description": "Search the knowledge base for passages relevant to a query.\n\n        Runs hybrid retrieval over a local document index — semantic (vector)\n        search for meaning plus exact-token (keyword) search for literal\n        strings — and fuses the two rankings with Reciprocal Rank Fusion.\n        Reach for it to ground a request that goes beyond the agent's general\n        knowledge, or one that contains acronyms, product codes, identifiers,\n        or other keywords that must match literally.\n\n        Args:\n            query: The natural-language question or keyword phrase to match.\n                Both its meaning (via the embedding) and its literal tokens\n                (via keyword search) are used, so plain questions and exact\n                identifiers both work.\n            top_k: The maximum number of chunks to return, best first\n                (default 5).\n\n        Returns a JSON array of the top-ranked chunks, best first. Each element\n        is an object with these fields:\n\n        - ``chunk_id`` (str): stable identifier of the chunk, derived from its\n          source and position at index time. Re-indexing the same position\n          reuses the same id, so it is safe to use for de-duplication or to\n          refer back to a passage.\n        - ``text`` (str): the chunk's text — the passage itself, to read or\n          quote as grounding. This is the only field carrying the retrieved\n          content.\n        - ``source`` (str): where the chunk came from — the folder-relative\n          file path the indexer assigns to every chunk it ingests. Populated by\n          indexing, so a served knowledge base always carries it; use it to\n          cite or group hits by document. (Empty only for a chunk written\n          directly through the SDK without a source.)\n        - ``title`` (str): a human-readable title the indexer derives from the\n          document's structure — the Markdown section heading, or ``Page N``\n          for a PDF page. Populated by indexing; empty only for a chunk written\n          directly through the SDK without a title.\n        - ``metadata`` (object): attributes the indexer attaches to the chunk —\n          the source document's frontmatter (for example ``audience``,\n          ``kind``, ``date``, ``tags``) plus the ``section_path`` of the\n          heading the chunk sits under for Markdown. An empty object when the\n          document carried no such attributes. Use it to filter or prioritise\n          hits by attribute.\n        - ``score`` (number): the fused relevance score, higher is better. It\n          is a Reciprocal Rank Fusion score (a small positive float, the sum of\n          ``1 / (60 + rank)`` over the signals that surfaced the chunk), not a\n          0-to-1 probability — compare scores only relative to each other\n          within one result set, not against an absolute threshold.\n        ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "top_k": {
+              "default": 5,
+              "title": "Top K",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "searchArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "report",
+        "description": "Describe the knowledge base itself, to judge what it contains.\n\n        Returns meta-information about the index rather than its content. Use\n        it to evaluate whether the knowledge base is worth searching and what\n        topics it covers before or instead of a ``search`` call.\n\n        Returns a JSON object with these fields:\n\n        - ``db_path`` (str): filesystem path of the DuckDB database file backing\n          the index. Identifies which local store is being served.\n        - ``backend`` (str): the embedding backend that produced the vectors\n          (for example a local model name or ``hashing``). Queries must embed\n          with the same backend, so this tells the agent how the content was\n          encoded.\n        - ``dimensions`` (int): the embedding vector width, in floats. A\n          property of the backend; mainly diagnostic.\n        - ``chunks`` (int): the total number of chunks (indexed passages)\n          currently stored. Zero means an empty index — nothing to search.\n        - ``sources`` (array of str): the sorted, de-duplicated list of distinct\n          ``source`` values across all chunks (the documents or files indexed).\n          Scan it to judge whether the corpus covers the topic at hand before\n          spending a ``search`` call.\n        ",
+        "inputSchema": {
+          "properties": {},
+          "title": "reportArguments",
+          "type": "object"
+        }
+      }
+    ]
+  }
+}

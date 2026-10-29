@@ -1,0 +1,28 @@
+{
+  "note": "Reviewed per-tool policy draft for the HOL-Guard MCP server contribution of duckdb-vectors. This is a staging reference captured in this repository; the canonical review.json is produced and bound inside a HOL-Guard checkout via `hol-guard extensions generate`. States: allow | review | block | inherit. Both exposed tools are read-only; MCP annotations are absent (annotations: null), so classification is justified from the server source, not from any readOnlyHint.",
+  "server": {
+    "slug": "duckdb-vectors",
+    "name": "DuckDB Vectors MCP server",
+    "launcher": "uvx",
+    "package": "duckdb-vectors",
+    "homepage": "https://github.com/bernard357/duckdb-vectors",
+    "upstreamVersion": "261026",
+    "publisher": "community.bernardpaques",
+    "publisherName": "Bernard Paques"
+  },
+  "tools": [
+    {
+      "name": "search",
+      "state": "allow",
+      "rationale": "Read-only hybrid retrieval over the local DuckDB index. Takes a query string and top_k and returns ranked chunks; it opens a VectorStore and calls store.query(), which only reads. No write, delete, index rebuild, embedding-model mutation, filesystem write, or network call occurs on this tool path. Classification is drawn from the server source, not from any annotation (none is published).",
+      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/mcp_server.py"
+    },
+    {
+      "name": "report",
+      "state": "allow",
+      "rationale": "Read-only introspection of the index: returns db_path, backend, dimensions, chunk count, and the sorted list of sources. It reads catalog/metadata only and mutates nothing. Caveat: the sources field discloses the folder-relative file paths that were indexed, so report() reveals index structure (not document contents) to a caller; this is disclosure, not mutation, and does not change the read-only classification.",
+      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/mcp_server.py"
+    }
+  ],
+  "notExposedOverMcp": "Indexing (including the `mcp --index <folder>` startup build), writes, deletes, and embedding/model operations are CLI/SDK-level, not MCP tools. The startup index runs once in run_stdio before serving and is not a callable tool, so it carries no per-tool MCP policy here."
+}
