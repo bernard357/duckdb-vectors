@@ -1,5 +1,5 @@
 {
-  "note": "Reviewed per-tool policy draft for the HOL-Guard MCP server contribution of duckdb-vectors. This is a staging reference captured in this repository; the canonical review.json is produced and bound inside a HOL-Guard checkout via `hol-guard extensions generate`. States: allow | review | block | inherit. Both exposed tools are read-only; MCP annotations are absent (annotations: null), so classification is justified from the server source, not from any readOnlyHint.",
+  "note": "Reviewed per-tool policy for the HOL-Guard MCP server contribution of duckdb-vectors (hashgraph-online/hol-guard PR #6481). Staging reference captured in this repository; the canonical profile is contributions/mcp-servers/mcp.duckdb-vectors.json in the HOL-Guard PR. States: allow | review | block | inherit. Classification corrected after maintainer review: the server is NOT read-only (VectorStore connects writable and runs CREATE TABLE/INDEX IF NOT EXISTS on open), and search embeds via the configured backend (local by default; a network call under the opt-in Bedrock backend). MCP annotations are absent, so classification is justified from the server source.",
   "server": {
     "slug": "duckdb-vectors",
     "name": "DuckDB Vectors MCP server",
@@ -8,21 +8,22 @@
     "homepage": "https://github.com/bernard357/duckdb-vectors",
     "upstreamVersion": "261026",
     "publisher": "community.bernardpaques",
-    "publisherName": "Bernard Paques"
+    "publisherName": "Bernard Paques",
+    "riskClasses": ["local-file-read", "local-file-write", "external-network-read"]
   },
   "tools": [
     {
       "name": "search",
-      "state": "allow",
-      "rationale": "Read-only hybrid retrieval over the local DuckDB index. Takes a query string and top_k and returns ranked chunks; it opens a VectorStore and calls store.query(), which only reads. No write, delete, index rebuild, embedding-model mutation, filesystem write, or network call occurs on this tool path. Classification is drawn from the server source, not from any annotation (none is published).",
-      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/mcp_server.py"
+      "state": "review",
+      "rationale": "Hybrid semantic + exact-token retrieval. Not auto-allowed: (1) opening the VectorStore connects writable and runs CREATE TABLE/INDEX IF NOT EXISTS, so a call can create the database file and initialize schema/indexes (local-file-write); (2) it embeds the query via the configured backend, which is local by default but sends the query text over the network under the opt-in Bedrock backend (external-network-read); (3) it returns the indexed chunk text and metadata, not just match IDs, so an auto-allowed call would disclose corpus contents to the agent. review keeps coverage while leaving these to a local policy decision.",
+      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/store.py"
     },
     {
       "name": "report",
-      "state": "allow",
-      "rationale": "Read-only introspection of the index: returns db_path, backend, dimensions, chunk count, and the sorted list of sources. It reads catalog/metadata only and mutates nothing. Caveat: the sources field discloses the folder-relative file paths that were indexed, so report() reveals index structure (not document contents) to a caller; this is disclosure, not mutation, and does not change the read-only classification.",
-      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/mcp_server.py"
+      "state": "review",
+      "rationale": "Index introspection (db_path, backend, dimensions, chunk count, sources). Not auto-allowed: opening the VectorStore connects writable and ensures schema, so even report can create the database file and its indexes on a missing/empty path (local-file-write); it also returns the database path and the indexed source paths, disclosing file layout. No network or embedding on this path. review rather than allow given the write-on-open behavior.",
+      "evidence": "https://github.com/bernard357/duckdb-vectors/blob/main/src/duckdb_vectors/store.py"
     }
   ],
-  "notExposedOverMcp": "Indexing (including the `mcp --index <folder>` startup build), writes, deletes, and embedding/model operations are CLI/SDK-level, not MCP tools. The startup index runs once in run_stdio before serving and is not a callable tool, so it carries no per-tool MCP policy here."
+  "notExposedOverMcp": "Explicit indexing (including the `mcp --index <folder>` startup build), deletes, and embedding/model configuration are CLI/SDK-level, not MCP tools. The startup index runs once in run_stdio before serving and is not a callable tool."
 }

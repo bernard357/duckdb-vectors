@@ -14,10 +14,15 @@ repo).
   from `src/duckdb_vectors/mcp_server.py` via the server's own `list_tools()`.
   Single page, no pagination. Regenerate it from the live server if the tool
   surface changes.
-- `duckdb-vectors-review.json` — the reviewed per-tool policy draft: a `state`
+- `duckdb-vectors-review.json` — the reviewed per-tool policy: a `state`
   (`allow`/`review`/`block`/`inherit`), a `rationale`, and an HTTPS `evidence`
-  URL per tool. Both tools are read-only, so both are `allow`; the server
-  publishes no MCP annotations, so classification is justified from the source.
+  URL per tool. Both tools are `review` (not `allow`): opening the store
+  connects writable and ensures schema, so a call can create the database file
+  (`local-file-write`); `search` embeds via the configured backend, a network
+  call under the opt-in Bedrock backend (`external-network-read`); and `search`
+  returns chunk text/metadata while `report` returns the db path and source
+  paths. The server publishes no MCP annotations, so classification is
+  justified from the source. (Corrected after maintainer review on PR #6481.)
 
 ## What is NOT here
 
