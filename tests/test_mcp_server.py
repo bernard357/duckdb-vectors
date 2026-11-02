@@ -165,3 +165,92 @@ def test_index_before_serving_is_incremental(tmp_path):
     assert first.embedded > 0
     assert second.embedded == 0
     assert second.reused >= first.chunks
+
+
+class _CountingEmbedder:
+    """Hashing embedder that counts constructions and slow first loads."""
+
+    constructed = 0
+
+    def __init__(self, load_seconds: float = 0.0) -> None:
+        import threading
+
+        from duckdb_vectors.embedders.hashing import HashingEmbedder
+
+        type(self).constructed += 1
+        self._inner = HashingEmbedder()
+        self._load_seconds = load_seconds
+        self._loaded = False
+        self._load_lock = threading.Lock()
+        self.loads = 0
+
+    @property
+    def model_identifier(self) -> str:
+        return self._inner.model_identifier
+
+    @property
+    def dimensions(self) -> int:
+        return self._inner.dimensions
+
+    def embed(self, texts):
+        if not self._loaded:
+            # Simulate a model load slow enough for concurrent calls to overlap.
+            import time as _time
+
+            with self._load_lock:
+                self.loads += 1
+            _time.sleep(self._load_seconds)
+            self._loaded = True
+        return self._inner.embed(texts)
+
+
+def test_repeated_searches_reuse_one_embedder(indexed_db, monkeypatch):
+    import duckdb_vectors.mcp_server as mcp_server
+
+    _CountingEmbedder.constructed = 0
+    monkeypatch.setattr(
+        mcp_server, "resolve_embedder", lambda spec: _CountingEmbedder()
+    )
+    server = _server(indexed_db)
+    for _ in range(3):
+        asyncio.run(server.call_tool("search", {"query": "database", "top_k": 1}))
+    asyncio.run(server.call_tool("report", {}))
+    assert _CountingEmbedder.constructed == 1
+
+
+def test_concurrent_first_searches_load_the_model_once(indexed_db):
+    embedder = _CountingEmbedder(load_seconds=0.3)
+    server = build_server(
+        Settings(db_path=indexed_db, backend="hashing"), embedder=embedder
+    )
+
+    async def two_searches():
+        return await asyncio.gather(
+            server.call_tool("search", {"query": "database", "top_k": 1}),
+            server.call_tool("search", {"query": "lazy dog", "top_k": 1}),
+        )
+
+    results = asyncio.run(two_searches())
+    assert all(result.is_error is False for result in results)
+    assert embedder.loads == 1
+
+
+def test_store_is_released_between_calls(indexed_db):
+    import subprocess
+    import sys
+
+    server = _server(indexed_db)
+    asyncio.run(server.call_tool("search", {"query": "database", "top_k": 1}))
+    # Another process can open the file between calls: the server holds no lock.
+    opened = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, duckdb; duckdb.connect(sys.argv[1]).close()",
+            indexed_db,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert opened.returncode == 0, opened.stderr

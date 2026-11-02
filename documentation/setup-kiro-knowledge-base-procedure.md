@@ -116,7 +116,7 @@ $ uvx duckdb-vectors report --db /Users/you/.kiro/knowledge/engineering-brain.du
 
 Each Kiro IDE window and each CLI session starts its own server process, all on the same database file. DuckDB lets one process hold a file at a time, so `duckdb-vectors` connects only when a call needs the file and, if another session holds it, waits up to `DUCKDB_VECTORS_LOCK_TIMEOUT` seconds (default 10) before giving up. Each search holds the file only for the call, and a startup re-index of an unchanged folder holds it for about 0.02 s. Measured with two sessions querying at once and a third re-indexing on startup: every query succeeded.
 
-Each `search` call opens the index and loads the embedding model again, which takes about 1.3 s per call on the machine above; the search itself takes about 25 ms.
+Each server loads the embedding model on its first `search`, about 2 s on the machine above, and keeps it loaded: later searches take about 45 ms through MCP, and `report` about 40 ms.
 
 ## Keeping the index fresh
 

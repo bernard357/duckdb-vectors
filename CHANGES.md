@@ -3,6 +3,20 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
+## Unreleased
+
+### Changed
+
+- __MCP searches keep the embedding model loaded.__ The `mcp` server built a
+  new embedder for every tool call, so each `search` reloaded the model. It
+  now shares one embedder for its lifetime (also used by `--index` at
+  startup), loading the model on the first search under a lock so concurrent
+  first calls load it once; each call still opens and closes its own store, so
+  sessions keep sharing one index. On the 5,172-chunk engineering-brain index,
+  later searches went from about 1.25 s to 45 ms (median); `hf:` and other
+  backends that probe their dimension no longer reload on every `report`
+  (#57).
+
 ## v261102
 
 A one-shot search skill for agents, a single machine-readable output contract

@@ -10,17 +10,21 @@ its ``.run(transport="stdio")`` serves over stdio, matching the subprocess
 model MCP clients use.
 
 Both tools open a :class:`VectorStore` on the resolved :class:`Settings` for
-each call. The store opens writable (its single mode) and ensures its schema,
+each call, sharing one embedder for the server's lifetime so the model loads
+once. The store opens writable (its single mode) and ensures its schema,
 so a call can create the database file and its tables when they are missing;
 the tools never add, change, or delete indexed chunks.
 """
 
+import threading
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _dist_version
 
 from mcp.server.mcpserver import MCPServer
 
 from duckdb_vectors.config import Settings
+from duckdb_vectors.embedders.base import Embedder
+from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.store import VectorStore
 
 _SERVER_DESCRIPTION = (
@@ -54,13 +58,60 @@ def _resolve_version() -> str:
         return ""
 
 
-def build_server(settings: Settings | None = None) -> MCPServer:
+class _SharedEmbedder:
+    """One embedder for the server's lifetime, loaded once under a lock.
+
+    Building a fresh embedder per tool call reloaded the model on every search
+    (about 1.15 s with the default backend). The server keeps a single instance
+    instead, while each call still opens and closes its own store, so the
+    database file lock stays as short as before. Tools run in worker threads,
+    so the first load is serialized: concurrent first calls load the model
+    once. Later calls skip the lock; ONNX Runtime and boto3 clients are
+    thread-safe, and the hashing embedder is stateless.
+    """
+
+    def __init__(self, embedder: Embedder) -> None:
+        self._embedder = embedder
+        self._lock = threading.Lock()
+        self._dimensions_known = False
+        self._loaded = False
+
+    def for_store(self) -> Embedder:
+        """Return the embedder with its dimension resolved.
+
+        Backends whose dimension is not known up front probe it with a real
+        embed, which loads the model; that probe runs once, under the lock.
+        """
+        if not self._dimensions_known:
+            with self._lock:
+                if not self._dimensions_known:
+                    _ = self._embedder.dimensions
+                    self._dimensions_known = True
+        return self._embedder
+
+    def for_query(self) -> Embedder:
+        """Return the embedder with its model loaded, loading it once."""
+        if not self._loaded:
+            with self._lock:
+                if not self._loaded:
+                    self._embedder.embed(["warm-up"])
+                    self._dimensions_known = True
+                    self._loaded = True
+        return self._embedder
+
+
+def build_server(
+    settings: Settings | None = None,
+    embedder: Embedder | None = None,
+) -> MCPServer:
     """Build the MCP server and register the two retrieval tools.
 
     A single :class:`Settings` is resolved once (honoring the
     ``DUCKDB_VECTORS_*`` environment variables and any ``db``/``backend`` passed
-    from the CLI verb) and reused by every tool call, each opening its own
-    :class:`VectorStore`.
+    from the CLI verb) and reused by every tool call. One embedder is resolved
+    once too (or taken from ``embedder``) and shared by every call, so the
+    model loads on the first search and stays loaded; each call still opens its
+    own :class:`VectorStore` and closes it when done.
 
     The server carries a ``description`` and an ``instructions`` block so an MCP
     client gets whole-server framing (scope with ``report``, ground with
@@ -69,6 +120,7 @@ def build_server(settings: Settings | None = None) -> MCPServer:
     only the per-tool docstrings, plus the installed package ``version``.
     """
     resolved = settings or Settings()
+    shared = _SharedEmbedder(embedder or resolve_embedder(resolved.backend))
     server: MCPServer = MCPServer(
         name="duckdb-vectors",
         description=_SERVER_DESCRIPTION,
@@ -126,7 +178,7 @@ def build_server(settings: Settings | None = None) -> MCPServer:
           0-to-1 probability — compare scores only relative to each other
           within one result set, not against an absolute threshold.
         """
-        store = VectorStore(settings=resolved)
+        store = VectorStore(settings=resolved, embedder=shared.for_query())
         try:
             results = store.query(query, top_k=top_k)
         finally:
@@ -168,7 +220,7 @@ def build_server(settings: Settings | None = None) -> MCPServer:
           Scan it to judge whether the corpus covers the topic at hand before
           spending a ``search`` call.
         """
-        store = VectorStore(settings=resolved)
+        store = VectorStore(settings=resolved, embedder=shared.for_store())
         try:
             chunks = store.list_vectors()
             sources = sorted({chunk.source for chunk in chunks if chunk.source})
@@ -201,18 +253,28 @@ def run_stdio(
     stderr; stdout is reserved for the MCP protocol.
     """
     resolved = settings or Settings()
+    embedder = resolve_embedder(resolved.backend)
     if index_folder is not None:
-        _index_before_serving(resolved, index_folder, recursive)
-    build_server(resolved).run(transport="stdio")
+        _index_before_serving(resolved, index_folder, recursive, embedder)
+    build_server(resolved, embedder=embedder).run(transport="stdio")
 
 
-def _index_before_serving(settings: Settings, folder: str, recursive: bool) -> None:
-    """Index ``folder`` into the configured database, logging to stderr."""
+def _index_before_serving(
+    settings: Settings,
+    folder: str,
+    recursive: bool,
+    embedder: Embedder | None = None,
+) -> None:
+    """Index ``folder`` into the configured database, logging to stderr.
+
+    Pass the server's ``embedder`` so a model loaded while indexing stays
+    loaded for the searches that follow.
+    """
     import sys
 
     from duckdb_vectors.indexer import index_folder as run_index
 
-    store = VectorStore(settings=settings)
+    store = VectorStore(settings=settings, embedder=embedder)
     try:
         report = run_index(store, folder, recursive=recursive)
     finally:
