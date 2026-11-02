@@ -3,7 +3,7 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
-## Unreleased
+## v261102
 
 A one-shot search skill for agents, a single machine-readable output contract
 across the CLI, one index safely shared by concurrent sessions, and DuckDB 2.0
@@ -23,7 +23,7 @@ as the tested baseline.
   `json` (the default) or `yaml`, and the human-readable text branches are
   removed — structured output is the standard for every invocation. Scripts
   passing `--json` must drop it (JSON is already the default); pass
-  `--output yaml` for YAML.
+  `--output yaml` for YAML (#51).
 
 ### Added
 
@@ -31,22 +31,27 @@ as the tested baseline.
   agent drive the package directly — index a folder and run hybrid semantic +
   keyword search over `uvx`, or launch `duckdb-vectors mcp` in the agent's
   process space — with a self-selecting description so the agent can identify
-  and leverage it.
+  and leverage it (#51).
 - __Self-describing MCP tools and server.__ The `search` and `report` tool
   descriptions are rewritten so an agent can decide when and how to call them,
   and `search` now returns each chunk's `metadata` alongside `chunk_id`,
   `text`, `source`, `title`, and `score`. The server itself now carries a
   `description`, an `instructions` block (scope with `report`, ground with
-  `search`; read-only; JSON), and the installed package `version`, so an MCP
-  client gets whole-server framing at the `initialize` handshake rather than
-  only the per-tool descriptions.
+  `search`; documents never changed; JSON), and the installed package
+  `version`, so an MCP client gets whole-server framing at the `initialize`
+  handshake rather than only the per-tool descriptions. Each tool docstring
+  now documents every returned field and where it comes from (#50).
 - __Concurrent sessions can share one database file.__ DuckDB lets one process
   hold a file at a time and used to fail instantly when another held it, so two
   MCP servers on one index split 15/0 on queries and every query failed during
   another session's startup re-index. `VectorStore` now connects lazily, on
   first use, and retries a lock conflict with a short backoff for up to
   `lock_timeout` seconds (`DUCKDB_VECTORS_LOCK_TIMEOUT`, default 10) before
-  raising the new `DatabaseLockedError`. Other I/O errors are not retried.
+  raising the new `DatabaseLockedError`. Other I/O errors are not retried (#56).
+- __HOL-Guard MCP contribution inputs.__ `fixtures/hol-guard/` stages the
+  `tools/list` inventory and the reviewed per-tool policy (`review` for both
+  tools, file-write and network risk disclosed) behind the HOL-Guard profile
+  submitted upstream (#53).
 
 ### Changed
 
@@ -70,6 +75,10 @@ as the tested baseline.
   documents, that opening the index can create an empty database file, and
   that `search` embeds the query with the configured backend (local by
   default).
+- __Documentation.__ `AGENTS.md` now covers only agentic instructions and
+  points to the README for usage (#52); README and the docs index drop the
+  stale "opened read-only" wording left after the read-only removal, and the
+  README links the Boring Steps blog post (#54).
 
 ## v261026
 
