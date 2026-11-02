@@ -55,11 +55,21 @@ as the tested baseline.
   position, title, or metadata), prunes by `chunk_id` instead of restamping
   every row, rebuilds full-text search only when rows changed, and releases the
   file while embedding. On a 247-file corpus (5,172 chunks) a no-op re-index
-  went from 16–18 s holding the file throughout to about 7 s holding it for
-  0.02 s, and queries from another process during it went from 0/10 to 25/25.
-  `IndexReport` gains a `written` count, also shown in the `mcp --index`
-  startup log. A row's `stamped_at` now records when it was last written, not
-  when it was last seen.
+  went from 16–18 s holding the file throughout to about 1 s (with the pooled
+  markdown chunker below) holding it for 0.02 s, and queries from another
+  process during it went from 0/10 to 25/25. `IndexReport` gains a `written`
+  count, also shown in the `mcp --index` startup log. A row's `stamped_at` now
+  records when it was last written, not when it was last seen.
+- __Markdown chunking is about 8× faster.__ `MarkdownChunker` used to open a
+  DuckDB connection and load the `markdown` extension for every file, about
+  85% of its time. It now keeps one connection for a whole indexing run and
+  closes it in `end_indexing`: 247 files went from 7.8 s to 0.9 s, with
+  identical chunks.
+- __Honest MCP server instructions.__ The `initialize` instructions no longer
+  call the tools read-only: they state that the tools never change the indexed
+  documents, that opening the index can create an empty database file, and
+  that `search` embeds the query with the configured backend (local by
+  default).
 
 ## v261026
 

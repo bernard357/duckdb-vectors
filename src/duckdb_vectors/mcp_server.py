@@ -10,8 +10,9 @@ its ``.run(transport="stdio")`` serves over stdio, matching the subprocess
 model MCP clients use.
 
 Both tools open a :class:`VectorStore` on the resolved :class:`Settings` for
-each call; the store opens writable (its single mode) and is used read-only by
-these tools.
+each call. The store opens writable (its single mode) and ensures its schema,
+so a call can create the database file and its tables when they are missing;
+the tools never add, change, or delete indexed chunks.
 """
 
 from importlib.metadata import PackageNotFoundError
@@ -28,12 +29,14 @@ _SERVER_DESCRIPTION = (
 )
 
 _SERVER_INSTRUCTIONS = (
-    "This server fronts a local, read-only document knowledge base. Reach for it "
-    "when a request needs grounding beyond your general knowledge, or contains "
+    "This server fronts a local document knowledge base. Reach for it when a "
+    "request needs grounding beyond your general knowledge, or contains "
     "acronyms, product codes, identifiers, or other keywords to match literally. "
     "Call `report` first to see whether the index covers the topic and what its "
-    "sources are, then `search` to retrieve the ranked chunks. Both tools only "
-    "read the index — they never write or mutate it — and return JSON."
+    "sources are, then `search` to retrieve the ranked chunks. Both tools return "
+    "JSON and never change the indexed documents; opening the index can create "
+    "an empty database file if none exists. `search` embeds your query with the "
+    "configured backend, which runs locally by default."
 )
 
 
@@ -52,7 +55,7 @@ def _resolve_version() -> str:
 
 
 def build_server(settings: Settings | None = None) -> MCPServer:
-    """Build the MCP server and register the read-only retrieval tools.
+    """Build the MCP server and register the two retrieval tools.
 
     A single :class:`Settings` is resolved once (honoring the
     ``DUCKDB_VECTORS_*`` environment variables and any ``db``/``backend`` passed
@@ -61,7 +64,8 @@ def build_server(settings: Settings | None = None) -> MCPServer:
 
     The server carries a ``description`` and an ``instructions`` block so an MCP
     client gets whole-server framing (scope with ``report``, ground with
-    ``search``; read-only; JSON results) at the ``initialize`` handshake, not
+    ``search``; documents never changed; JSON results) at the ``initialize``
+    handshake, not
     only the per-tool docstrings, plus the installed package ``version``.
     """
     resolved = settings or Settings()

@@ -261,3 +261,36 @@ def test_each_folder_hook_fires_exactly_once_despite_sort_interleave():
     # directory is opened twice.
     assert sorted(begins) == sorted(ends)
     assert len(begins) == len(set(begins))
+
+
+def test_markdown_chunker_pools_one_connection_per_run(tmp_path, monkeypatch):
+    """Every file in a run reuses one connection; end_indexing closes it."""
+    import duckdb
+
+    from duckdb_vectors.chunkers import markdown as markdown_module
+
+    opened = []
+    real_connect = duckdb.connect
+
+    def counting_connect(*args, **kwargs):
+        con = real_connect(*args, **kwargs)
+        opened.append(con)
+        return con
+
+    monkeypatch.setattr(markdown_module.duckdb, "connect", counting_connect)
+    for name in ("a", "b", "c"):
+        (tmp_path / f"{name}.md").write_text(f"# {name}\n\nBody of {name}.\n")
+
+    chunker = MarkdownChunker()
+    chunker.begin_indexing()
+    chunks = list(chunker.chunk_folder(tmp_path))
+    assert len(opened) == 1
+    assert chunker._connection is opened[0]
+    chunker.end_indexing()
+    assert chunker._connection is None
+    assert {chunk.source for chunk in chunks} == {"a.md", "b.md", "c.md"}
+
+    # A direct text-level call after a run reconnects lazily and still works.
+    assert chunker.chunk(SAMPLE, source="direct.md")
+    assert len(opened) == 2
+    chunker.end_indexing()

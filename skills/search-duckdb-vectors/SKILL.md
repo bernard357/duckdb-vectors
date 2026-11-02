@@ -57,7 +57,7 @@ them as grounding context for the answer; cite `source` where useful. Pass
 `--output yaml` instead if a human will read the output. Re-running `index` on
 an unchanged folder re-embeds and rewrites nothing (incremental), so it is safe
 to index before every search session; it still re-reads the folder, which takes
-a few seconds for a few hundred files.
+about a second for a few hundred Markdown files.
 
 Use this mode for a quick, self-contained lookup from within the skill.
 

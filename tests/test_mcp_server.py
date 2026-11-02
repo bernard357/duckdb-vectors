@@ -58,14 +58,18 @@ def test_server_carries_description_and_instructions(indexed_db):
 
     Beyond the per-tool docstrings, the client sees a server-level
     `description` and an `instructions` block framing the two tools as a pair
-    (scope with `report`, ground with `search`; read-only; JSON).
+    (scope with `report`, ground with `search`; documents never changed; JSON),
+    and it states the file-creation and embedding facts honestly rather than
+    claiming the tools are read-only.
     """
     server = _server(indexed_db)
     assert "knowledge base" in (server.description or "").lower()
     instructions = (server.instructions or "").lower()
     assert "report" in instructions
     assert "search" in instructions
-    assert "read-only" in instructions
+    assert "never change the indexed documents" in instructions
+    assert "create an empty database file" in instructions
+    assert "read-only" not in instructions
 
 
 def test_server_version_resolution_is_graceful(monkeypatch):

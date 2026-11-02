@@ -26,7 +26,7 @@ flowchart LR
 
 Both open the index resolved from the `DUCKDB_VECTORS_*` environment variables and only query it — the tools never write, matching the baked-index serving lifecycle.
 
-At the `initialize` handshake the server also returns a server-level `description` and an `instructions` block framing the two tools as a pair — scope the index with `report`, then ground answers with `search`; read-only; JSON — so the agent gets whole-server guidance, not just the per-tool descriptions.
+At the `initialize` handshake the server also returns a server-level `description` and an `instructions` block framing the two tools as a pair — scope the index with `report`, then ground answers with `search`; the indexed documents are never changed; JSON — so the agent gets whole-server guidance, not just the per-tool descriptions.
 
 ## The Docker Agent configuration
 

@@ -66,7 +66,7 @@ with `--db`; the server indexes on startup, then serves:
 The first start downloads the package, the default local embedding model, and
 the DuckDB `markdown` and `fts` extensions; later starts reuse those caches. On
 restart the incremental index re-reads the folder but re-embeds and rewrites
-nothing for unchanged files: about 7 s for 250 Markdown files on a MacBook Pro
+nothing for unchanged files: about 1 s for 250 Markdown files on a MacBook Pro
 M1 (2021), most of it the chunking pass, during which the database stays
 available to other sessions.
 
