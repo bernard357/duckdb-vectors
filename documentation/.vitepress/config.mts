@@ -70,6 +70,10 @@ export default withMermaid(
               text: 'Knowledge base in Kilo Code',
               link: '/setup-kilo-code-knowledge-base-procedure',
             },
+            {
+              text: 'Knowledge base in Kiro',
+              link: '/setup-kiro-knowledge-base-procedure',
+            },
           ],
         },
         {
