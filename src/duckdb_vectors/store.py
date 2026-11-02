@@ -13,6 +13,7 @@ tens-of-thousands-of-chunks scale this component targets.
 
 import datetime
 import json
+import time
 
 import duckdb
 
@@ -49,6 +50,15 @@ LIMIT {top_k}
 """
 
 
+_LOCK_CONFLICT = "Could not set lock"
+_FIRST_RETRY_DELAY = 0.05
+_MAX_RETRY_DELAY = 0.5
+
+
+class DatabaseLockedError(TimeoutError):
+    """Raised when another process holds the database file past the timeout."""
+
+
 class VectorStore:
     """A DuckDB-backed vector index with hybrid search.
 
@@ -56,6 +66,12 @@ class VectorStore:
     or an explicit :class:`Embedder`. The store always opens writable and ensures
     its schema, so the same file serves reads and accepts updates (indexing and
     re-indexing) in one mode.
+
+    The connection is opened lazily, on first database use, so building a store
+    and preparing work that needs no database (such as chunking a folder) holds
+    no file lock. DuckDB lets one process write a file at a time; when another
+    process holds it, opening retries with a short backoff for up to
+    ``settings.lock_timeout`` seconds, then raises :class:`DatabaseLockedError`.
     """
 
     def __init__(
@@ -70,8 +86,36 @@ class VectorStore:
         self._dimensions = self.embedder.dimensions
         self._vector_sql = self.settings.vector_sql
         self._text_sql = self.settings.text_sql
-        self._con = duckdb.connect(self.settings.db_path)
-        self._ensure_schema()
+        self._connection: duckdb.DuckDBPyConnection | None = None
+
+    @property
+    def _con(self) -> duckdb.DuckDBPyConnection:
+        """The open connection, connecting and ensuring the schema on first use."""
+        if self._connection is None:
+            self._connection = self._connect()
+            self._ensure_schema()
+        return self._connection
+
+    def _connect(self) -> duckdb.DuckDBPyConnection:
+        """Open the database file, waiting out a lock held by another process."""
+        timeout = self.settings.lock_timeout
+        deadline = time.monotonic() + timeout
+        delay = _FIRST_RETRY_DELAY
+        while True:
+            try:
+                return duckdb.connect(self.settings.db_path)
+            except duckdb.IOException as error:
+                remaining = deadline - time.monotonic()
+                if _LOCK_CONFLICT not in str(error):
+                    raise
+                if remaining <= 0:
+                    raise DatabaseLockedError(
+                        f"{self.settings.db_path} is locked by another process; "
+                        f"gave up after {timeout:g}s (raise lock_timeout or "
+                        "DUCKDB_VECTORS_LOCK_TIMEOUT to wait longer)"
+                    ) from error
+                time.sleep(min(delay, remaining))
+                delay = min(delay * 2, _MAX_RETRY_DELAY)
 
     def _ensure_schema(self) -> None:
         self._con.execute(
@@ -100,8 +144,10 @@ class VectorStore:
         return self._dimensions
 
     def close(self) -> None:
-        """Close the underlying connection."""
-        self._con.close()
+        """Close the underlying connection, releasing the file lock."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
 
     def __enter__(self) -> "VectorStore":
         return self

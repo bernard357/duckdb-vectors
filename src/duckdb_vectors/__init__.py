@@ -16,12 +16,13 @@ from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.indexer import IndexReport, index_folder
 from duckdb_vectors.mcp_server import build_server
 from duckdb_vectors.models import Chunk, SearchResult
-from duckdb_vectors.store import VectorStore
+from duckdb_vectors.store import DatabaseLockedError, VectorStore
 
 __all__ = [
     "Chunk",
     "Chunker",
     "CompositeChunker",
+    "DatabaseLockedError",
     "Embedder",
     "IndexReport",
     "MarkdownChunker",

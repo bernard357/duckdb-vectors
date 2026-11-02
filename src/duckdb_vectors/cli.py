@@ -138,8 +138,9 @@ def mcp(
 
     With ``--index <folder>`` the server indexes that folder into ``--db``
     before serving, so a client can launch a fully self-contained server with
-    no separate indexing step. Indexing is incremental, so an unchanged folder
-    is near-instant on restart.
+    no separate indexing step. Indexing is incremental: an unchanged folder is
+    re-chunked but nothing is re-embedded or rewritten, and the database file is
+    locked only for the brief lookup and writes.
     """
     from duckdb_vectors.config import Settings
     from duckdb_vectors.mcp_server import run_stdio

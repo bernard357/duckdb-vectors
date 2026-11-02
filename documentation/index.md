@@ -123,6 +123,7 @@ Settings resolve with the precedence: explicit argument >
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
+| Lock wait (seconds) | `lock_timeout` | `DUCKDB_VECTORS_LOCK_TIMEOUT` | `10` |
 
 ## Embedding backends
 

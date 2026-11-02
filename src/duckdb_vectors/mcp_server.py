@@ -190,9 +190,11 @@ def run_stdio(
 
     When ``index_folder`` is given, the target folder is indexed into the
     database before the server starts, so a client can launch a self-contained
-    server with no separate indexing step. Indexing is incremental (etag reuse),
-    so an unchanged folder is near-instant on restart. The index report is
-    written to stderr; stdout is reserved for the MCP protocol.
+    server with no separate indexing step. Indexing is incremental (etag reuse):
+    an unchanged folder is re-chunked but nothing is re-embedded or rewritten,
+    and the database file is locked only for the brief lookup and writes, so
+    other sessions sharing it keep querying. The index report is written to
+    stderr; stdout is reserved for the MCP protocol.
     """
     resolved = settings or Settings()
     if index_folder is not None:
@@ -214,7 +216,7 @@ def _index_before_serving(settings: Settings, folder: str, recursive: bool) -> N
     print(
         f"Indexed {report.files} files, {report.chunks} chunks "
         f"({report.embedded} embedded, {report.reused} reused, "
-        f"{report.pruned} pruned) from {folder}.",
+        f"{report.written} written, {report.pruned} pruned) from {folder}.",
         file=sys.stderr,
         flush=True,
     )

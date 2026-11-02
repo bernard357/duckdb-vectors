@@ -5,10 +5,18 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
 ## Unreleased
 
-A one-shot search skill for agents and a single machine-readable output
-contract across the CLI.
+A one-shot search skill for agents, a single machine-readable output contract
+across the CLI, one index safely shared by concurrent sessions, and DuckDB 2.0
+as the tested baseline.
 
 ### Breaking
+
+- __DuckDB 2.0 baseline.__ The dependency moves from `duckdb>=1.1` to
+  `duckdb>=2.0,<3`. Fresh installs were already resolving DuckDB 2.0.0; the
+  range now matches what is tested and keeps a future 3.0 from arriving
+  untested. DuckDB 2.0 opens databases written by 1.x, but files written under
+  2.x cannot be read by DuckDB 1.x, so upgrade every process that shares a
+  database file.
 
 - __`--json` removed; `--output {json,yaml}` added.__ The `--json` flag is gone
   from every verb. `index`, `report`, and `search` now take `--output` with
@@ -32,6 +40,26 @@ contract across the CLI.
   `search`; read-only; JSON), and the installed package `version`, so an MCP
   client gets whole-server framing at the `initialize` handshake rather than
   only the per-tool descriptions.
+- __Concurrent sessions can share one database file.__ DuckDB lets one process
+  hold a file at a time and used to fail instantly when another held it, so two
+  MCP servers on one index split 15/0 on queries and every query failed during
+  another session's startup re-index. `VectorStore` now connects lazily, on
+  first use, and retries a lock conflict with a short backoff for up to
+  `lock_timeout` seconds (`DUCKDB_VECTORS_LOCK_TIMEOUT`, default 10) before
+  raising the new `DatabaseLockedError`. Other I/O errors are not retried.
+
+### Changed
+
+- __Re-indexing an unchanged folder writes nothing.__ The indexer now writes
+  only chunks that are new or differ from what is stored (etag, source,
+  position, title, or metadata), prunes by `chunk_id` instead of restamping
+  every row, rebuilds full-text search only when rows changed, and releases the
+  file while embedding. On a 247-file corpus (5,172 chunks) a no-op re-index
+  went from 16–18 s holding the file throughout to about 7 s holding it for
+  0.02 s, and queries from another process during it went from 0/10 to 25/25.
+  `IndexReport` gains a `written` count, also shown in the `mcp --index`
+  startup log. A row's `stamped_at` now records when it was last written, not
+  when it was last seen.
 
 ## v261026
 

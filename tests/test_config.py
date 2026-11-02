@@ -36,3 +36,23 @@ def test_constructor_overrides_environment():
         settings = Settings(db_path="/tmp/explicit.duckdb", backend="fastembed")
     assert settings.db_path == "/tmp/explicit.duckdb"
     assert settings.backend == "fastembed"
+
+
+def test_lock_timeout_defaults_to_ten_seconds():
+    with mock.patch.dict("os.environ", {}, clear=True):
+        settings = Settings()
+    assert settings.lock_timeout == 10.0
+
+
+def test_lock_timeout_reads_environment():
+    env = {"DUCKDB_VECTORS_LOCK_TIMEOUT": "2.5"}
+    with mock.patch.dict("os.environ", env, clear=True):
+        settings = Settings()
+    assert settings.lock_timeout == 2.5
+
+
+def test_lock_timeout_argument_wins_over_environment():
+    env = {"DUCKDB_VECTORS_LOCK_TIMEOUT": "2.5"}
+    with mock.patch.dict("os.environ", env, clear=True):
+        settings = Settings(lock_timeout=0.0)
+    assert settings.lock_timeout == 0.0

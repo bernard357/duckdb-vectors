@@ -222,3 +222,42 @@ def test_default_chunker_is_composite_over_mixed_folder(tmp_path, monkeypatch):
     assert "b.pdf" in sources
     assert report.files == 2
     store.close()
+
+
+def _stamps(store):
+    return store._con.execute(
+        "SELECT chunk_id, stamped_at FROM chunks ORDER BY chunk_id"
+    ).fetchall()
+
+
+def test_unchanged_reindex_writes_nothing(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text(DOC_A)
+    (docs / "b.md").write_text(DOC_B)
+    store = _store(tmp_path)
+    first = index_folder(store, docs)
+    assert first.written == first.chunks
+    before = _stamps(store)
+    second = index_folder(store, docs)
+    assert second.written == 0
+    assert second.pruned == 0
+    assert second.embedded == 0
+    assert _stamps(store) == before
+    store.close()
+
+
+def test_frontmatter_only_edit_rewrites_metadata_without_reembedding(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    body = "# Policy\n\nRestricted documents require authentication.\n"
+    (docs / "policy.md").write_text("---\nkind: draft\n---\n" + body)
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    (docs / "policy.md").write_text("---\nkind: final\n---\n" + body)
+    report = index_folder(store, docs)
+    assert report.embedded == 0
+    assert report.written >= 1
+    hit = store.query("restricted documents authentication", top_k=1)[0]
+    assert hit.chunk.metadata["kind"] == "final"
+    store.close()

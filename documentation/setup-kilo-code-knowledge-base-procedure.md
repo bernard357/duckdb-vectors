@@ -29,7 +29,8 @@ A local folder is all that is needed at index time — it can be a working copy,
 ## Step 2 — note the folder and database paths
 
 No manual install or indexing step is needed: the MCP server indexes the folder
-on startup (incrementally, so an unchanged folder is near-instant on restart).
+on startup (incrementally, so an unchanged folder is re-read but nothing is
+re-embedded or rewritten on restart).
 Just decide two __absolute__ paths — the folder of documents to index and the
 DuckDB file to build — because Kilo Code spawns the subprocess with its own
 working directory. For example `/abs/path/to/knowledge` and
@@ -62,9 +63,12 @@ with `--db`; the server indexes on startup, then serves:
 }
 ```
 
-The first start downloads the package and the default local embedding model;
-later starts reuse the `uv` and model caches, and the incremental index makes an
-unchanged folder near-instant.
+The first start downloads the package, the default local embedding model, and
+the DuckDB `markdown` and `fts` extensions; later starts reuse those caches. On
+restart the incremental index re-reads the folder but re-embeds and rewrites
+nothing for unchanged files: about 7 s for 250 Markdown files on a MacBook Pro
+M1 (2021), most of it the chunking pass, during which the database stays
+available to other sessions.
 
 A few things to get right:
 

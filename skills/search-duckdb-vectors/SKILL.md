@@ -55,8 +55,9 @@ the matched `chunk` (`chunk_id`, `text`, `source`, `title`, `metadata`) under a
 fused `score`. Parse the JSON, read the `text` fields of the top hits, and use
 them as grounding context for the answer; cite `source` where useful. Pass
 `--output yaml` instead if a human will read the output. Re-running `index` on
-an unchanged folder is near-instant (incremental), so it is safe to index
-before every search session.
+an unchanged folder re-embeds and rewrites nothing (incremental), so it is safe
+to index before every search session; it still re-reads the folder, which takes
+a few seconds for a few hundred files.
 
 Use this mode for a quick, self-contained lookup from within the skill.
 

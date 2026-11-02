@@ -105,6 +105,9 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | --- | --- | --- | --- |
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
+| Lock wait (seconds) | `lock_timeout` | `DUCKDB_VECTORS_LOCK_TIMEOUT` | `10` |
+
+Several processes can share one database file, for example one MCP server per editor window. DuckDB lets one process hold the file at a time, so the store connects lazily, on first use, and when another process holds the file it retries for up to `lock_timeout` seconds before raising `DatabaseLockedError`. Each search holds the file only for the call, and re-indexing an unchanged folder holds it for a moment, so in practice sessions wait milliseconds rather than fail.
 
 ### Embedding backends
 
