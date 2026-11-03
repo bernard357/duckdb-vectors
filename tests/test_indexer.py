@@ -261,3 +261,34 @@ def test_frontmatter_only_edit_rewrites_metadata_without_reembedding(tmp_path):
     hit = store.query("restricted documents authentication", top_k=1)[0]
     assert hit.chunk.metadata["kind"] == "final"
     store.close()
+
+
+def _marker(store):
+    row = store._con.execute(
+        "SELECT value FROM index_state WHERE key = 'keyword_index'"
+    ).fetchone()
+    return row[0] if row else None
+
+
+def test_index_folder_leaves_keyword_index_current(tmp_path, monkeypatch):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text(DOC_A)
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    assert _marker(store) == "current"
+
+    calls = [0]
+    original = VectorStore._rebuild_fts
+
+    def counting(self):
+        calls[0] += 1
+        original(self)
+
+    monkeypatch.setattr(VectorStore, "_rebuild_fts", counting)
+    report = index_folder(store, docs)
+    assert report.written == 0
+    assert calls[0] == 0
+    assert _marker(store) == "current"
+    store.close()
+    assert calls[0] == 0

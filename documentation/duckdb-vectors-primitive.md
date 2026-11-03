@@ -71,8 +71,8 @@ Each block is small and replaceable. You can use the defaults or swap any one.
 
 - __VectorStore__ — the SDK surface. One instance maps to one DuckDB file. It
   owns the schema, the write path (`put_vectors`, `add_texts`,
-  `delete_vectors`), and the read path (`query`, `query_vectors`). Open it
-  read-write to build an index, or read-only to serve a frozen one.
+  `delete_vectors`), and the read path (`query`, `query_vectors`). It always
+  opens writable, the same mode for building and serving an index.
 - __Embedder registry__ — turns a backend string into an embedder.
   `fastembed:<model>` (bundled ONNX) is the default — the minimum viable setup
   for users, defaulting to the 256-dim static multilingual
@@ -97,7 +97,7 @@ Each block is small and replaceable. You can use the defaults or swap any one.
 
 ## The data model
 
-The store keeps one table, `chunks`, with a fixed-size embedding column:
+The store keeps its content in one table, `chunks`, with a fixed-size embedding column:
 
 | Column | Meaning |
 | --- | --- |
@@ -108,8 +108,10 @@ The store keeps one table, `chunks`, with a fixed-size embedding column:
 | `title` | Heading breadcrumb, prepended context |
 | `metadata` | JSON blob for arbitrary attributes |
 | `etag` | Content fingerprint; unchanged etag skips re-embedding |
-| `stamped_at` | Run timestamp; older stamps are pruned on reindex |
+| `stamped_at` | When the row was last written |
 | `embedding` | `FLOAT[dim]` ARRAY column (HNSW-ready) |
+
+Keyword search runs on a DuckDB full-text (BM25) index over `text` and `title`. That index is a snapshot: a row written after it was built is invisible to keyword search, without any error. A second table, `index_state`, therefore records in the file whether the full-text index is current. Every write or delete marks it stale before the first row changes, and only a completed rebuild marks it current again. The rebuild runs once, when the writing store closes or on the first keyword search that finds the index stale, whichever comes first, in any process sharing the file. A writer that crashes mid-batch leaves the marker stale, so the next search repairs the index rather than silently missing matches. A database written before this table existed was rebuilt after every write and counts as current. A rebuild over 50,000 chunks takes about 0.09 s on a MacBook Pro M1 (2021).
 
 The `Chunk` and `SearchResult` models are Pydantic classes; a `SearchResult` carries the chunk, the fused score, and the per-signal ranks (`vector_rank`, `text_rank`).
 

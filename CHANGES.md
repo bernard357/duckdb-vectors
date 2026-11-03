@@ -7,6 +7,19 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
 ### Changed
 
+- __Lazy, verified keyword indexing.__ `put_vectors`, `add_texts` and
+  `delete_vectors` no longer rebuild the full-text index on every call. A new
+  `index_state` table in the database file records whether keyword indexing is
+  current: writes mark it stale before the first row changes, and the index is
+  rebuilt once, at `close()` or on the first keyword search that finds it
+  stale, in any process sharing the file. A row written after the last rebuild
+  used to be invisible to keyword search without any error if a writer crashed
+  mid-batch; the next search now repairs it. Databases without the table count
+  as current; a store with rows but no full-text index builds one. Writing in
+  2,000-chunk batches is 10–20% faster (50,000 chunks: 110 s to 93 s); the
+  rebuild itself is cheap (0.09 s for 50,000 chunks), and per-row writes
+  remain the dominant cost (#60).
+
 - __Documentation.__ README and the docs home page now list the Kiro knowledge
   base next to Kilo Code and link its procedure, and "read-only tool" wording
   is gone from those pages, the user guide, the six harness guides, and the

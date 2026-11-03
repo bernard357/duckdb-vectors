@@ -87,15 +87,25 @@ from duckdb_vectors import VectorStore, index_folder
 
 store = VectorStore(db_path="vectors.duckdb", backend="fastembed:minishlab/potion-multilingual-128M")
 report = index_folder(store, "documentation", recursive=True)
-print(report)  # files, chunks, embedded, reused, pruned
+print(report)  # files, chunks, embedded, reused, written, pruned
 store.close()
 ```
+
+To add content from code instead of a folder, for example skills registered as they arrive, call `add_texts` (or `put_vectors` with `Chunk` objects) as often as you like, then close the store:
+
+```python
+store = VectorStore(db_path="vectors.duckdb")
+store.add_texts(ids=["skill-a"], texts=["Rotate the access keys"], metadatas=[{"kind": "skill"}])
+store.add_texts(ids=["skill-b"], texts=["Tag a release with CalVer"], metadatas=[{"kind": "skill"}])
+store.close()
+```
+
+Keyword search needs a full-text index that DuckDB does not update row by row. Writes and deletes mark that index stale in the database file, and it is rebuilt once: when the store closes, or on the first keyword search that finds it stale, in this process or any other sharing the file. Many small writes therefore cost one rebuild, about 0.09 s for 50,000 chunks. Close the store when you are done writing, so readers find a fresh index; a writer that exits without closing loses nothing, because the next search sees the stale marker and rebuilds.
 
 `VectorStore` accepts these arguments:
 
 - `db_path` — the DuckDB file (default `vectors.duckdb`).
 - `backend` — the embedding backend spec, e.g. `fastembed:<model>` or `bedrock:titan` (default `fastembed:minishlab/potion-multilingual-128M`).
-- `chunker` — the chunker spec, e.g. `markdown` or `pdf` (default `markdown`).
 - `embedder` — pass a ready `Embedder` instance to bypass backend resolution.
 - `settings` — pass a fully-built `Settings` object instead of the individual arguments.
 

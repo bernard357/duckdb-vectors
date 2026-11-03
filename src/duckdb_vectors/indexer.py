@@ -138,6 +138,7 @@ def _stored_signatures(store: VectorStore) -> dict[str, tuple]:
 def _delete_chunks(store: VectorStore, chunk_ids: list[str]) -> int:
     """Delete rows by ``chunk_id``; return how many were removed."""
     if chunk_ids:
+        store._mark_stale()
         store._con.executemany(
             "DELETE FROM chunks WHERE chunk_id = ?",
             [[chunk_id] for chunk_id in chunk_ids],
@@ -166,6 +167,7 @@ def _write_chunk(
     vector: list,
     stamp: datetime.datetime,
 ) -> None:
+    store._mark_stale()
     store._con.execute("DELETE FROM chunks WHERE chunk_id = ?", [chunk.chunk_id])
     store._con.execute(
         f"""
@@ -189,6 +191,7 @@ def _write_chunk(
 
 
 def _purge_all(store: VectorStore) -> int:
+    store._mark_stale()
     removed = store._con.execute("DELETE FROM chunks RETURNING chunk_id").fetchall()
     store._rebuild_fts()
     return len(removed)

@@ -13,6 +13,8 @@ tens-of-thousands-of-chunks scale this component targets.
 
 import datetime
 import json
+import os
+import threading
 import time
 
 import duckdb
@@ -48,6 +50,20 @@ WHERE score IS NOT NULL
 ORDER BY score DESC
 LIMIT {top_k}
 """
+
+
+_KEYWORD_INDEX_KEY = "keyword_index"
+_STALE = "stale"
+_CURRENT = "current"
+_KEYWORD_LOCKS: dict[str, threading.Lock] = {}
+_KEYWORD_LOCKS_GUARD = threading.Lock()
+
+
+def _keyword_lock(db_path: str) -> threading.Lock:
+    """Return the process-wide lock serializing full-text rebuilds of a file."""
+    key = os.path.abspath(db_path)
+    with _KEYWORD_LOCKS_GUARD:
+        return _KEYWORD_LOCKS.setdefault(key, threading.Lock())
 
 
 _LOCK_CONFLICT = "Could not set lock"
@@ -87,6 +103,9 @@ class VectorStore:
         self._vector_sql = self.settings.vector_sql
         self._text_sql = self.settings.text_sql
         self._connection: duckdb.DuckDBPyConnection | None = None
+        # True once this store marked keyword indexing stale and has not yet
+        # rebuilt it; close() then rebuilds before releasing the file.
+        self._keyword_dirty = False
 
     @property
     def _con(self) -> duckdb.DuckDBPyConnection:
@@ -137,6 +156,59 @@ class VectorStore:
             "CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON chunks (chunk_id)"
         )
         self._con.execute("CREATE INDEX IF NOT EXISTS idx_chunks_etag ON chunks (etag)")
+        self._con.execute(
+            "CREATE TABLE IF NOT EXISTS index_state "
+            "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+
+    def _mark_stale(self) -> None:
+        """Record in the file that keyword indexing is out of date.
+
+        Called before the first row change of a batch of writes, so a writer
+        that crashes mid-batch leaves the marker stale and the next keyword
+        search in any process repairs the index. Persisted once per open
+        connection: while this store holds the file, no other process can
+        rebuild it and clear the marker.
+        """
+        if self._keyword_dirty:
+            return
+        self._con.execute(
+            "INSERT OR REPLACE INTO index_state VALUES (?, ?)",
+            [_KEYWORD_INDEX_KEY, _STALE],
+        )
+        self._keyword_dirty = True
+
+    def _keyword_index_is_stale(self) -> bool:
+        """True when the full-text index does not reflect the stored chunks.
+
+        The persisted marker decides when present. A database written before
+        the marker existed has no row and was rebuilt after every write, so it
+        counts as current, unless it holds chunks but no full-text index at all.
+        """
+        row = self._con.execute(
+            "SELECT value FROM index_state WHERE key = ?", [_KEYWORD_INDEX_KEY]
+        ).fetchone()
+        if row is not None and row[0] == _STALE:
+            return True
+        has_index = self._con.execute(
+            "SELECT count(*) FROM duckdb_tables() "
+            "WHERE schema_name = 'fts_main_chunks' AND table_name = 'docs'"
+        ).fetchone()
+        return not (has_index and has_index[0]) and self.count() > 0
+
+    def _ensure_keyword_index(self) -> None:
+        """Rebuild the full-text index first if it is stale.
+
+        Runs before every keyword ranking. Threads of one process share
+        DuckDB's instance, so the check-and-rebuild is serialized per database
+        file and a second thread re-checks after waiting instead of rebuilding
+        again.
+        """
+        if not self._keyword_index_is_stale():
+            return
+        with _keyword_lock(self.settings.db_path):
+            if self._keyword_index_is_stale():
+                self._rebuild_fts()
 
     @property
     def dimensions(self) -> int:
@@ -144,10 +216,21 @@ class VectorStore:
         return self._dimensions
 
     def close(self) -> None:
-        """Close the underlying connection, releasing the file lock."""
-        if self._connection is not None:
+        """Close the underlying connection, releasing the file lock.
+
+        If this store wrote or deleted chunks since the last full-text rebuild,
+        it rebuilds first, so readers of the file rarely pay for it. If that
+        rebuild fails the marker stays stale and the next search repairs it.
+        """
+        if self._connection is None:
+            return
+        try:
+            if self._keyword_dirty:
+                self._rebuild_fts()
+        finally:
             self._connection.close()
             self._connection = None
+            self._keyword_dirty = False
 
     def __enter__(self) -> "VectorStore":
         return self
@@ -167,15 +250,19 @@ class VectorStore:
         )
 
     def put_vectors(self, chunks: list[Chunk]) -> None:
-        """Upsert chunks, embedding their text and (re)building the FTS index.
+        """Upsert chunks, embedding their text.
 
         Each chunk's etag is computed from its text and the embedder identity.
-        Existing rows with the same ``chunk_id`` are replaced.
+        Existing rows with the same ``chunk_id`` are replaced. The full-text
+        index is not rebuilt here: it is marked stale and rebuilt once, at
+        ``close()`` or before the next keyword search, so many small batches
+        cost one rebuild instead of one each.
         """
         if not chunks:
             return
         vectors = self.embedder.embed([chunk.text for chunk in chunks])
         stamp = datetime.datetime.now(datetime.UTC)
+        self._mark_stale()
         for chunk, vector in zip(chunks, vectors, strict=True):
             etag = chunk.etag or compute_etag(
                 chunk.text, self.embedder.model_identifier, self._dimensions
@@ -200,7 +287,6 @@ class VectorStore:
                     vector,
                 ],
             )
-        self._rebuild_fts()
 
     def add_texts(
         self,
@@ -258,6 +344,7 @@ class VectorStore:
         if not chunk_ids:
             return 0
         placeholders = ", ".join(["?"] * len(chunk_ids))
+        self._mark_stale()
         removed = self._con.execute(
             f"""
             DELETE FROM chunks WHERE chunk_id IN ({placeholders})
@@ -265,7 +352,6 @@ class VectorStore:
             """,
             chunk_ids,
         ).fetchall()
-        self._rebuild_fts()
         return len(removed)
 
     def count(self) -> int:
@@ -352,6 +438,7 @@ class VectorStore:
             bm25=bm25,
             top_k="$top_k",
         )
+        self._ensure_keyword_index()
         try:
             rows = self._con.execute(sql, params).fetchall()
         except duckdb.Error:
@@ -457,12 +544,18 @@ class VectorStore:
                 self._con.execute("PRAGMA drop_fts_index('chunks')")
             except duckdb.Error:
                 pass
-            return
-        self._con.execute(
-            """
-            PRAGMA create_fts_index(
-                'chunks', 'chunk_id', 'text', 'title',
-                stemmer = 'none', stopwords = 'none', overwrite = 1
+        else:
+            self._con.execute(
+                """
+                PRAGMA create_fts_index(
+                    'chunks', 'chunk_id', 'text', 'title',
+                    stemmer = 'none', stopwords = 'none', overwrite = 1
+                )
+                """
             )
-            """
+        # Only a completed rebuild clears the marker.
+        self._con.execute(
+            "INSERT OR REPLACE INTO index_state VALUES (?, ?)",
+            [_KEYWORD_INDEX_KEY, _CURRENT],
         )
+        self._keyword_dirty = False

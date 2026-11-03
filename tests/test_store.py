@@ -244,3 +244,176 @@ def test_two_processes_query_one_file_concurrently(db_path):
     outputs = [child.communicate(timeout=120)[0].strip() for child in children]
     assert [child.returncode for child in children] == [0, 0]
     assert outputs == [rounds, rounds]
+
+
+# Lazy keyword indexing: writes mark the full-text index stale in the file, and
+# every keyword search checks that marker and rebuilds first when needed.
+
+
+def _count_rebuilds(monkeypatch, delay: float = 0.0) -> list[int]:
+    """Count full-text rebuilds across every store in this process."""
+    calls = [0]
+    original = VectorStore._rebuild_fts
+
+    def counting(self):
+        calls[0] += 1
+        if delay:
+            time.sleep(delay)
+        original(self)
+
+    monkeypatch.setattr(VectorStore, "_rebuild_fts", counting)
+    return calls
+
+
+def _leave_stale(db_path, ids, texts):
+    """Write rows and release the file without rebuilding, like a crash."""
+    store = _store(db_path)
+    store.add_texts(ids=ids, texts=texts)
+    store._keyword_dirty = False  # skip close()'s rebuild
+    store.close()
+
+
+def _text_rank(store, query, chunk_id):
+    for result in store.query(query, top_k=10):
+        if result.chunk.chunk_id == chunk_id:
+            return result.text_rank
+    return None
+
+
+def test_many_small_writes_cost_one_rebuild(db_path, monkeypatch):
+    rebuilds = _count_rebuilds(monkeypatch)
+    store = _store(db_path)
+    # Letter-only tokens: the full-text tokenizer drops digits.
+    tokens = ["kappa", "lambda", "sigma", "theta", "upsilon"]
+    for batch, token in enumerate(tokens):
+        store.add_texts(ids=[f"c{batch}"], texts=[f"{token} words"])
+    assert rebuilds[0] == 0
+    assert _text_rank(store, "upsilon", "c4") == 1
+    assert rebuilds[0] == 1
+    store.close()
+    assert rebuilds[0] == 1  # nothing written since the search rebuilt
+
+
+def test_close_rebuilds_after_writes(db_path, monkeypatch):
+    rebuilds = _count_rebuilds(monkeypatch)
+    store = _store(db_path)
+    store.add_texts(ids=["a"], texts=["alpha"])
+    store.close()
+    assert rebuilds[0] == 1
+    reader = _store(db_path)
+    assert _text_rank(reader, "alpha", "a") == 1
+    reader.close()
+    assert rebuilds[0] == 1  # the reader found the index current
+
+
+def test_token_written_after_last_rebuild_is_found(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a"], texts=["alpha words"])
+    store.query("alpha", top_k=1)  # builds the index
+    store.add_texts(ids=["b"], texts=["zyxqk words"])
+    assert _text_rank(store, "zyxqk", "b") == 1
+    store.close()
+
+
+def test_in_place_update_is_detected_with_unchanged_count(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a", "b"], texts=["alpha words", "beta words"])
+    store.query("alpha", top_k=1)
+    store.add_texts(ids=["a"], texts=["omega words"])
+    assert store.count() == 2
+    assert _text_rank(store, "omega", "a") == 1
+    assert _text_rank(store, "alpha", "a") is None
+    store.close()
+
+
+def test_crashed_writer_leaves_a_file_the_next_search_repairs(db_path):
+    _seed(db_path)
+    writer = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import os, sys\n"
+            "from duckdb_vectors.store import VectorStore\n"
+            "s = VectorStore(db_path=sys.argv[1], backend='hashing')\n"
+            "s.add_texts(ids=['late'], texts=['qwzrt crashtoken'])\n"
+            "os._exit(0)\n",
+            db_path,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert writer.returncode == 0, writer.stderr
+    reader = _store(db_path)
+    assert _text_rank(reader, "qwzrt", "late") == 1
+    reader.close()
+
+
+def test_deleted_chunks_stop_matching(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a", "b"], texts=["alpha words", "gamma words"])
+    store.query("gamma", top_k=1)
+    store.delete_vectors(["b"])
+    assert _text_rank(store, "gamma", "b") is None
+    store.close()
+
+
+def test_database_without_marker_counts_as_current(db_path, monkeypatch):
+    store = _store(db_path)
+    store.add_texts(ids=["a"], texts=["alpha words"])
+    store.close()  # rebuilt and current
+    legacy = duckdb.connect(db_path)
+    legacy.execute("DROP TABLE index_state")
+    legacy.close()
+    rebuilds = _count_rebuilds(monkeypatch)
+    reader = _store(db_path)
+    assert _text_rank(reader, "alpha", "a") == 1
+    reader.close()
+    assert rebuilds[0] == 0
+
+
+def test_rows_without_full_text_index_get_one(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a"], texts=["alpha words"])
+    store.close()
+    bare = duckdb.connect(db_path)
+    bare.execute("INSTALL fts")
+    bare.execute("LOAD fts")
+    bare.execute("PRAGMA drop_fts_index('chunks')")
+    bare.execute("DROP TABLE index_state")
+    bare.close()
+    reader = _store(db_path)
+    assert _text_rank(reader, "alpha", "a") == 1
+    reader.close()
+
+
+def test_vector_only_queries_never_rebuild(db_path, monkeypatch):
+    _leave_stale(db_path, ["a"], ["alpha words"])
+    rebuilds = _count_rebuilds(monkeypatch)
+    store = _store(db_path)
+    assert store.query("alpha", top_k=1, hybrid=False)
+    assert rebuilds[0] == 0
+    store.close()
+
+
+def test_two_threads_rebuild_a_stale_index_once(db_path, monkeypatch):
+    import threading
+
+    _leave_stale(db_path, ["a", "b"], ["alpha words", "beta words"])
+    rebuilds = _count_rebuilds(monkeypatch, delay=0.3)
+    found = []
+
+    def search():
+        store = _store(db_path)
+        try:
+            found.append(_text_rank(store, "alpha", "a"))
+        finally:
+            store.close()
+
+    threads = [threading.Thread(target=search) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=60)
+    assert found == [1, 1]
+    assert rebuilds[0] == 1
