@@ -25,6 +25,12 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   It no longer passes the removed `read_only` argument, which made it fail, and
   its synthetic chunks and queries use letter-only words so the keyword index
   holds real tokens; the full-text tokenizer drops digits (#59).
+- __"How did these numbers change?" in the performance workbook.__ A table of
+  the before and after figures behind each performance change (write-free
+  re-index, pooled Markdown chunker, shared index, model kept loaded in the
+  MCP server, deferred keyword-index rebuild, batched writes, 256-dim default),
+  each pointing at the release that records it, plus a note on the rebuild
+  projection that measurement proved wrong (#62).
 
 - __Batched vector writes.__ `put_vectors` (and so `add_texts`) and
   `index_folder` now write each batch with one `DELETE ... IN` and one

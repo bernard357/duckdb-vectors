@@ -126,6 +126,24 @@ __No re-ranking stage.__ Retrieval returns the fused top-k directly; there is no
 
 When the corpus outgrows what an exact scan serves well, far beyond the hundred-thousand-chunk range measured here. Below that, a hosted vector database pays a network round-trip on every query, an estimated ~10-50 ms same-region and 50-150 ms or more cross-region or on a cold connection, with a long tail, and none of that time does any searching. In-process retrieval answers in ~26 ms at 1,000 chunks and ~105 ms at 100,000, with no hop at all. The sweet spot for `duckdb-vectors` is integrating thousands to tens of thousands of chunks directly into the agent, trading a managed vector service for a file in the image.
 
+## How did these numbers change?
+
+Most of them improved by fixing one measured cost at a time. The before and after values below were measured on the same MacBook Pro M1 (2021) when each change was made, and are kept here to show which changes paid off:
+
+| Change | Before | After | Source |
+| --- | --- | --- | --- |
+| Re-indexing an unchanged folder writes nothing | 16-18 s, file held throughout; queries from another process 0/10 | ~1 s, file held 0.02 s; 25/25 | v261102 |
+| One DuckDB connection for every Markdown file of a run | 7.8 s to chunk 247 files | 0.9 s | v261102 |
+| Connect on first use and retry a lock conflict | two MCP servers on one file: 15 and 0 queries succeed | 15 of 15 each | v261102 |
+| The MCP server keeps the embedding model loaded | ~1.25 s per later search | ~45 ms | v261103 |
+| Rebuild the keyword index once, not on every write | 110 s to write 50,000 chunks | 93 s | Unreleased |
+| One `DELETE` and one `INSERT` per batch, not two statements per chunk | 93 s to write 50,000 chunks; first index of the real corpus 17.7 s | 19.7 s; 3.6 s | Unreleased |
+| Default model: 256-dim static instead of 384-dim contextual | 1,000-chunk file 9.5 MB; query embedding ~4.4 ms | ~4.8 MB; ~0.3 ms | v261024 |
+
+The Source column names the release in [CHANGES.md](https://github.com/bernard357/duckdb-vectors/blob/main/CHANGES.md) that records each change.
+
+One change is worth a note, because the projection behind it was wrong. Rebuilding the keyword index on every write looked like the cost that made large builds slow: timings at 2,000 and 6,000 chunks grew faster than linearly, and a curve through them projected ~22-25 min to build 100,000 chunks, against ~3-4 min with a single rebuild. Measured afterwards, one rebuild over 50,000 chunks takes 0.09 s; the real cost was the row-by-row writes, at ~1.6-2 ms per chunk, so deferring the rebuild gained only 10-20%, and batching the writes made them about five times faster. Deferring the rebuild also needed a safeguard: a row written after the last rebuild was missing from keyword search without any error, so writes now mark the index stale in the database file and the next keyword search rebuilds it. Profile the stage that costs the time before projecting a gain.
+
 ## How to reproduce these numbers?
 
 Run the benchmark scripts from the repository root with the project venv. Each prints a table in the format used on this page and can write raw results with `--json`.
