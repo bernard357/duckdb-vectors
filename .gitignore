@@ -38,3 +38,6 @@ documentation/.vitepress/cache/
 # Agent workflow scratch (review artifacts, worktrees)
 .agents/
 .worktrees/
+
+# Local scratch: temporary scripts and private drafts, never committed
+tmp/
