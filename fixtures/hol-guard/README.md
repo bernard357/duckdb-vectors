@@ -7,6 +7,13 @@ staged here; the canonical contribution is generated, reviewed, and bound inside
 a HOL-Guard checkout with its `hol-guard extensions` CLI (not present in this
 repo).
 
+## Listing
+
+The contribution was merged in
+[hashgraph-online/hol-guard#6481](https://github.com/hashgraph-online/hol-guard/pull/6481)
+and is published in the HOL Guard Extensions Directory:
+<https://hol.org/guard/extensions/mcp.duckdb-vectors>.
+
 ## Files
 
 - `duckdb-vectors-tools.json` — the MCP tool inventory: a complete JSON-RPC 2.0
