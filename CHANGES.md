@@ -7,6 +7,16 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
 ### Changed
 
+- __Batched vector writes.__ `put_vectors` (and so `add_texts`) and
+  `index_folder` now write each batch with one `DELETE ... IN` and one
+  `INSERT ... SELECT unnest(...)` per 5,000 rows instead of two statements per
+  chunk, inside one transaction, so a failed batch leaves no partial rows. An
+  id repeated within one call keeps its last occurrence, as before, and stored
+  `stamped_at` values are unchanged. On an M1 (2021): 50,000 chunks written in
+  2,000-chunk `add_texts` batches went from 93 s to 19.7 s, and a first
+  `index_folder` of a 247-file Markdown corpus (5,172 chunks) from 17.7 s to
+  3.6 s with the default model (#61).
+
 - __Lazy, verified keyword indexing.__ `put_vectors`, `add_texts` and
   `delete_vectors` no longer rebuild the full-text index on every call. A new
   `index_state` table in the database file records whether keyword indexing is

@@ -109,8 +109,9 @@ def index_folder(
     report.reused = len(prepared) - len(unique_missing)
 
     stamp = datetime.datetime.now(datetime.UTC)
-    for chunk in changed:
-        _write_chunk(store, chunk, reusable[chunk.etag], stamp)
+    store._write_rows(
+        [(chunk, chunk.etag, reusable[chunk.etag]) for chunk in changed], stamp
+    )
     report.written = len(changed)
     report.pruned = _delete_chunks(store, stale)
 
@@ -159,35 +160,6 @@ def _reusable_vectors(store: VectorStore, etags: set[str]) -> dict[str, list]:
         list(etags),
     ).fetchall()
     return {row[0]: row[1] for row in rows}
-
-
-def _write_chunk(
-    store: VectorStore,
-    chunk: Chunk,
-    vector: list,
-    stamp: datetime.datetime,
-) -> None:
-    store._mark_stale()
-    store._con.execute("DELETE FROM chunks WHERE chunk_id = ?", [chunk.chunk_id])
-    store._con.execute(
-        f"""
-        INSERT INTO chunks
-            (chunk_id, text, source, position, title, metadata,
-             etag, stamped_at, embedding)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::FLOAT[{store.dimensions}])
-        """,
-        [
-            chunk.chunk_id,
-            chunk.text,
-            chunk.source,
-            chunk.position,
-            chunk.title,
-            json.dumps(chunk.metadata),
-            chunk.etag,
-            stamp,
-            vector,
-        ],
-    )
 
 
 def _purge_all(store: VectorStore) -> int:

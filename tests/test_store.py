@@ -417,3 +417,101 @@ def test_two_threads_rebuild_a_stale_index_once(db_path, monkeypatch):
         thread.join(timeout=60)
     assert found == [1, 1]
     assert rebuilds[0] == 1
+
+
+# Set-based writes: one DELETE and one INSERT per sub-batch, in a transaction.
+
+
+def _rows(store):
+    return store._con.execute(
+        "SELECT chunk_id, text, source, position, title, metadata FROM chunks "
+        "ORDER BY chunk_id"
+    ).fetchall()
+
+
+def test_batch_upsert_replaces_and_adds(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a", "b"], texts=["alpha", "beta"])
+    store.add_texts(ids=["b", "c"], texts=["beta two", "gamma"])
+    assert [(r[0], r[1]) for r in _rows(store)] == [
+        ("a", "alpha"),
+        ("b", "beta two"),
+        ("c", "gamma"),
+    ]
+    store.close()
+
+
+def test_repeated_id_in_one_batch_keeps_last(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["a", "a", "b"], texts=["first", "last", "beta"])
+    assert store.count() == 2
+    assert store.get_vectors(["a"])[0].text == "last"
+    store.close()
+
+
+def test_batch_larger_than_sub_batch_is_written(db_path, monkeypatch):
+    import duckdb_vectors.store as store_module
+
+    monkeypatch.setattr(store_module, "_WRITE_BATCH", 3)
+    store = _store(db_path)
+    ids = [f"c{i}" for i in range(8)]
+    store.add_texts(ids=ids, texts=[f"text {i}" for i in range(8)])
+    assert store.count() == 8
+    store.close()
+
+
+def test_failed_batch_leaves_no_partial_rows(db_path):
+    store = _store(db_path)
+    store.add_texts(ids=["keep"], texts=["kept"])
+    good = store.embedder.embed(["x"])[0]
+    rows = [
+        (Chunk(chunk_id="new1", text="one"), "e1", good),
+        (Chunk(chunk_id="keep", text="replaced"), "e2", good),
+        (Chunk(chunk_id="bad", text="bad"), "e3", good[:-1]),  # wrong width
+    ]
+    with pytest.raises(duckdb.Error):
+        import datetime
+
+        store._write_rows(rows, datetime.datetime.now(datetime.UTC))
+    assert [(r[0], r[1]) for r in _rows(store)] == [("keep", "kept")]
+    store.close()
+
+
+def test_metadata_titles_and_positions_round_trip(db_path):
+    store = _store(db_path)
+    chunk = Chunk(
+        chunk_id="doc.md:2",
+        text="body text",
+        source="doc.md",
+        position=2,
+        title="Heading",
+        metadata={"kind": "policy", "tags": ["a", "b"]},
+    )
+    store.put_vectors([chunk])
+    stored = store.get_vectors(["doc.md:2"])[0]
+    assert (stored.source, stored.position, stored.title, stored.metadata) == (
+        "doc.md",
+        2,
+        "Heading",
+        {"kind": "policy", "tags": ["a", "b"]},
+    )
+    store.close()
+
+
+def test_bulk_stamp_matches_previous_per_row_statement(db_path):
+    import datetime
+
+    store = _store(db_path)
+    stamp = datetime.datetime.now(datetime.UTC)
+    vector = store.embedder.embed(["x"])[0]
+    store._write_rows([(Chunk(chunk_id="bulk", text="x"), "e", vector)], stamp)
+    store._con.execute(
+        "INSERT INTO chunks (chunk_id, text, stamped_at, embedding) "
+        f"VALUES (?, ?, ?, ?::FLOAT[{store.dimensions}])",
+        ["perrow", "x", stamp, vector],
+    )
+    stamps = dict(
+        store._con.execute("SELECT chunk_id, stamped_at FROM chunks").fetchall()
+    )
+    assert stamps["bulk"] == stamps["perrow"]
+    store.close()
