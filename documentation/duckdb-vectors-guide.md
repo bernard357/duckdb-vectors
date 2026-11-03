@@ -21,7 +21,7 @@ The mismatch is easiest to see side by side:
 
 Pick the left column when you genuinely have that scale. For the right column — the in-process semantic search — the left column is machinery you do not need.
 
-For where "a few thousand items" actually tops out — the chunk-count ceiling, the resulting database size, and how scan latency grows — see the data-volume section of the [performance guide](performance-guide).
+For where "a few thousand items" actually tops out — the chunk-count ceiling, the resulting database size, and how scan latency grows — see [How does query time grow with the corpus?](performance-workbook#how-does-query-time-grow-with-the-corpus) in the performance workbook.
 
 ## How to install `duckdb-vectors`?
 

@@ -226,7 +226,7 @@ Set `hybrid=False` on `query` for vector-only ranking. The lexical signal is  de
 
 Total query latency is the query embedding plus the ranking scan. The scan over a few-to-tens-of-thousands of chunks is single-digit to low-tens of milliseconds, and scales with the vector dimension — the 256-dim default keeps it fastest. With `fastembed` embedding, the one-time model load happens on first use — trigger a warm-up query at startup so the first real request is not the one that pays for it. When using a remote embedding service, e.g., `bedrock`, then this adds a network round-trip per embed.
 
-The [performance guide](performance-guide) expands this into a full cost model — the per-query breakdown, in-process vs stdio vs HTTP MCP transport overhead, local vs Bedrock embedding latency, and how much data fits in one container.
+The [performance workbook](performance-workbook) answers the practical questions with measured figures — index size, the per-query breakdown and how it grows to 100,000 chunks, first-index and restart times, search through the MCP server, sharing one index across sessions, and model choice.
 
 ## How do I keep the image small?
 

@@ -1,7 +1,7 @@
 """Measure query latency and the data-volume scan curve for duckdb-vectors.
 
 Builds real indexes at a range of chunk counts and times warm ``query()`` calls,
-reporting p50/p95 so the numbers in ``documentation/performance-guide.md`` can be
+reporting p50/p95 so the numbers in ``documentation/performance-workbook.md`` can be
 replaced by measured percentiles rather than an architecture-derived model.
 
 The harness separates the two slices the guide's cost model names: ``embed`` (the
@@ -22,11 +22,11 @@ Backends:
 
 Run it from the repository root with the project venv:
 
-    $ .venv/bin/python scripts/benchmark_performance.py
-    $ .venv/bin/python scripts/benchmark_performance.py --sizes 1000 10000 50000
-    $ .venv/bin/python scripts/benchmark_performance.py --json results.json
-    $ .venv/bin/python scripts/benchmark_performance.py --backend bedrock:titan
-    $ .venv/bin/python scripts/benchmark_performance.py --backend hashing
+    $ .venv/bin/python scripts/benchmark_queries.py
+    $ .venv/bin/python scripts/benchmark_queries.py --sizes 1000 10000 50000
+    $ .venv/bin/python scripts/benchmark_queries.py --json results.json
+    $ .venv/bin/python scripts/benchmark_queries.py --backend bedrock:titan
+    $ .venv/bin/python scripts/benchmark_queries.py --backend hashing
 
 Nothing here is wired into the test suite: it builds large indexes and (for the
 bedrock backend) makes billable calls, so it is a manual utility, not a test.
@@ -59,13 +59,27 @@ QUERIES = (
 )
 
 
+def _letters(number: int) -> str:
+    """Spell ``number`` in letters: the full-text tokenizer drops digits."""
+    word = ""
+    number += 1
+    while number:
+        number, remainder = divmod(number - 1, 26)
+        word = chr(97 + remainder) + word
+    return word
+
+
 def _synthetic_chunk(index: int) -> Chunk:
     """Build one ~300-word chunk, matching the markdown chunker's target size.
 
-    The text varies per index so vectors differ and the FTS index holds real
-    tokens, keeping the scan representative rather than degenerate.
+    Words are drawn from a 5,000-word letter-only vocabulary, so vectors differ
+    per chunk and the BM25 index holds real, distinct tokens with a realistic
+    spread of document frequencies, keeping both signals representative.
     """
-    words = [f"token{index}_{position}" for position in range(300)]
+    words = [
+        "w" + _letters((index * 7919 + position * 104729) % 5_000)
+        for position in range(300)
+    ]
     return Chunk(
         chunk_id=f"chunk-{index}",
         text=" ".join(words),
@@ -101,14 +115,22 @@ def _percentiles(samples: list[float]) -> dict[str, float]:
 
 
 def _time_calls(store: VectorStore, warmup: int, iterations: int) -> dict:
-    """Time the embed slice and the full query over a cycled query bank."""
+    """Time the embed slice and the full query over a cycled query bank.
+
+    Each query carries one vocabulary token, so the BM25 signal matches real
+    chunks instead of scanning for words the synthetic corpus never contains.
+    """
+
+    def text_for(i: int) -> str:
+        return f"{QUERIES[i % len(QUERIES)]} w{_letters(i * 37 % 5_000)}"
+
     for i in range(warmup):
-        store.query(QUERIES[i % len(QUERIES)], top_k=5)
+        store.query(text_for(i), top_k=5)
 
     embed_samples: list[float] = []
     query_samples: list[float] = []
     for i in range(iterations):
-        text = QUERIES[i % len(QUERIES)]
+        text = text_for(i)
 
         start = time.perf_counter()
         store.embedder.embed([text])
@@ -144,7 +166,7 @@ def benchmark(
             _build_index(db_path, backend, size)
             size_mb = _db_size_mb(db_path)
 
-            store = VectorStore(db_path=db_path, backend=backend, read_only=True)
+            store = VectorStore(db_path=db_path, backend=backend)
             try:
                 timings = _time_calls(store, warmup, iterations)
             finally:

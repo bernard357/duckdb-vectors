@@ -5,7 +5,26 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
 ## Unreleased
 
+### Added
+
+- __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
+  re-index, and a one-file edit, with the time the database file stays locked,
+  on a synthetic Markdown folder generated from a fixed seed or on a real one
+  with `--folder` (#59).
+
 ### Changed
+
+- __Performance workbook.__ `documentation/performance-guide.md` becomes
+  `documentation/performance-workbook.md` (URL `/performance-workbook`), a list
+  of questions answered with measured figures first: index size, query time
+  and its growth now measured to 100,000 chunks (~105 ms p50) instead of
+  extrapolated, first-index and restart times on a real 247-file corpus (~3.6 s
+  and ~1 s), search through the MCP server, sharing one index across sessions,
+  writing from code, and model choice. The stale ~80% scan share is gone (#59).
+- __`scripts/benchmark_performance.py` renamed `scripts/benchmark_queries.py`.__
+  It no longer passes the removed `read_only` argument, which made it fail, and
+  its synthetic chunks and queries use letter-only words so the keyword index
+  holds real tokens; the full-text tokenizer drops digits (#59).
 
 - __Batched vector writes.__ `put_vectors` (and so `add_texts`) and
   `index_folder` now write each batch with one `DELETE ... IN` and one

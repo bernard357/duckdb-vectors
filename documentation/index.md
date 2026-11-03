@@ -16,7 +16,7 @@ Most agents we build at work are specialists, not oracles. The honest requiremen
 
 For the common case — a few thousand documents, read-mostly, packaged with one agent — you can skip the external vector database entirely. Index the corpus into a single [DuckDB](https://duckdb.org) file, bake that file into the agent's container image, and answer semantic queries with a local function call in milliseconds. No MCP, no network round-trip. We packaged this pattern as `duckdb-vectors`, a compact open-source Python package.
 
-For the engineering model behind "in milliseconds" — a fair latency comparison against a remote MCP and how much data reasonably fits in one container — see the [performance guide](performance-guide).
+For the engineering model behind "in milliseconds" — a fair latency comparison against a remote MCP and how much data reasonably fits in one container — see the [performance workbook](performance-workbook).
 
 ## Data architecture decisions and facts
 
@@ -28,7 +28,7 @@ A few deliberate choices shape how `duckdb-vectors` retrieves, and they are back
 - __No ANN index by default__: the schema is HNSW-ready (a fixed-size ARRAY column), but the default path is brute force, because measurement shows HNSW is not worth the recall and persistence cost at the package's target scale.
 - __Local embedding by default__ (offline, in-process); cloud embedding (Bedrock Titan) is opt-in.
 
-Measured on a MacBook Pro M1 (2021): ~27 ms p50 retrieval over a 1,000-chunk index at the 256-dim default, fully in-process — versus a network round-trip for a hosted vector database. Model and dimension are the lever on both latency and storage: the static 256-dim default embeds the query in ~0.3 ms, while a larger `fastembed:` tier or an `hf:` model (the loader now runs real models like Qwen3-Embedding and EmbeddingGemma) trades speed and file size for relevance. The measured per-model ladder, the full latency breakdown, the HNSW comparison, and the network-versus-in-process boundary are in the [performance guide](/performance-guide).
+Measured on a MacBook Pro M1 (2021): ~26 ms p50 retrieval over a 1,000-chunk index at the 256-dim default and ~105 ms over 100,000 chunks, fully in-process — versus a network round-trip for a hosted vector database. A first index of a 247-file documentation folder takes ~4 s, and a restart that finds nothing changed ~1 s. Model and dimension are the lever on both latency and storage: the static 256-dim default embeds the query in ~0.3 ms, while a larger `fastembed:` tier or an `hf:` model (the loader now runs real models like Qwen3-Embedding and EmbeddingGemma) trades speed and file size for relevance. Index size, query and indexing times, MCP serving, the per-model ladder, the HNSW comparison, and the network-versus-in-process boundary are answered in the [performance workbook](/performance-workbook).
 
 ## Use cases
 
