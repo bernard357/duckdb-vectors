@@ -3,7 +3,17 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
-## Unreleased
+## v261103
+
+Fast repeated searches through the MCP server, and a procedure for a shared
+knowledge base across every Kiro workspace.
+
+### Added
+
+- __Kiro knowledge base procedure.__ `setup-kiro-knowledge-base-procedure.md`
+  shows how to serve one folder to every Kiro IDE and Kiro CLI workspace: a
+  user-level `mcp.json` entry launching `uvx duckdb-vectors mcp --index`, plus
+  a global skill that routes house-practice questions to its tools (#55).
 
 ### Changed
 
