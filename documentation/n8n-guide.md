@@ -106,7 +106,7 @@ env:  DUCKDB_VECTORS_DB_PATH=/data/vectors.duckdb
 ```
 
 Either way the server resolves the index from the `DUCKDB_VECTORS_*`
-environment variables and serves the same two read-only tools, `search` and
+environment variables and serves the same two tools, `search` and
 `report`. See the [Docker Agent guide](docker-agent-guide.md) for the canonical
 MCP wiring reference.
 

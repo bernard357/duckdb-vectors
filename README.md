@@ -46,7 +46,7 @@ Measured on a MacBook Pro M1 (2021): ~27 ms p50 retrieval over a 1,000-chunk ind
 
 - __Chat with your LLM-wiki__ — You have setup an agentic knowledge base that is managed and enhanced incrementally. It consists of a growing set of Markdown pages, that deserves careful chunking and embedding for response relevance. You want a simple complementary toolchain for chatting with your Wiki. [Leverage an LLM-managed wiki into an agent](https://bernard357.github.io/duckdb-vectors/setup-llm-wiki-to-rag-procedure).
 
-- __Plug a knowledge base into your editor__ — You work in an MCP-capable editor such as Kilo Code and want the assistant to search your own documents as you go, without sending anything to a cloud retrieval service. `duckdb-vectors mcp` is a local MCP server over stdio, so the editor spawns it and gains a read-only `search` tool over your indexed folder. [Wire a knowledge base into Kilo Code](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure).
+- __Plug a knowledge base into your editor__ — You work in an MCP-capable editor such as Kilo Code or Kiro and want the assistant to search your own documents as you go, without sending anything to a cloud retrieval service. `duckdb-vectors mcp` is a local MCP server over stdio, so the editor spawns it and gains `search` and `report` tools over your indexed folder. In Kiro, one user-level entry plus a global skill share the same knowledge base across every Kiro IDE and Kiro CLI workspace. [Wire a knowledge base into Kilo Code](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure) or [share one across Kiro](https://bernard357.github.io/duckdb-vectors/setup-kiro-knowledge-base-procedure).
 
 ## Quick start
 
@@ -66,7 +66,7 @@ $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio serv
 $ duckdb-vectors --version                # print the tag-derived package version
 ```
 
-The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its `search` tool. With `--index <folder>` the server indexes the folder on startup, so launched via `uvx` it needs no manual install and no separate indexing step — `uvx duckdb-vectors mcp --index ./docs --db vectors.duckdb`. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide) and the [Kilo Code procedure](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure) for complete integrations.
+The `mcp` verb turns the package into a Model Context Protocol tool: any MCP client (Docker Agent, Claude Desktop, Claude Code, Cursor) can spawn `duckdb-vectors mcp` and call its `search` tool. With `--index <folder>` the server indexes the folder on startup, so launched via `uvx` it needs no manual install and no separate indexing step — `uvx duckdb-vectors mcp --index ./docs --db vectors.duckdb`. See the [Docker Agent guide](https://bernard357.github.io/duckdb-vectors/docker-agent-guide), the [Kilo Code procedure](https://bernard357.github.io/duckdb-vectors/setup-kilo-code-knowledge-base-procedure), and the [Kiro procedure](https://bernard357.github.io/duckdb-vectors/setup-kiro-knowledge-base-procedure) for complete integrations.
 
 You can also index content dynamically from the harnessing code. This is required if the agent gets new skills dynamically for example.
 
@@ -81,7 +81,7 @@ for hit in store.query("how does an embedded database work?", top_k=3):
     print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
 ```
 
-Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, add a semantic skills registry, or wire a knowledge base into Kilo Code, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
+Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, add a semantic skills registry, wire a knowledge base into Kilo Code, or share one across every Kiro workspace, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
 
 ## Customization
 

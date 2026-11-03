@@ -3,6 +3,16 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
+## Unreleased
+
+### Changed
+
+- __Documentation.__ README and the docs home page now list the Kiro knowledge
+  base next to Kilo Code and link its procedure, and "read-only tool" wording
+  is gone from those pages, the user guide, the six harness guides, and the
+  Kilo procedure: the tools never change the indexed documents, but opening the
+  index can create the database file (#58).
+
 ## v261103
 
 Fast repeated searches through the MCP server, and a procedure for a shared

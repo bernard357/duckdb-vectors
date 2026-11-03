@@ -1,6 +1,6 @@
 # Give Kilo Code a local knowledge base
 
-Wire your own folder of documents into [Kilo Code](https://kilo.ai) — the agentic extension for VS Code — so the assistant can search it while you work, without sending anything to a cloud retrieval service. Kilo Code is an MCP client; `duckdb-vectors mcp` is an MCP server over stdio. Point one at the other and the assistant gains a read-only `search` tool over your indexed documents.
+Wire your own folder of documents into [Kilo Code](https://kilo.ai) — the agentic extension for VS Code — so the assistant can search it while you work, without sending anything to a cloud retrieval service. Kilo Code is an MCP client; `duckdb-vectors mcp` is an MCP server over stdio. Point one at the other and the assistant gains `search` and `report` tools over your indexed documents.
 
 This is the __plug into an existing editor__ path. The index is a single DuckDB file on your disk, and the MCP server runs as a local subprocess Kilo Code spawns — no network on the query path.
 

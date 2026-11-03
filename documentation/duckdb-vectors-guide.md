@@ -266,7 +266,7 @@ $ duckdb-vectors search "how do retries work?"             # JSON by default
 $ duckdb-vectors search "how do retries work?" --output yaml   # or YAML
 ```
 
-The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its read-only `search` tool. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
+The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its `search` and `report` tools. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
 
 ```shell
 $ duckdb-vectors mcp                     # serve retrieval over stdio

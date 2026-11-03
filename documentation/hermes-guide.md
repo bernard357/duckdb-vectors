@@ -151,7 +151,7 @@ mcp_servers:
 ```
 
 The MCP server resolves the index from the `DUCKDB_VECTORS_*` environment
-variables and serves the same two read-only tools. See the
+variables and serves the same two tools. See the
 [Docker Agent guide](docker-agent-guide.md) for the canonical MCP wiring
 reference.
 
