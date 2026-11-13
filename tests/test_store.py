@@ -1,5 +1,6 @@
 """VectorStore CRUD, read-only guard, vector search, and hybrid fusion."""
 
+import datetime
 import os
 import subprocess
 import sys
@@ -514,4 +515,17 @@ def test_bulk_stamp_matches_previous_per_row_statement(db_path):
         store._con.execute("SELECT chunk_id, stamped_at FROM chunks").fetchall()
     )
     assert stamps["bulk"] == stamps["perrow"]
+    store.close()
+
+
+def test_add_texts_normalizes_date_metadata(db_path):
+    store = _store(db_path)
+    store.add_texts(
+        ids=["a", "b"],
+        texts=["decommissioning run", "unrelated page"],
+        metadatas=[{"started": datetime.date(2026, 5, 30)}, {}],
+    )
+    hits = store.query("decommissioning", top_k=5, filter={"started": "2026-05-30"})
+    assert [hit.chunk.chunk_id for hit in hits] == ["a"]
+    assert hits[0].chunk.metadata["started"] == "2026-05-30"
     store.close()

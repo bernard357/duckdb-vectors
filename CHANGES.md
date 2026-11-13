@@ -12,6 +12,12 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   on a synthetic Markdown folder generated from a fixed seed or on a real one
   with `--folder` (#59).
 
+### Fixed
+- __Markdown pages with a date in their front matter now index.__ `Chunk`
+  normalizes its metadata to its JSON form: dates and datetimes become ISO 8601
+  text, other non-JSON values become their `str()`, and keys become strings.
+  Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
+  run with a `TypeError` (#63).
 ### Changed
 
 - __Performance workbook.__ `documentation/performance-guide.md` becomes

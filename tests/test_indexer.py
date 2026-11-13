@@ -292,3 +292,52 @@ def test_index_folder_leaves_keyword_index_current(tmp_path, monkeypatch):
     assert _marker(store) == "current"
     store.close()
     assert calls[0] == 0
+
+
+DATED = "---\nstarted: 2026-05-30\n---\n# Run\n\nDecommissioning run text.\n"
+
+
+def test_dated_frontmatter_indexes_and_reindex_is_write_free(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "plain.md").write_text(DOC_B)
+    (docs / "run.md").write_text(DATED)
+    store = _store(tmp_path)
+    first = index_folder(store, docs)
+    assert first.written == first.chunks
+    before = _stamps(store)
+    second = index_folder(store, docs)
+    assert second.written == 0
+    assert _stamps(store) == before
+    store.close()
+
+
+def test_edit_of_dated_page_rewrites_only_its_chunks(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "plain.md").write_text(DOC_B)
+    (docs / "run.md").write_text(DATED)
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    before = dict(_stamps(store))
+    (docs / "run.md").write_text(DATED + "\nOne more line.\n")
+    report = index_folder(store, docs)
+    after = dict(_stamps(store))
+    assert report.written >= 1
+    for chunk_id, stamp in before.items():
+        if chunk_id.startswith("plain.md"):
+            assert after[chunk_id] == stamp
+    store.close()
+
+
+def test_dated_page_is_found_by_its_date_text(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "plain.md").write_text(DOC_B)
+    (docs / "run.md").write_text(DATED)
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    hits = store.query("decommissioning run", top_k=5, filter={"started": "2026-05-30"})
+    assert hits
+    assert all(hit.chunk.source.endswith("run.md") for hit in hits)
+    store.close()

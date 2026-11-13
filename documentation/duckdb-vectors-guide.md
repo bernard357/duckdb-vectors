@@ -72,6 +72,12 @@ Refunds are processed within 14 days of the request.
 
 Each key lands in `chunk.metadata`, is returned with every hit, and can be referenced from the ranking SQL (see [How to search](#how-to-search-for-matching-content)). The chunker's own `section_path` is always preserved, so frontmatter keys never overwrite it.
 
+Metadata is stored as JSON, so frontmatter values are normalized on the way in. An unquoted YAML date such as `started: 2026-05-30` is stored as the ISO 8601 text `2026-05-30`, and a datetime as `2026-05-30T10:00:00`. Any other value that JSON cannot hold, such as a set, is stored as its `str()`. Mapping keys become strings. Pages that already use plain strings, numbers, booleans or lists are unchanged. ISO text sorts correctly and works in a filter:
+
+```python
+hits = store.query("decommissioning", filter={"started": "2026-05-30"})
+```
+
 ## How to index content?
 
 Indexing chunks each document, embeds the chunks, and writes them to a DuckDB file. The folder indexer embeds only what changed since the last run.

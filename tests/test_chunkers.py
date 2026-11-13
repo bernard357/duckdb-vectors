@@ -1,5 +1,6 @@
 """MarkdownChunker: header splitting, stable ids, custom chunker, frontmatter."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -294,3 +295,32 @@ def test_markdown_chunker_pools_one_connection_per_run(tmp_path, monkeypatch):
     assert chunker.chunk(SAMPLE, source="direct.md")
     assert len(opened) == 2
     chunker.end_indexing()
+
+
+def test_frontmatter_dates_are_json_serializable_iso_text():
+    text = (
+        "---\n"
+        "started: 2026-05-30\n"
+        "at: 2026-05-30 10:00:00\n"
+        "execution:\n"
+        "  started: 2026-05-31\n"
+        "days: [2026-06-01, 2026-06-02]\n"
+        "---\n# Title\n\nBody text here.\n"
+    )
+    chunks = MarkdownChunker().chunk(text, "doc.md")
+    assert chunks
+    for chunk in chunks:
+        json.dumps(chunk.metadata)
+        assert chunk.metadata["started"] == "2026-05-30"
+        assert chunk.metadata["at"] == "2026-05-30T10:00:00"
+        assert chunk.metadata["execution"] == {"started": "2026-05-31"}
+        assert chunk.metadata["days"] == ["2026-06-01", "2026-06-02"]
+
+
+def test_frontmatter_set_is_json_serializable():
+    text = "---\nflags: !!set {a, b}\n---\n# Title\n\nBody text here.\n"
+    chunks = MarkdownChunker().chunk(text, "doc.md")
+    assert chunks
+    for chunk in chunks:
+        json.dumps(chunk.metadata)
+        assert isinstance(chunk.metadata["flags"], str)
