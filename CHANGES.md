@@ -25,6 +25,11 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __PDF chunks carry the document information of their file.__ A non-empty
+  `title`, `author`, `subject` or `keywords` in the PDF now appears in each
+  chunk's metadata next to `page`, so tags such as `title: $.title` work on
+  PDFs as on Markdown. Existing PDF rows are rewritten once on the next index
+  (embeddings are reused).
 - __Default `top_k` becomes 20__ for the SDK (`query`, was 10), the CLI `search`
   verb and the MCP `search` tool (both were 5), set by `DUCKDB_VECTORS_TOP_K`.
   Callers that relied on the old defaults now get more results; pass `top_k`

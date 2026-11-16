@@ -8,7 +8,10 @@ text is shorter than ``min_chars`` the page is rendered to a bitmap with
 text is split into the same overlapping word windows the markdown chunker uses,
 and one :class:`~duckdb_vectors.models.Chunk` is emitted per window.
 
-Each chunk records its 1-based ``page`` in ``metadata`` and a page-scoped
+Each chunk records its 1-based ``page`` in ``metadata``, together with the
+document-information fields the file declares (``title``, ``author``,
+``subject``, ``keywords``), so tagged retrieval can project them with the same
+``$.title`` paths it uses on Markdown frontmatter. It also gets a page-scoped
 ``chunk_id`` of the form ``{source}#p{page}:{position}`` so re-indexing upserts
 in place even as pages shift. The OCR engine is expensive to build, so it is
 constructed once per indexing run in :meth:`PdfChunker.begin_indexing` and
@@ -36,6 +39,22 @@ _IMPORT_ERROR = (
     "The 'pdf' chunker requires pypdf, pypdfium2, and rapidocr-onnxruntime. "
     "They ship with the base install; reinstall with 'pip install duckdb-vectors'."
 )
+
+
+_DOCUMENT_INFO = ("title", "author", "subject", "keywords")
+
+
+def _document_info(reader: Any) -> dict[str, str]:
+    """Return the non-empty document-information fields of a PDF reader."""
+    info = reader.metadata
+    if info is None:
+        return {}
+    fields = {name: getattr(info, name, None) for name in _DOCUMENT_INFO}
+    return {
+        name: str(value).strip()
+        for name, value in fields.items()
+        if value and str(value).strip()
+    }
 
 
 class PdfChunker(FilesystemChunker):
@@ -131,6 +150,7 @@ class PdfChunker(FilesystemChunker):
 
         source = str(path)
         reader = pypdf.PdfReader(str(path))
+        info = _document_info(reader)
         position = 0
         for index, reader_page in enumerate(reader.pages):
             page = index + 1
@@ -148,6 +168,6 @@ class PdfChunker(FilesystemChunker):
                     source=source,
                     position=position,
                     title=f"Page {page}",
-                    metadata={"page": page, "local_pos": local_pos},
+                    metadata={**info, "page": page, "local_pos": local_pos},
                 )
                 position += 1

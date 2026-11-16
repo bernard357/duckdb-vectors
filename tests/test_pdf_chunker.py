@@ -188,3 +188,39 @@ def test_engine_reused_across_multiple_files(monkeypatch):
 def test_chunk_text_is_not_supported():
     with pytest.raises(NotImplementedError):
         PdfChunker().chunk("text", "doc.pdf")
+
+
+def test_document_information_is_exposed_in_chunk_metadata(tmp_path):
+    writer = PdfWriter()
+    _add_text_page(writer, "Alpha content for the first page")
+    _add_text_page(writer, "Beta content for the second page")
+    writer.add_metadata(
+        {"/Title": "Crossing the chasm", "/Author": "Ada", "/Subject": "  "}
+    )
+    with open(tmp_path / "info.pdf", "wb") as handle:
+        writer.write(handle)
+    chunks = list(PdfChunker().chunk_folder(tmp_path, recursive=False))
+    for chunk in chunks:
+        assert chunk.metadata["title"] == "Crossing the chasm"
+        assert chunk.metadata["author"] == "Ada"
+        assert "subject" not in chunk.metadata  # blank values are dropped
+    assert [c.metadata["page"] for c in chunks] == [1, 2]
+
+
+def test_pdf_without_document_information_keeps_the_page_metadata(tmp_path):
+    _write_born_digital(tmp_path / "plain.pdf", ["Alpha content for the first page"])
+    chunks = list(PdfChunker().chunk_folder(tmp_path, recursive=False))
+    assert set(chunks[0].metadata) == {"page", "local_pos"}
+
+
+def test_pdf_title_is_projected_as_a_tag(tmp_path):
+    from duckdb_vectors.tagging import parse_tag_fields, project_tags
+
+    writer = PdfWriter()
+    _add_text_page(writer, "Alpha content for the first page")
+    writer.add_metadata({"/Title": "Crossing the chasm"})
+    with open(tmp_path / "info.pdf", "wb") as handle:
+        writer.write(handle)
+    chunk = next(PdfChunker().chunk_folder(tmp_path, recursive=False))
+    tags = project_tags(chunk.metadata, parse_tag_fields(["title: $.title"]))
+    assert tags == [("title", "Crossing the chasm")]

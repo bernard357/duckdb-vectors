@@ -15,6 +15,7 @@ import yaml
 from duckdb_vectors.config import Settings
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
+from duckdb_vectors.tag_stats import compute_tag_report
 
 app = typer.Typer(
     help="Embeddable semantic search over a local DuckDB database.",
@@ -131,6 +132,35 @@ def report(
     finally:
         store.close()
     _emit(payload, output)
+
+
+@app.command()
+def tags(
+    db: str | None = typer.Option(None, "--db", help="DuckDB file path."),
+    backend: str | None = typer.Option(
+        None, "--backend", help="Embedding backend spec."
+    ),
+    tag_fields: list[str] | None = _TAG_FIELDS_OPTION,
+    output: OutputFormat = _OUTPUT_OPTION,
+) -> None:
+    """Measure which frontmatter tags help search and which only add noise.
+
+    Reports, for each tag, its coverage, cardinality, entropy, documents per
+    value and embedding separation lift, with an effective or decorative
+    verdict. Tags come from ``--tag-fields`` or ``DUCKDB_VECTORS_TAG_FIELDS``.
+    """
+    try:
+        settings = Settings(db_path=db, backend=backend, tag_fields=tag_fields)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    store = VectorStore(settings=settings)
+    try:
+        result = compute_tag_report(store)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    finally:
+        store.close()
+    _emit(result.model_dump(), output)
 
 
 @app.command()
