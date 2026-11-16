@@ -8,6 +8,7 @@ help:
 	@echo "$$ make prune     - Report dead-code candidates with vulture (advisory)"
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
+	@echo "$$ make bench-tagged - Run the tagged retrieval benchmark (downloads data)"
 	@echo "$$ make clean     - Remove build artifacts and caches"
 	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
@@ -32,9 +33,9 @@ DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 # default Python path for imports
 PYTHONPATH ?= .
 # source locations for static analysis
-PYTHON_PATHS := src/ tests/ examples/ scripts/
+PYTHON_PATHS := src/ tests/ examples/ scripts/ benchmarks/
 # markdown files for static analysis
-MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find documentation -name '*.md')
+MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md benchmarks/tagged_retrieval/README.md $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
@@ -121,6 +122,13 @@ format:
 test:
 	@echo "Running tests..."
 	.venv/bin/pytest -q -m "not model"
+
+# Tagged retrieval benchmark. Pass options through BENCH_ARGS, for example
+# make bench-tagged BENCH_ARGS="--conditions baseline --backend hashing"
+BENCH_ARGS ?= --tag-fields 'repo: $$.repo_name' --tag-fields 'directory: $$.directory' --tag-fields 'extension: $$.extension'
+bench-tagged:
+	@echo "Running the tagged retrieval benchmark..."
+	.venv/bin/python -m benchmarks.tagged_retrieval.run $(BENCH_ARGS)
 
 coverage:
 	@echo "Running tests with coverage..."

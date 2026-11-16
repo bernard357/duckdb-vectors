@@ -41,3 +41,7 @@ documentation/.vitepress/cache/
 
 # Local scratch: temporary scripts and private drafts, never committed
 tmp/
+
+# Tagged retrieval benchmark: downloaded data and raw run output
+benchmarks/tagged_retrieval/.cache/
+benchmarks/tagged_retrieval/results/
