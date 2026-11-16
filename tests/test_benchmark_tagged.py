@@ -303,3 +303,50 @@ def test_render_fills_the_placeholders_and_requires_every_input():
     assert '{"questions"' in text  # the JSON example is left alone
     with pytest.raises(ValueError, match="missing inputs"):
         prompt.render(passage="x")
+
+
+def test_plan_condition_covers_ablation_and_suffix():
+    from benchmarks.tagged_retrieval.run import label_of, plan_condition, reference_of
+
+    fields = ["repo: $.repo_name", "ext: $.extension"]
+    assert label_of(fields[0]) == "repo"
+    plan = plan_condition("without:repo", fields)
+    assert plan.tag_fields == ["ext: $.extension"]
+    assert (plan.embed, plan.bm25) == ("prefix", True)
+    assert plan_condition("tags_suffix", fields).embed == "suffix"
+    assert plan_condition("baseline", fields).tag_fields == []
+    assert reference_of("without:repo") == "tags_both"
+    assert reference_of("tags_suffix") == "tags_embedding"
+    assert reference_of("tags_both") is None
+    with pytest.raises(ValueError, match="no tag labelled"):
+        plan_condition("without:nope", fields)
+    with pytest.raises(ValueError, match="unknown condition"):
+        plan_condition("mystery", fields)
+
+
+def test_ablation_and_suffix_runs_compare_against_their_references(dataset):
+    fields = ["repo: $.repo_name", "ext: $.extension"]
+    conditions = ("baseline", "tags_embedding", "tags_both", "tags_suffix")
+    conditions += ("without:repo", "without:ext")
+    report = run_benchmark(dataset, "hashing", fields, conditions, ks=(3,))
+    suffix = report["conditions"]["tags_suffix"]
+    assert suffix["versus_reference"]["against"] == "tags_embedding"
+    assert suffix["versus_baseline"]["against"] == "baseline"
+    leave_out = report["conditions"]["without:repo"]["versus_reference"]
+    assert leave_out["against"] == "tags_both"
+    assert "mcnemar_p" in leave_out["hybrid"]["3"]
+    assert "versus_reference" not in report["conditions"]["tags_both"]
+
+
+def test_suffix_embeds_the_tags_after_the_chunk(tmp_path, dataset):
+    from benchmarks.tagged_retrieval.run import build_store
+
+    store = build_store(
+        dataset, tmp_path / "s.duckdb", "hashing", "tags_suffix", ["repo: $.repo_name"]
+    )
+    row = store._con.execute(
+        "SELECT embedding FROM chunks WHERE chunk_id = 'u1:0'"
+    ).fetchone()
+    expected = store.embedder.embed(["alpha needle one\n\nrepo: org/repo1"])[0]
+    assert list(row[0]) == pytest.approx(expected)
+    store.close()
