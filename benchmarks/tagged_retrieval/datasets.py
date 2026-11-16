@@ -40,6 +40,8 @@ class Dataset(BaseModel):
     chunks: list[Chunk]
     queries: list[Query]
     sources: dict[str, str]
+    quality: dict[str, int] = {}
+    default_tag_fields: list[str] = []
 
 
 def _chunk_id(document_uuid: str, index: int) -> str:
@@ -104,6 +106,11 @@ def parse_anthropic(
         chunks=chunks,
         queries=queries,
         sources=sources or {},
+        default_tag_fields=[
+            "repo: $.repo_name",
+            "directory: $.directory",
+            "extension: $.extension",
+        ],
     )
 
 
@@ -131,3 +138,179 @@ def load_anthropic(cache: Path) -> Dataset:
             **{f"sha256:{k}": v for k, v in digests.items()},
         },
     )
+
+
+# RAGMATE-10K (Yousuf et al., ECIR 2026): 25 SEC 10-K filings and questions whose
+# ground truth is the chunks cited by a RAG pipeline's answer. The repository
+# states no licence, so the data is used for local benchmarking and the derived
+# set is not republished.
+RAGMATE_COMMIT = "07664f4507c4c72270842157f03285f333a477fa"
+_RAGMATE = (
+    f"https://raw.githubusercontent.com/raquibvt/RAGMate/{RAGMATE_COMMIT}/dataset/"
+)
+RAGMATE_TICKERS = ("AAPL", "ADBE", "GOOGL", "NVDA", "ORCL")
+RAGMATE_YEARS = (2020, 2021, 2022, 2023, 2024)
+RAGMATE_CHUNK_TOKENS = 350
+RAGMATE_OVERLAP_TOKENS = 50
+_RAGMATE_FIELDS = {
+    "company_name": "company_name",
+    "form_type": "form_type",
+    "period_of_report": "period_of_report",
+    "filed_date": "filed_date",
+    "standard_industrial_classification": "industry",
+}
+
+
+def _ragmate_chunks(forms: dict[str, list[dict]]) -> list[Chunk]:
+    """Re-chunk the filings exactly as the dataset's own script does.
+
+    Sections are split into windows of 350 ``cl100k_base`` tokens with an
+    overlap of 50, and each chunk is named ``{file}_sec_{sha1(section)[:8]}_
+    chunk_{n}``, which is how the ground truth cites them.
+    """
+    try:
+        import tiktoken
+    except ImportError as error:  # pragma: no cover - optional dependency
+        raise ImportError(
+            "The RAGMATE loader needs tiktoken: "
+            "pip install 'duckdb-vectors[benchmarks]'"
+        ) from error
+    encoder = tiktoken.get_encoding("cl100k_base")
+    step = RAGMATE_CHUNK_TOKENS - RAGMATE_OVERLAP_TOKENS
+    chunks: list[Chunk] = []
+    for filename, sections in forms.items():
+        ticker, year = filename.split("_")[:2]
+        for section in sections:
+            meta = section.get("metadata", {})
+            document = meta.get("metadata", {})
+            title = meta.get("section", "no_section")
+            digest = hashlib.sha1(title.encode("utf-8")).hexdigest()[:8]
+            tags: dict = {
+                label: document[key]
+                for key, label in _RAGMATE_FIELDS.items()
+                if document.get(key) not in (None, "", [])
+            }
+            tags.update(
+                ticker=ticker,
+                fiscal_year=str(document.get("period_of_report", year))[:4],
+                section=title,
+            )
+            tokens = encoder.encode(section["text"])
+            for number, start in enumerate(range(0, len(tokens), step)):
+                piece = encoder.decode(tokens[start : start + RAGMATE_CHUNK_TOKENS])
+                pieces = encoder.encode(piece)
+                if len(pieces) > 512:
+                    piece = encoder.decode(pieces[:512])
+                chunks.append(
+                    Chunk(
+                        chunk_id=f"{filename}_sec_{digest}_chunk_{number}",
+                        text=piece,
+                        source=filename,
+                        position=number,
+                        title=title,
+                        metadata=tags,
+                    )
+                )
+    return chunks
+
+
+def _repair_citation(cited: str) -> str:
+    """Strip the ``chunk_id:`` label some citations carry."""
+    return cited.split(":", 1)[1].strip() if cited.startswith("chunk_id:") else cited
+
+
+def parse_ragmate(
+    forms: dict[str, list[dict]],
+    ground_truth: list[dict],
+    sources: dict[str, str] | None = None,
+) -> Dataset:
+    """Build the dataset and its quality report from the dataset's files.
+
+    A question keeps the cited chunk ids that exist in the re-chunked corpus,
+    after repairing a ``chunk_id:`` label; questions left with none are dropped.
+    The quality report counts what was repaired or dropped and checks the cited
+    chunk texts shipped with the ground truth against the re-chunked text.
+    """
+    chunks = _ragmate_chunks(forms)
+    known = {chunk.chunk_id: chunk.text for chunk in chunks}
+    quality = {
+        "questions": len(ground_truth),
+        "cited": 0,
+        "cited_repaired": 0,
+        "cited_dropped": 0,
+        "texts_checked": 0,
+        "texts_identical": 0,
+    }
+    queries = []
+    for row in ground_truth:
+        golden = []
+        for cited in row["cited_chunk_ids"]:
+            quality["cited"] += 1
+            fixed = _repair_citation(cited)
+            quality["cited_repaired"] += fixed != cited
+            if fixed in known:
+                golden.append(fixed)
+            else:
+                quality["cited_dropped"] += 1
+        for item in row["cited_chunks"]:
+            if item["id"] in known:
+                quality["texts_checked"] += 1
+                quality["texts_identical"] += item["text"] == known[item["id"]]
+        if golden:
+            queries.append(
+                Query(text=row["question"], golden=list(dict.fromkeys(golden)))
+            )
+    quality["questions_used"] = len(queries)
+    return Dataset(
+        name="ragmate-10k",
+        chunks=chunks,
+        queries=queries,
+        sources=sources or {},
+        quality=quality,
+        default_tag_fields=[
+            "company: $.company_name",
+            "year: $.fiscal_year",
+            "section: $.section",
+        ],
+    )
+
+
+def load_ragmate(cache: Path) -> Dataset:
+    """Download (once) and parse RAGMATE-10K."""
+    names = [
+        f"{ticker}_{year}_10-K_chunks.json"
+        for ticker in RAGMATE_TICKERS
+        for year in RAGMATE_YEARS
+    ]
+    paths = {}
+    for name in names:
+        target = cache / "ragmate" / name
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(
+                _RAGMATE + "10K_forms/" + name, timeout=60
+            ) as r:
+                target.write_bytes(r.read())
+        paths[name] = target
+    truth = cache / "ragmate" / "ground_truth.json"
+    if not truth.exists():
+        with urllib.request.urlopen(_RAGMATE + "ground_truth.json", timeout=120) as r:
+            truth.write_bytes(r.read())
+    digests = {
+        name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for name, path in {**paths, "ground_truth.json": truth}.items()
+    }
+    forms = {name: json.loads(path.read_text("utf-8")) for name, path in paths.items()}
+    return parse_ragmate(
+        forms,
+        json.loads(truth.read_text("utf-8")),
+        sources={
+            "commit": RAGMATE_COMMIT,
+            "sha256": hashlib.sha256(
+                "".join(sorted(digests.values())).encode()
+            ).hexdigest(),
+        },
+    )
+
+
+LOADERS = {"anthropic": load_anthropic, "ragmate": load_ragmate}

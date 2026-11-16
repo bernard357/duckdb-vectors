@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from benchmarks.tagged_retrieval import metrics
-from benchmarks.tagged_retrieval.datasets import Dataset, load_anthropic
+from benchmarks.tagged_retrieval.datasets import LOADERS, Dataset
 from duckdb_vectors.config import Settings
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.store import VectorStore
@@ -174,6 +174,7 @@ def run_benchmark(
             "chunks": len(dataset.chunks),
             "queries": len(dataset.queries),
             "sources": dataset.sources,
+            "quality": dataset.quality,
         },
         "backend": backend,
         "tag_fields": tag_fields,
@@ -199,6 +200,7 @@ def summarize(report: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--dataset", choices=sorted(LOADERS), default="anthropic")
     parser.add_argument("--backend", default=DEFAULT_BACKEND)
     parser.add_argument("--tag-fields", action="append", default=[])
     parser.add_argument("--conditions", nargs="+", default=list(CONDITIONS))
@@ -206,19 +208,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit-queries", type=int, default=None)
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args(argv)
-    dataset = load_anthropic(_CACHE)
+    dataset = LOADERS[args.dataset](_CACHE)
+    tag_fields = args.tag_fields or dataset.default_tag_fields
     if args.limit_queries:
         dataset.queries = dataset.queries[: args.limit_queries]
     report = run_benchmark(
         dataset,
         args.backend,
-        args.tag_fields,
+        tag_fields,
         tuple(args.conditions),
         tuple(args.top_k),
     )
     _RESULTS.mkdir(exist_ok=True)
     name = args.backend.replace(":", "_").replace("/", "_")
-    output = args.output or _RESULTS / f"{report['git']['sha'][:8]}-{name}.json"
+    stem = f"{report['git']['sha'][:8]}-{dataset.name}-{name}"
+    output = args.output or _RESULTS / f"{stem}.json"
     output.write_text(json.dumps(report, indent=1))
     print(summarize(report))
     print(f"\nwrote {output}")

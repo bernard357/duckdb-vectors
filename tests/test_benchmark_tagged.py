@@ -145,3 +145,58 @@ def test_run_benchmark_reports_every_condition_and_comparison(dataset):
     assert {"pass_difference", "ci95", "mcnemar_p"} <= set(compared)
     assert report["dataset"]["sources"] == {"commit": "test"}
     assert "tags_bm25" in summarize(report)
+
+
+@pytest.fixture
+def cl100k():
+    tiktoken = pytest.importorskip("tiktoken")
+    try:
+        return tiktoken.get_encoding("cl100k_base")
+    except Exception:  # no network and no cached encoding
+        pytest.skip("cl100k_base encoding is not available offline")
+
+
+def _filing(words: int) -> list[dict]:
+    text = " ".join(f"word{i}" for i in range(words))
+    meta = {
+        "company_name": "ACME CORP",
+        "form_type": "10-K",
+        "period_of_report": "2024-09-28",
+    }
+    return [{"text": text, "metadata": {"metadata": meta, "section": "Item 1"}}]
+
+
+def test_ragmate_rechunks_like_the_dataset_and_reports_quality(cl100k):
+    from benchmarks.tagged_retrieval.datasets import parse_ragmate
+
+    forms = {"ACME_2024_10-K_chunks.json": _filing(400)}
+    dataset = parse_ragmate(forms, [], {})
+    chunk_ids = [chunk.chunk_id for chunk in dataset.chunks]
+    assert len(chunk_ids) >= 2
+    assert all("_sec_" in chunk_id for chunk_id in chunk_ids)
+    first = dataset.chunks[0]
+    assert first.metadata["company_name"] == "ACME CORP"
+    assert first.metadata["fiscal_year"] == "2024"
+    assert first.metadata["ticker"] == "ACME"
+    assert first.metadata["section"] == "Item 1"
+
+    truth = [
+        {
+            "question": "q1",
+            "cited_chunk_ids": [chunk_ids[0], "chunk_id: " + chunk_ids[1], "nope"],
+            "cited_chunks": [{"id": chunk_ids[0], "text": first.text}],
+        },
+        {"question": "q2", "cited_chunk_ids": ["chunk_id"], "cited_chunks": []},
+    ]
+    dataset = parse_ragmate(forms, truth, {})
+    assert [q.golden for q in dataset.queries] == [chunk_ids[:2]]
+    assert dataset.quality == {
+        "questions": 2,
+        "cited": 4,
+        "cited_repaired": 1,
+        "cited_dropped": 2,
+        "texts_checked": 1,
+        "texts_identical": 1,
+        "questions_used": 1,
+    }
+    assert dataset.default_tag_fields[0] == "company: $.company_name"

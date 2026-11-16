@@ -37,8 +37,24 @@ interval and an exact McNemar test on "every golden chunk found".
 | Dataset | Status |
 | --- | --- |
 | Anthropic cookbook codebases (90 files, 737 chunks, 248 queries) | loader and runner done; uses the published chunks as they are, so results compare with the cookbook |
-| RAGMATE-10K, MultiHop-RAG | not yet |
+| RAGMATE-10K (25 SEC 10-K filings, 4,490 chunks, 117 usable questions) | loader and runner done (`--dataset ragmate`, needs `pip install 'duckdb-vectors[benchmarks]'`); filings are re-chunked with the dataset's own recipe |
+| MultiHop-RAG | not yet |
 | `engineering-brain/documentation` (private) | not yet |
+
+Tags default to a preset per dataset (`repo`, `directory` and `extension` for the
+cookbook set; `company`, `year` and `section` for RAGMATE-10K), and
+`--tag-fields` replaces it.
+
+### RAGMATE-10K data quality
+
+The ground truth is the set of chunks cited by a RAG pipeline's generated
+answer, not a human judgement, and only four company-years carry questions. Each
+run prints a quality report in its JSON file: of 326 cited chunk ids, 3 carried a
+stray `chunk_id:` label and were repaired, 4 were malformed and dropped, and 3 of
+the 120 questions were left with no usable chunk. All 319 cited chunk texts shipped
+with the ground truth are identical to the re-chunked text. The repository states
+no licence, so the data is used for local benchmarking and no derived set is
+published.
 
 ## Sanity check of the baseline
 

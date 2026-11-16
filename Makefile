@@ -124,8 +124,8 @@ test:
 	.venv/bin/pytest -q -m "not model"
 
 # Tagged retrieval benchmark. Pass options through BENCH_ARGS, for example
-# make bench-tagged BENCH_ARGS="--conditions baseline --backend hashing"
-BENCH_ARGS ?= --tag-fields 'repo: $$.repo_name' --tag-fields 'directory: $$.directory' --tag-fields 'extension: $$.extension'
+# make bench-tagged BENCH_ARGS="--dataset ragmate --conditions baseline"
+BENCH_ARGS ?=
 bench-tagged:
 	@echo "Running the tagged retrieval benchmark..."
 	.venv/bin/python -m benchmarks.tagged_retrieval.run $(BENCH_ARGS)
