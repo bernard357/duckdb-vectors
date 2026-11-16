@@ -93,7 +93,11 @@ def evaluate(
             hits = store.query(query.text, top_k=k, hybrid=hybrid)
             timings.append((time.perf_counter() - started) * 1000)
             retrieved = [hit.chunk.chunk_id for hit in hits]
-            score = metrics.score_query(retrieved, query.golden)
+            score = (
+                metrics.score_alternatives(retrieved, query.alternatives)
+                if query.alternatives
+                else metrics.score_query(retrieved, query.golden)
+            )
             scores.append(score)
             passes.append(score == 1.0)
             reciprocal.append(metrics.reciprocal_rank(retrieved, query.golden))

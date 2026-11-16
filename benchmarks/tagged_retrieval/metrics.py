@@ -19,6 +19,17 @@ def score_query(retrieved: Sequence[str], golden: Sequence[str]) -> float:
     return found / len(set(golden))
 
 
+def score_alternatives(
+    retrieved: Sequence[str], alternatives: Sequence[Sequence[str]]
+) -> float:
+    """Share of evidence items found, where each item lists the chunks that
+    each satisfy it (a fact quoted in two overlapping chunks, for example)."""
+    if not alternatives or any(not group for group in alternatives):
+        raise ValueError("every evidence item needs at least one chunk")
+    found = sum(1 for group in alternatives if set(group) & set(retrieved))
+    return found / len(alternatives)
+
+
 def reciprocal_rank(retrieved: Sequence[str], golden: Sequence[str]) -> float:
     """``1 / rank`` of the first golden chunk in ``retrieved``, 0 if absent."""
     wanted = set(golden)

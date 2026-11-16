@@ -9,11 +9,13 @@ file, in ``golden_documents[].meta``, and are joined back on the document uuid.
 
 import hashlib
 import json
+import re
 import urllib.request
 from pathlib import Path, PurePosixPath
 
 from pydantic import BaseModel
 
+from duckdb_vectors.chunkers.windowing import split_windows
 from duckdb_vectors.models import Chunk
 
 # Pinned so a run names the exact data it used (claude-cookbooks, MIT licence).
@@ -31,6 +33,7 @@ class Query(BaseModel):
 
     text: str
     golden: list[str]
+    alternatives: list[list[str]] = []
 
 
 class Dataset(BaseModel):
@@ -313,4 +316,123 @@ def load_ragmate(cache: Path) -> Dataset:
     )
 
 
-LOADERS = {"anthropic": load_anthropic, "ragmate": load_ragmate}
+# MultiHop-RAG (Tang and Yang, 2024): news articles and multi-hop questions whose
+# evidence is a quoted fact in two to four articles. Licensed ODC-BY.
+_MULTIHOP = "https://huggingface.co/datasets/yixuantt/MultiHopRAG/resolve/main/"
+MULTIHOP_TARGET_WORDS = 300
+MULTIHOP_OVERLAP_WORDS = 40
+_SPACES = re.compile(r"\s+")
+
+
+def _squash(text: str) -> str:
+    return _SPACES.sub(" ", text).strip()
+
+
+def parse_multihop(
+    corpus: list[dict], questions: list[dict], sources: dict[str, str] | None = None
+) -> Dataset:
+    """Chunk the articles and map each quoted fact to the chunks that hold it.
+
+    Articles are cut into the package's own overlapping word windows. A fact
+    counts as found in every chunk that contains it, and a query is satisfied
+    for that fact by any one of them. Facts that no chunk contains are dropped,
+    and queries left without evidence, and queries that have none at all
+    (``null_query``), are not used. The quality report counts each case.
+    """
+    chunks: list[Chunk] = []
+    by_url: dict[str, list[tuple[str, str]]] = {}
+    for article in corpus:
+        tags = {
+            key: article[key]
+            for key in ("title", "author", "source", "category", "published_at")
+            if article.get(key) not in (None, "", "None")
+        }
+        windows = split_windows(
+            article["body"], MULTIHOP_TARGET_WORDS, MULTIHOP_OVERLAP_WORDS
+        )
+        by_url[article["url"]] = []
+        for number, window in enumerate(windows):
+            chunk_id = f"{article['url']}#{number}"
+            by_url[article["url"]].append((chunk_id, _squash(window)))
+            chunks.append(
+                Chunk(
+                    chunk_id=chunk_id,
+                    text=window,
+                    source=article["url"],
+                    position=number,
+                    title=article["title"],
+                    metadata=tags,
+                )
+            )
+    quality = {
+        "questions": len(questions),
+        "null_queries": 0,
+        "evidence": 0,
+        "evidence_dropped": 0,
+        "evidence_in_several_chunks": 0,
+    }
+    queries = []
+    for row in questions:
+        if row["question_type"] == "null_query" or not row["evidence_list"]:
+            quality["null_queries"] += 1
+            continue
+        alternatives = []
+        for evidence in row["evidence_list"]:
+            quality["evidence"] += 1
+            fact = _squash(evidence["fact"])
+            holders = [
+                chunk_id
+                for chunk_id, text in by_url.get(evidence["url"], [])
+                if fact in text
+            ]
+            if not holders:
+                quality["evidence_dropped"] += 1
+                continue
+            quality["evidence_in_several_chunks"] += len(holders) > 1
+            alternatives.append(holders)
+        if alternatives:
+            golden = list(dict.fromkeys(c for group in alternatives for c in group))
+            queries.append(
+                Query(text=row["query"], golden=golden, alternatives=alternatives)
+            )
+    quality["questions_used"] = len(queries)
+    return Dataset(
+        name="multihop-rag",
+        chunks=chunks,
+        queries=queries,
+        sources=sources or {},
+        quality=quality,
+        default_tag_fields=[
+            "title: $.title",
+            "source: $.source",
+            "category: $.category",
+            "published: $.published_at",
+        ],
+    )
+
+
+def load_multihop(cache: Path) -> Dataset:
+    """Download (once) and parse MultiHop-RAG."""
+    paths = {}
+    for name in ("corpus.json", "MultiHopRAG.json"):
+        target = cache / "multihop" / name
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(_MULTIHOP + name, timeout=120) as response:
+                target.write_bytes(response.read())
+        paths[name] = target
+    return parse_multihop(
+        json.loads(paths["corpus.json"].read_text("utf-8")),
+        json.loads(paths["MultiHopRAG.json"].read_text("utf-8")),
+        sources={
+            f"sha256:{name}": hashlib.sha256(path.read_bytes()).hexdigest()
+            for name, path in paths.items()
+        },
+    )
+
+
+LOADERS = {
+    "anthropic": load_anthropic,
+    "ragmate": load_ragmate,
+    "multihop": load_multihop,
+}

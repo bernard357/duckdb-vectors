@@ -200,3 +200,68 @@ def test_ragmate_rechunks_like_the_dataset_and_reports_quality(cl100k):
         "questions_used": 1,
     }
     assert dataset.default_tag_fields[0] == "company: $.company_name"
+
+
+def test_score_alternatives_counts_evidence_items_not_chunks():
+    groups = [["a", "b"], ["c"]]
+    assert metrics.score_alternatives(["b", "x"], groups) == 0.5
+    assert metrics.score_alternatives(["a", "b", "c"], groups) == 1.0
+    assert metrics.score_alternatives([], groups) == 0.0
+    with pytest.raises(ValueError):
+        metrics.score_alternatives(["a"], [["a"], []])
+
+
+def _article(url, title, words):
+    return {
+        "title": title,
+        "author": "None",
+        "source": "Wire",
+        "published_at": "2023-11-27T08:45:59+00:00",
+        "category": "business",
+        "url": url,
+        "body": " ".join(words),
+    }
+
+
+def test_multihop_maps_facts_to_every_chunk_that_holds_them():
+    from benchmarks.tagged_retrieval.datasets import parse_multihop
+
+    words = [f"w{i}" for i in range(700)]
+    corpus = [_article("u1", "One", words), _article("u2", "Two", ["short", "text"])]
+    in_overlap = " ".join(words[270:290])  # in windows 0 and 1 (overlap 40)
+    questions = [
+        {
+            "query": "q1",
+            "question_type": "inference_query",
+            "evidence_list": [
+                {"url": "u1", "fact": in_overlap},
+                {"url": "u2", "fact": "short  text"},
+                {"url": "u2", "fact": "absent fact"},
+            ],
+        },
+        {"query": "q2", "question_type": "null_query", "evidence_list": []},
+        {
+            "query": "q3",
+            "question_type": "temporal_query",
+            "evidence_list": [{"url": "u1", "fact": "not there"}],
+        },
+    ]
+    dataset = parse_multihop(corpus, questions)
+    query = dataset.queries[0]
+    assert len(dataset.queries) == 1
+    assert query.alternatives == [["u1#0", "u1#1"], ["u2#0"]]
+    assert query.golden == ["u1#0", "u1#1", "u2#0"]
+    assert dataset.chunks[0].metadata == {
+        "title": "One",
+        "source": "Wire",
+        "category": "business",
+        "published_at": "2023-11-27T08:45:59+00:00",
+    }
+    assert dataset.quality == {
+        "questions": 3,
+        "null_queries": 1,
+        "evidence": 4,
+        "evidence_dropped": 2,
+        "evidence_in_several_chunks": 1,
+        "questions_used": 1,
+    }
