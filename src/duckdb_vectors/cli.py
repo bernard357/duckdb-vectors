@@ -12,6 +12,7 @@ from enum import StrEnum
 import typer
 import yaml
 
+from duckdb_vectors.config import Settings
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
 
@@ -31,6 +32,16 @@ class OutputFormat(StrEnum):
 
 _OUTPUT_OPTION = typer.Option(
     OutputFormat.json, "--output", help="Structured output format: json or yaml."
+)
+
+
+_TAG_FIELDS_OPTION = typer.Option(
+    None,
+    "--tag-fields",
+    help=(
+        "Tag to embed with each chunk, as 'label: $.path' read from the "
+        "frontmatter. Repeat for several tags."
+    ),
 )
 
 
@@ -83,10 +94,12 @@ def index(
     recursive: bool = typer.Option(
         False, "--recursive", help="Recurse into sub-folders."
     ),
+    tag_fields: list[str] | None = _TAG_FIELDS_OPTION,
     output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Index a folder of markdown into the database."""
-    store = VectorStore(db_path=db, backend=backend)
+    settings = Settings(db_path=db, backend=backend, tag_fields=tag_fields)
+    store = VectorStore(settings=settings)
     try:
         report = index_folder(store, folder, recursive=recursive)
     finally:
@@ -112,6 +125,7 @@ def report(
             "backend": store.settings.backend,
             "dimensions": store.dimensions,
             "chunks": len(chunks),
+            "tag_fields": store.settings.tag_fields,
             "sources": sources,
         }
     finally:
@@ -159,7 +173,9 @@ def search(
     backend: str | None = typer.Option(
         None, "--backend", help="Embedding backend spec."
     ),
-    top_k: int = typer.Option(5, "--top-k", help="Number of results."),
+    top_k: int | None = typer.Option(
+        None, "--top-k", help="Number of results (default 20)."
+    ),
     output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Hybrid search the index."""

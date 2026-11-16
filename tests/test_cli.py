@@ -80,3 +80,35 @@ def test_version_flag_fallback_when_metadata_missing(monkeypatch):
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0, result.output
     assert "0.0.0+unknown" in result.output
+
+
+def test_search_defaults_to_twenty_results_and_top_k_overrides(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    for i in range(25):
+        (docs / f"page{i}.md").write_text(f"# Page {i}\n\nshared words number{i}\n")
+    db = str(tmp_path / "idx.duckdb")
+    runner.invoke(app, ["index", str(docs), "--db", db, "--backend", "hashing"])
+    args = ["search", "shared words", "--db", db, "--backend", "hashing"]
+    assert len(json.loads(runner.invoke(app, args).output)) == 20
+    limited = runner.invoke(app, [*args, "--top-k", "3"])
+    assert len(json.loads(limited.output)) == 3
+
+
+def test_index_with_tag_fields_shows_the_projection_in_the_report(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text("---\nproduct: Atlas\n---\n# A\n\nbody text\n")
+    db = str(tmp_path / "idx.duckdb")
+    base = ["--db", db, "--backend", "hashing"]
+    indexed = runner.invoke(
+        app, ["index", str(docs), *base, "--tag-fields", "product: $.product"]
+    )
+    assert indexed.exit_code == 0, indexed.output
+    plain = json.loads(runner.invoke(app, ["report", *base]).output)
+    assert plain["tag_fields"] == []
+    env = {"DUCKDB_VECTORS_TAG_FIELDS": "product: $.product"}
+    tagged = runner.invoke(app, ["report", *base], env=env)
+    assert json.loads(tagged.output)["tag_fields"] == ["product: $.product"]
+    bad = runner.invoke(app, ["index", str(docs), *base, "--tag-fields", "nonsense"])
+    assert bad.exit_code != 0

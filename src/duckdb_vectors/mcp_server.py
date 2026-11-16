@@ -129,7 +129,7 @@ def build_server(
     )
 
     @server.tool()
-    def search(query: str, top_k: int = 5) -> list[dict]:
+    def search(query: str, top_k: int = resolved.top_k) -> list[dict]:
         """Search the knowledge base for passages relevant to a query.
 
         Runs hybrid retrieval over a local document index — semantic (vector)
@@ -145,7 +145,7 @@ def build_server(
                 (via keyword search) are used, so plain questions and exact
                 identifiers both work.
             top_k: The maximum number of chunks to return, best first
-                (default 5).
+                (default 20, the server's ``top_k`` setting).
 
         Returns a JSON array of the top-ranked chunks, best first. Each element
         is an object with these fields:

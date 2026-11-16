@@ -254,3 +254,10 @@ def test_store_is_released_between_calls(indexed_db):
         timeout=60,
     )
     assert opened.returncode == 0, opened.stderr
+
+
+def test_search_schema_advertises_the_top_k_default_of_20(indexed_db):
+    server = _server(indexed_db)
+    tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
+    schema = tools["search"].input_schema
+    assert schema["properties"]["top_k"]["default"] == 20

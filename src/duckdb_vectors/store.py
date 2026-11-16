@@ -24,6 +24,7 @@ from duckdb_vectors.embedders.base import Embedder
 from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.models import Chunk, SearchResult
+from duckdb_vectors.tagging import parse_tag_fields, project_many, tagged_text
 
 RRF_K = 60
 
@@ -262,19 +263,36 @@ class VectorStore:
         """
         if not chunks:
             return
-        vectors = self.embedder.embed([chunk.text for chunk in chunks])
+        texts = self.embedded_texts(chunks)
+        vectors = self.embedder.embed(texts)
         rows = [
             (
                 chunk,
                 chunk.etag
-                or compute_etag(
-                    chunk.text, self.embedder.model_identifier, self._dimensions
-                ),
+                or compute_etag(text, self.embedder.model_identifier, self._dimensions),
                 vector,
             )
-            for chunk, vector in zip(chunks, vectors, strict=True)
+            for chunk, text, vector in zip(chunks, texts, vectors, strict=True)
         ]
         self._write_rows(rows, datetime.datetime.now(datetime.UTC))
+
+    def embedded_texts(self, chunks: list[Chunk]) -> list[str]:
+        """Return the text to embed for each chunk, in order.
+
+        With no ``settings.tag_fields`` this is the raw chunk text. Otherwise
+        each chunk's tags, projected out of its metadata, are put in front of
+        its text (see :mod:`duckdb_vectors.tagging`). The stored text and the
+        text returned by a search stay raw; only the embedding and the etag
+        see the prefix.
+        """
+        fields = parse_tag_fields(self.settings.tag_fields)
+        if not fields:
+            return [chunk.text for chunk in chunks]
+        tags = project_many([chunk.metadata for chunk in chunks], fields)
+        return [
+            tagged_text(chunk.text, chunk_tags)
+            for chunk, chunk_tags in zip(chunks, tags, strict=True)
+        ]
 
     def _write_rows(
         self,
@@ -501,7 +519,7 @@ class VectorStore:
     def query_vectors(
         self,
         embedding: list[float],
-        top_k: int = 10,
+        top_k: int | None = None,
         filter: dict | None = None,
         vector_sql: str | None = None,
     ) -> list[SearchResult]:
@@ -511,6 +529,7 @@ class VectorStore:
         per-call > ``Settings`` > built-in default). A custom SELECT owns its
         own WHERE and supersedes the ``filter`` dict.
         """
+        top_k = self.settings.top_k if top_k is None else top_k
         ranking = self._vector_ranking(embedding, top_k, filter, vector_sql)
         results = []
         for rank, chunk_id in enumerate(ranking, start=1):
@@ -527,7 +546,7 @@ class VectorStore:
     def query(
         self,
         text: str,
-        top_k: int = 10,
+        top_k: int | None = None,
         filter: dict | None = None,
         hybrid: bool = True,
         vector_sql: str | None = None,
@@ -536,7 +555,8 @@ class VectorStore:
         """Hybrid search from a query string (embeds internally).
 
         Fuses the vector ranking and the BM25 ranking with Reciprocal Rank
-        Fusion. Set ``hybrid=False`` for vector-only search.
+        Fusion. Set ``hybrid=False`` for vector-only search. ``top_k`` defaults to
+        ``settings.top_k`` (20).
 
         ``vector_sql`` / ``text_sql`` override each ranking SELECT for this
         call (precedence: per-call > ``Settings`` > built-in default). A custom
@@ -545,6 +565,7 @@ class VectorStore:
         ``$q`` and use the tokens ``{table}``, ``{distance}``, ``{bm25}``,
         ``{top_k}``.
         """
+        top_k = self.settings.top_k if top_k is None else top_k
         embedding = self.embedder.embed([text])[0]
         fetch = max(top_k * 4, top_k)
         vector_ranking = self._vector_ranking(embedding, fetch, filter, vector_sql)

@@ -71,11 +71,21 @@ def index_folder(
     chunker.begin_indexing()
     try:
         for chunk in chunker.chunk_folder(folder, recursive=recursive):
-            chunk.etag = compute_etag(chunk.text, model_id, dimension)
             sources.add(chunk.source)
             prepared.append(chunk)
     finally:
         chunker.end_indexing()
+    # The etag fingerprints the text that is embedded: the raw text, or the
+    # raw text behind its tags when tagging is on.
+    embedded = dict(
+        zip(
+            (chunk.chunk_id for chunk in prepared),
+            store.embedded_texts(prepared),
+            strict=True,
+        )
+    )
+    for chunk in prepared:
+        chunk.etag = compute_etag(embedded[chunk.chunk_id], model_id, dimension)
 
     files_seen = getattr(chunker, "_files_seen", len(sources))
     report = IndexReport(files=files_seen, chunks=len(prepared))
@@ -101,7 +111,9 @@ def index_folder(
         # Embedding needs no database: release the lock while it runs so other
         # sessions can query; the store reconnects lazily for the writes.
         store.close()
-        vectors = store.embedder.embed([chunk.text for chunk in unique_missing])
+        vectors = store.embedder.embed(
+            [embedded[chunk.chunk_id] for chunk in unique_missing]
+        )
         for chunk, vector in zip(unique_missing, vectors, strict=True):
             reusable[chunk.etag] = vector
 

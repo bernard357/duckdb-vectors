@@ -529,3 +529,22 @@ def test_add_texts_normalizes_date_metadata(db_path):
     assert [hit.chunk.chunk_id for hit in hits] == ["a"]
     assert hits[0].chunk.metadata["started"] == "2026-05-30"
     store.close()
+
+
+def test_query_returns_settings_top_k_by_default_and_honours_an_override(tmp_path):
+    store = VectorStore(db_path=str(tmp_path / "k.duckdb"), backend="hashing")
+    texts = [f"shared words number{i}" for i in range(25)]
+    store.add_texts(ids=[f"c{i}" for i in range(25)], texts=texts)
+    assert len(store.query("shared words")) == 20
+    assert len(store.query("shared words", top_k=3)) == 3
+    store.close()
+
+
+def test_top_k_setting_changes_the_default(tmp_path):
+    settings = Settings(db_path=str(tmp_path / "k.duckdb"), backend="hashing", top_k=2)
+    store = VectorStore(settings=settings)
+    store.add_texts(ids=["a", "b", "c"], texts=["x y", "x z", "x w"])
+    assert len(store.query("x")) == 2
+    embedding = store.embedder.embed(["x"])[0]
+    assert len(store.query_vectors(embedding)) == 2
+    store.close()
