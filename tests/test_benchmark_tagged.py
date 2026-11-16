@@ -364,3 +364,48 @@ def test_sweep_matrix_runs_large_embedders_on_the_codebase_set_only():
     assert "--sample-queries" in sweep.arguments("multihop", sweep.POTION, True)
     assert "--ablate" in sweep.arguments("multihop", sweep.POTION, True)
     assert "--sample-queries" not in sweep.arguments("anthropic", sweep.POTION, False)
+
+
+def _report(dataset, scores_by_condition, ablation=False, sample=False):
+    conditions = {}
+    for name, values in scores_by_condition.items():
+        entry = {
+            "scores": values,
+            "all_found": [v == 1.0 for v in values],
+            "pass": sum(values) / len(values),
+            "p50_ms": 1.0,
+        }
+        conditions[name] = {"hybrid": {"20": entry}, "vector": {"20": entry}}
+    return {
+        "dataset": {"name": dataset, "queries": 6, "query_sample": sample},
+        "backend": "fastembed:minishlab/potion-multilingual-128M",
+        "conditions": conditions,
+        "tag_fields": [],
+    }
+
+
+def test_analyze_ranks_correlates_and_tabulates_gains():
+    from benchmarks.tagged_retrieval import analyze
+
+    assert analyze.rank([3, 1, 1, 2]) == [4.0, 1.5, 1.5, 3.0]
+    assert analyze.spearman([1, 2, 3, 4], [10, 20, 30, 40]) == pytest.approx(1.0)
+    assert analyze.spearman([1, 2, 3, 4], [4, 3, 2, 1]) == pytest.approx(-1.0)
+    assert analyze.spearman([1, 2], [1, 2]) is None
+    assert analyze.spearman([1, 1, 1], [1, 2, 3]) is None
+    base = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
+    better = [1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+    results = {
+        (
+            "multihop-rag",
+            "fastembed:minishlab/potion-multilingual-128M",
+            False,
+            False,
+        ): (_report("multihop-rag", {"baseline": base, "tags_both": better}))
+    }
+    table = analyze.gains_table(results)
+    assert "| multihop-rag | potion-256 | 6 | 0.333 |" in table
+    assert "+0.333" in table
+    diff, low, high, p = analyze.delta(
+        results[next(iter(results))], "tags_both", "baseline"
+    )
+    assert diff == pytest.approx(1 / 3) and low <= diff <= high and 0 < p <= 1
