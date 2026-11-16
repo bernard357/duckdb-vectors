@@ -18,7 +18,7 @@ The refund window is 30 days from the invoice date.
 
 Only the embedded text changes. The chunk stored in the index, and the text returned to the caller, stay the raw chunk. The method is a deterministic variant of [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval): no language model runs while you index, so indexing stays offline and repeatable. The [research note](tagged-retrieval-research) lists what published work says and which hypotheses the benchmark tests.
 
-A tag helps when it separates the document from its neighbours: a product name in a corpus of many products, an audience, a lifecycle stage. A tag that every document shares, or that is unique to each document, adds noise.
+A tag helps when it separates the document from its neighbours: a product name in a corpus of many products, an audience, a lifecycle stage. A tag that every document shares adds noise, because it separates nothing. A tag shared by several documents that have something in common is what you want. A tag with a different value on every document is not harmful by itself: a descriptive label such as a title can match words in a query, while an opaque code such as `REF-001` cannot.
 
 ## How to turn tags on?
 
@@ -72,11 +72,11 @@ The report has one row per declared tag, computed over the whole corpus:
 | Coverage | Share of documents that carry the tag. Low coverage means most chunks get no help from it. |
 | Cardinality | Number of distinct values. |
 | Entropy | How evenly the values are spread, from 0 (one value everywhere) to 1 (every value equally common). |
-| Documents per value | How many documents share a value. One means the tag is an identifier. |
+| Documents per value | How many documents share a value. About one adds a note: the lift may only reflect a document fingerprint, so check that your queries contain such values. |
 | Separation lift | How much the tag widens the gap between chunks of the same document and chunks of other documents, as a mean similarity margin and as Cohen's d, with and without the tag. |
 | Verdict | `effective` or `decorative`. |
 
-A tag is __decorative__ when its coverage is low, when its entropy is close to 0 (a constant), when its entropy is close to 1 and each value belongs to one document (an identifier), or when its separation lift is negligible. Every other tag is __effective__. The numeric limits are set from benchmark results and are documented here once they are calibrated.
+A tag is __decorative__ when its coverage is low, when its entropy is close to 0 (a constant), or when its separation lift is negligible. Every other tag is __effective__. The numeric limits are set from benchmark results and are documented here once they are calibrated.
 
 The report is a statement about the corpus, not about your queries. It tells you which tags can help. Whether they do for your questions needs a test: run your real queries with and without the tag.
 

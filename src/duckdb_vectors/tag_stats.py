@@ -13,7 +13,9 @@ Per tag the report gives:
   one value (its comma-joined form).
 * ``entropy``: Shannon entropy of the value distribution divided by its maximum,
   from 0 (one value everywhere) to 1 (all values equally common).
-* ``documents_per_value``: mean number of documents sharing a value.
+* ``documents_per_value``: mean number of documents sharing a value. Values
+  shared by about one document each get a note, not a verdict: a descriptive
+  per-page label can help, an opaque code cannot, and statistics cannot tell.
 * ``margin_*`` and ``d_*``: the gap between the mean cosine similarity of chunk
   pairs from the same document and of pairs from different documents, and the
   same gap in pooled standard deviations (Cohen's d), measured on embeddings of
@@ -43,7 +45,7 @@ from duckdb_vectors.tagging import (
 # Provisional verdict thresholds (see the module docstring).
 MIN_COVERAGE = 0.5
 CONSTANT_ENTROPY = 0.05
-IDENTIFIER_ENTROPY = 0.95
+NEAR_UNIQUE_DOCUMENTS_PER_VALUE = 1.5
 MIN_LIFT_D = 0.1
 
 # Pairs sampled per group when measuring separation, drawn with a fixed seed.
@@ -72,6 +74,7 @@ class TagStat(BaseModel):
     d_lift: float | None = None
     verdict: str
     reasons: list[str]
+    notes: list[str] = []
 
 
 class TagsReport(BaseModel):
@@ -203,18 +206,33 @@ def _verdict(stat: TagStat) -> tuple[str, list[str]]:
         )
     if stat.documents and stat.entropy <= CONSTANT_ENTROPY:
         reasons.append("constant: one value for every document that has the tag")
-    if (
-        stat.entropy >= IDENTIFIER_ENTROPY
-        and stat.documents_per_value <= 1.0
-        and stat.documents > 2
-    ):
-        reasons.append("identifier: each value belongs to a single document")
     if stat.d_lift is not None and stat.d_lift < MIN_LIFT_D:
         reasons.append(
             f"negligible separation: Cohen's d lift {stat.d_lift:.2f} "
             f"is below {MIN_LIFT_D}"
         )
     return ("decorative" if reasons else "effective"), reasons
+
+
+def _notes(stat: TagStat) -> list[str]:
+    """Cautions that do not change the verdict.
+
+    A tag whose values are nearly unique per document separates documents by
+    construction, so its lift can reflect a document fingerprint. That is no
+    reason to discard it: a descriptive label can match words in a query, while
+    an opaque code cannot. Statistics cannot tell the two apart, so the note
+    asks for a check against real queries.
+    """
+    if (
+        stat.documents > 2
+        and stat.documents_per_value <= NEAR_UNIQUE_DOCUMENTS_PER_VALUE
+    ):
+        return [
+            "nearly unique: values are shared by about one document each, so the "
+            "separation lift may only reflect a document fingerprint; check that "
+            "your queries contain such values"
+        ]
+    return []
 
 
 def _overflow_warning(
@@ -290,6 +308,7 @@ def compute_tag_report(
                 stat.margin_lift = with_tag[0] - without[0]
                 stat.d_lift = with_tag[1] - without[1]
         stat.verdict, stat.reasons = _verdict(stat)
+        stat.notes = _notes(stat)
         stats.append(stat)
     return TagsReport(
         documents=len(unique_documents),

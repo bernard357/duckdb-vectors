@@ -71,9 +71,9 @@ def test_entropy_runs_from_constant_to_uniform(report):
         ("product", "effective", None),
         ("audience", "effective", None),
         ("kind", "decorative", "constant"),
-        ("doc_id", "decorative", "identifier"),
+        ("doc_id", "effective", None),
         ("owner", "decorative", "sparse"),
-        ("published", "decorative", "identifier"),
+        ("published", "effective", None),
     ],
 )
 def test_each_pattern_gets_its_verdict(report, label, verdict, reason):
@@ -166,3 +166,12 @@ def test_tags_verb_without_tags_explains_what_to_do(tmp_path, tagged_folder):
     result = runner.invoke(app, ["tags", *base])
     assert result.exit_code != 0
     assert "No tags declared" in result.output
+
+
+def test_nearly_unique_tags_get_a_note_not_a_verdict(report):
+    for label in ("doc_id", "published"):
+        tag = stat(report, label)
+        assert tag.verdict == "effective"
+        assert any(note.startswith("nearly unique") for note in tag.notes)
+    for label in ("product", "kind", "owner"):
+        assert stat(report, label).notes == []
