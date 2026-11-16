@@ -6,13 +6,20 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 ## Unreleased
 
 ### Added
-- __Tagged retrieval (draft, not yet implemented).__ Chunks are embedded with a
-  prefix of tags projected from their document's frontmatter with JSONPath
-  (`tag_fields`), optionally matched in keyword search (`tag_bm25`). The `tags`
-  verb reports each tag's coverage, entropy and separation lift to tell
-  effective tags from decorative ones. Off by default, so existing indexes do
-  not change.
-
+- __Tagged retrieval.__ Chunks are embedded with a prefix of tags projected from
+  their document's frontmatter with JSONPath (`tag_fields`, `--tag-fields`),
+  optionally matched in the keyword index too (`tag_bm25`, `--tag-bm25`). The
+  stored and returned text stay raw, only changed prefixes are re-embedded, and
+  an index built without tags is unchanged. `duckdb-vectors tags` reports each
+  tag's coverage, entropy and documents per value, and with `--queries FILE`
+  the share of queries that mention its values, to tell effective tags from
+  decorative ones. Measured gains and their limits are in the performance
+  workbook, and the [tagged retrieval guide](documentation/tagged-retrieval-guide.md)
+  explains how to use it.
+- __`benchmarks/tagged_retrieval/`.__ A resumable benchmark of the tagged
+  retrieval conditions over four datasets and five embedders, with paired
+  bootstrap and McNemar tests, leave-one-tag-out and suffix ablations, and a
+  reference run with LLM-written chunk contexts. `make bench-tagged` runs it.
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,
   on a synthetic Markdown folder generated from a fixed seed or on a real one
