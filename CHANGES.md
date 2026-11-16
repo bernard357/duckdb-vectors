@@ -6,6 +6,12 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 ## Unreleased
 
 ### Added
+- __Tagged retrieval (draft, not yet implemented).__ Chunks are embedded with a
+  prefix of tags projected from their document's frontmatter with JSONPath
+  (`tag_fields`), optionally matched in keyword search (`tag_bm25`). The `tags`
+  verb reports each tag's coverage, entropy and separation lift to tell
+  effective tags from decorative ones. Off by default, so existing indexes do
+  not change.
 
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,
@@ -19,6 +25,10 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __Default `top_k` becomes 20__ for the SDK (`query`, was 10), the CLI `search`
+  verb and the MCP `search` tool (both were 5), set by `DUCKDB_VECTORS_TOP_K`.
+  Callers that relied on the old defaults now get more results; pass `top_k`
+  to keep the old size.
 
 - __Performance workbook.__ `documentation/performance-guide.md` becomes
   `documentation/performance-workbook.md` (URL `/performance-workbook`), a list

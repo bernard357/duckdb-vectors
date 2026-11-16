@@ -122,6 +122,11 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
 | Lock wait (seconds) | `lock_timeout` | `DUCKDB_VECTORS_LOCK_TIMEOUT` | `10` |
+| Tags to embed with each chunk | `tag_fields` | `DUCKDB_VECTORS_TAG_FIELDS` | none (off) |
+| Match tags in keyword search | `tag_bm25` | `DUCKDB_VECTORS_TAG_BM25` | `false` |
+| Results returned per search | `top_k` | `DUCKDB_VECTORS_TOP_K` | `20` |
+
+`top_k` is the number of results a search returns. It is 20 for the SDK, the CLI and the MCP `search` tool, and any call can pass its own value. A client that pays prompt tokens for every returned chunk, such as an agent harness, may lower it per call. `tag_fields` and `tag_bm25` control [tagged retrieval](tagged-retrieval-guide): `tag_fields` is an ordered list of `label: $.path` pairs read from each document's frontmatter, and `tag_bm25` also matches those tags in keyword search.
 
 Several processes can share one database file, for example one MCP server per editor window. DuckDB lets one process hold the file at a time, so the store connects lazily, on first use, and when another process holds the file it retries for up to `lock_timeout` seconds before raising `DatabaseLockedError`. Each search holds the file only for the call, and re-indexing an unchanged folder holds it for a moment, so in practice sessions wait milliseconds rather than fail.
 
@@ -277,10 +282,12 @@ Overrides can be set once — shared across queries — via `Settings` or the `D
 For a quick check from the shell, the `search` verb runs the same hybrid query and prints the ranked hits:
 
 ```shell
-$ duckdb-vectors search "how do retries work?" --top-k 5
+$ duckdb-vectors search "how do retries work?" --top-k 5     # default is 20
 $ duckdb-vectors search "how do retries work?"             # JSON by default
 $ duckdb-vectors search "how do retries work?" --output yaml   # or YAML
 ```
+
+To embed chunks with tags from their frontmatter, index with `--tag-fields "label: $.path"` (repeat the option for each tag) and run `duckdb-vectors tags` to see which tags help. The [tagged retrieval guide](tagged-retrieval-guide) explains both.
 
 The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its `search` and `report` tools. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
 

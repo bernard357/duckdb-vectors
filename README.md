@@ -62,6 +62,7 @@ Indexing a set of Markdown pages directly from the command-line. This produces a
 $ duckdb-vectors index ./docs            # index a folder of markdown and PDF
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
+$ duckdb-vectors tags                     # measure which frontmatter tags help search
 $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
 $ duckdb-vectors --version                # print the tag-derived package version
 ```
@@ -93,6 +94,7 @@ The default configuration of `duckdb-vectors` makes it workable out of the box. 
 
 - Frontmatter headers of Markdown pages are injected as JSON objects. Each attribute can be considered in SELECT statements in addition to semantic search. Metadata is returned along with each chunk.
 
+- Embed chunks together with tags projected out of the frontmatter of their document, so that a chunk keeps the context chunking removes, with no language model involved at index time. The `tags` verb reports which tags help and which only add noise. See the [tagged retrieval guide](https://bernard357.github.io/duckdb-vectors/tagged-retrieval-guide).
 - Choose your embedding model by string. The default is a compact 256-dimension multilingual model; step up the `fastembed:` dimension ladder (384 / 768 / 1024) for more relevance, load any Hugging Face ONNX repo with `hf:<repo-id>`, or embed in the cloud with `bedrock:titan`. See [Embedding backends](#embedding-backends) below.
 
 - Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown and PDF files. You may have other kinds of documents to ingest.
@@ -113,6 +115,9 @@ Settings resolve with the precedence: explicit argument >
 | Database path | `db_path` | `DUCKDB_VECTORS_DB_PATH` | `vectors.duckdb` |
 | Embedding backend | `backend` | `DUCKDB_VECTORS_BACKEND` | `fastembed:minishlab/potion-multilingual-128M` |
 | Lock wait (seconds) | `lock_timeout` | `DUCKDB_VECTORS_LOCK_TIMEOUT` | `10` |
+| Tags to embed with each chunk | `tag_fields` | `DUCKDB_VECTORS_TAG_FIELDS` | none (off) |
+| Match tags in keyword search | `tag_bm25` | `DUCKDB_VECTORS_TAG_BM25` | `false` |
+| Results returned per search | `top_k` | `DUCKDB_VECTORS_TOP_K` | `20` |
 
 ## Embedding backends
 
