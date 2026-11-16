@@ -6,6 +6,7 @@ import duckdb
 import pytest
 
 from duckdb_vectors.config import Settings
+from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.indexer import index_folder
 from duckdb_vectors.store import VectorStore
@@ -208,4 +209,74 @@ def test_put_vectors_embeds_the_tagged_text_too(tmp_path):
         store.embedder.model_identifier,
         store.embedder.dimensions,
     )
+    store.close()
+
+
+# Keyword matching of tags and the ``tags`` column migration
+
+
+def _tagged_pair(tmp_path, **settings):
+    store = _store(tmp_path, tag_fields=["product: $.product"], **settings)
+    store.add_texts(
+        ids=["a", "b"],
+        texts=["alpha words here", "gamma words there"],
+        metadatas=[{"product": "Zyxwv"}, {"product": "Other"}],
+    )
+    return store
+
+
+def test_tag_tokens_match_in_keyword_search_only_with_tag_bm25(tmp_path):
+    off = _tagged_pair(tmp_path, tag_bm25=False)
+    assert all(hit.text_rank is None for hit in off.query("zyxwv"))
+    off.close()
+    on = _store(tmp_path, tag_fields=["product: $.product"], tag_bm25=True)
+    hits = on.query("zyxwv")
+    assert hits[0].chunk.chunk_id == "a"
+    assert hits[0].text_rank == 1
+    on.close()
+
+
+def test_toggling_tag_bm25_rebuilds_the_index_on_the_next_search(tmp_path):
+    on = _tagged_pair(tmp_path, tag_bm25=True)
+    assert on.query("zyxwv")[0].text_rank == 1
+    on.close()
+    off = _store(tmp_path, tag_fields=["product: $.product"], tag_bm25=False)
+    assert all(hit.text_rank is None for hit in off.query("zyxwv"))
+    off.close()
+
+
+def test_stored_text_stays_raw_with_tag_bm25(tmp_path):
+    store = _tagged_pair(tmp_path, tag_bm25=True)
+    row = store._con.execute("SELECT text, tags FROM chunks WHERE chunk_id='a'")
+    assert row.fetchone() == ("alpha words here", "product: Zyxwv")
+    store.close()
+
+
+def test_database_without_tags_column_is_migrated_in_place(tmp_path):
+    path = str(tmp_path / "legacy.duckdb")
+    embedder = resolve_embedder("hashing")
+    legacy = duckdb.connect(path)
+    legacy.execute(
+        f"""
+        CREATE TABLE chunks (
+            chunk_id TEXT NOT NULL, text TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT '', position INTEGER NOT NULL DEFAULT 0,
+            title TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '{{}}',
+            etag TEXT NOT NULL DEFAULT '', stamped_at TIMESTAMP,
+            embedding FLOAT[{embedder.dimensions}]
+        )
+        """
+    )
+    embedding = embedder.embed(["old words"])[0]
+    legacy.execute(
+        "INSERT INTO chunks (chunk_id, text, embedding) VALUES ('old', 'old words', ?)",
+        [embedding],
+    )
+    legacy.close()
+    store = VectorStore(db_path=path, backend="hashing")
+    assert store.query("old words")[0].chunk.chunk_id == "old"
+    row = store._con.execute("SELECT tags FROM chunks").fetchone()
+    assert row == ("",)
+    store.add_texts(ids=["new"], texts=["new words"])
+    assert store.count() == 2
     store.close()

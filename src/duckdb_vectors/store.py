@@ -24,7 +24,12 @@ from duckdb_vectors.embedders.base import Embedder
 from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.models import Chunk, SearchResult
-from duckdb_vectors.tagging import parse_tag_fields, project_many, tagged_text
+from duckdb_vectors.tagging import (
+    parse_tag_fields,
+    project_many,
+    tag_prefix,
+    tagged_text,
+)
 
 RRF_K = 60
 
@@ -58,6 +63,7 @@ _WRITE_BATCH = 5_000
 _KEYWORD_INDEX_KEY = "keyword_index"
 _STALE = "stale"
 _CURRENT = "current"
+_KEYWORD_FIELDS_KEY = "keyword_fields"
 _KEYWORD_LOCKS: dict[str, threading.Lock] = {}
 _KEYWORD_LOCKS_GUARD = threading.Lock()
 
@@ -151,9 +157,14 @@ class VectorStore:
                 metadata    TEXT NOT NULL DEFAULT '{{}}',
                 etag        TEXT NOT NULL DEFAULT '',
                 stamped_at  TIMESTAMP,
-                embedding   FLOAT[{self._dimensions}]
+                embedding   FLOAT[{self._dimensions}],
+                tags        TEXT NOT NULL DEFAULT ''
             )
             """
+        )
+        # Databases written before tagged retrieval have no ``tags`` column.
+        self._con.execute(
+            "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT ''"
         )
         self._con.execute(
             "CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON chunks (chunk_id)"
@@ -193,11 +204,31 @@ class VectorStore:
         ).fetchone()
         if row is not None and row[0] == _STALE:
             return True
+        if self.count() > 0 and self._stored_keyword_fields() != self._keyword_fields():
+            return True
         has_index = self._con.execute(
             "SELECT count(*) FROM duckdb_tables() "
             "WHERE schema_name = 'fts_main_chunks' AND table_name = 'docs'"
         ).fetchone()
         return not (has_index and has_index[0]) and self.count() > 0
+
+    def _keyword_fields(self) -> list[str]:
+        """The chunk columns the full-text index covers, in index order."""
+        fields = ["text", "title"]
+        if self.settings.tag_bm25:
+            fields.append("tags")
+        return fields
+
+    def _stored_keyword_fields(self) -> list[str]:
+        """The columns the persisted index was built over.
+
+        A database that never recorded them predates tagged retrieval, so its
+        index covers the text and the title.
+        """
+        row = self._con.execute(
+            "SELECT value FROM index_state WHERE key = ?", [_KEYWORD_FIELDS_KEY]
+        ).fetchone()
+        return row[0].split(",") if row else ["text", "title"]
 
     def _ensure_keyword_index(self) -> None:
         """Rebuild the full-text index first if it is stale.
@@ -294,6 +325,18 @@ class VectorStore:
             for chunk, chunk_tags in zip(chunks, tags, strict=True)
         ]
 
+    def tag_prefixes(self, chunks: list[Chunk]) -> list[str]:
+        """Return each chunk's tag lines (empty without ``tag_fields``).
+
+        Stored in the ``tags`` column so the keyword index can match them when
+        ``settings.tag_bm25`` is on.
+        """
+        fields = parse_tag_fields(self.settings.tag_fields)
+        if not fields:
+            return ["" for _ in chunks]
+        tags = project_many([chunk.metadata for chunk in chunks], fields)
+        return [tag_prefix(chunk_tags) for chunk_tags in tags]
+
     def _write_rows(
         self,
         rows: list[tuple[Chunk, str, list[float]]],
@@ -315,11 +358,13 @@ class VectorStore:
         unique = list(latest.values())
         if not unique:
             return
+        prefixes = self.tag_prefixes([row[0] for row in unique])
         self._mark_stale()  # committed before the transaction, see _mark_stale
         self._con.execute("BEGIN TRANSACTION")
         try:
             for start in range(0, len(unique), _WRITE_BATCH):
-                self._write_sub_batch(unique[start : start + _WRITE_BATCH], stamp)
+                end = start + _WRITE_BATCH
+                self._write_sub_batch(unique[start:end], prefixes[start:end], stamp)
             self._con.execute("COMMIT")
         except BaseException:
             self._con.execute("ROLLBACK")
@@ -328,6 +373,7 @@ class VectorStore:
     def _write_sub_batch(
         self,
         rows: list[tuple[Chunk, str, list[float]]],
+        prefixes: list[str],
         stamp: datetime.datetime,
     ) -> None:
         ids = [chunk.chunk_id for chunk, _, _ in rows]
@@ -338,11 +384,12 @@ class VectorStore:
             f"""
             INSERT INTO chunks
                 (chunk_id, text, source, position, title, metadata,
-                 etag, stamped_at, embedding)
+                 etag, stamped_at, embedding, tags)
             SELECT unnest($ids), unnest($texts), unnest($sources),
                    unnest($positions), unnest($titles), unnest($metadatas),
                    unnest($etags), unnest($stamps),
-                   unnest($embeddings)::FLOAT[{self._dimensions}]
+                   unnest($embeddings)::FLOAT[{self._dimensions}],
+                   unnest($tags)
             """,
             {
                 "ids": ids,
@@ -354,6 +401,7 @@ class VectorStore:
                 "etags": [etag for _, etag, _ in rows],
                 "stamps": [stamp] * len(rows),
                 "embeddings": [vector for _, _, vector in rows],
+                "tags": prefixes,
             },
         )
 
@@ -601,6 +649,9 @@ class VectorStore:
     def _rebuild_fts(self) -> None:
         """Rebuild the BM25 index over the chunk text and title.
 
+        With ``settings.tag_bm25`` the tag lines are indexed too (the ``tags``
+        column), so a query token that only a tag carries still matches.
+
         The index is built with ``stemmer='none'`` and ``stopwords='none'`` on
         purpose. Semantic (vector) search already covers meaning and synonyms
         across languages; the lexical signal is kept only for what vectors miss
@@ -617,15 +668,20 @@ class VectorStore:
             except duckdb.Error:
                 pass
         else:
+            columns = ", ".join(f"'{field}'" for field in self._keyword_fields())
             self._con.execute(
-                """
+                f"""
                 PRAGMA create_fts_index(
-                    'chunks', 'chunk_id', 'text', 'title',
+                    'chunks', 'chunk_id', {columns},
                     stemmer = 'none', stopwords = 'none', overwrite = 1
                 )
                 """
             )
         # Only a completed rebuild clears the marker.
+        self._con.execute(
+            "INSERT OR REPLACE INTO index_state VALUES (?, ?)",
+            [_KEYWORD_FIELDS_KEY, ",".join(self._keyword_fields())],
+        )
         self._con.execute(
             "INSERT OR REPLACE INTO index_state VALUES (?, ?)",
             [_KEYWORD_INDEX_KEY, _CURRENT],

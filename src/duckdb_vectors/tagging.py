@@ -114,6 +114,11 @@ def project_tags(metadata: dict, fields: list[TagField]) -> list[tuple[str, str]
     return project_many([metadata], fields)[0]
 
 
+def tag_prefix(tags: list[tuple[str, str]]) -> str:
+    """Render tags as one ``label: value`` line each; empty for no tags."""
+    return "\n".join(f"{label}: {value}" for label, value in tags)
+
+
 def tagged_text(text: str, tags: list[tuple[str, str]]) -> str:
     """Return the text to embed: a ``label: value`` line per tag, a blank line,
     then the chunk text. With no tags the text is returned unchanged, so a
@@ -121,5 +126,4 @@ def tagged_text(text: str, tags: list[tuple[str, str]]) -> str:
     """
     if not tags:
         return text
-    prefix = "\n".join(f"{label}: {value}" for label, value in tags)
-    return f"{prefix}\n\n{text}"
+    return f"{tag_prefix(tags)}\n\n{text}"
