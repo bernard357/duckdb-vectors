@@ -46,6 +46,13 @@ _TAG_FIELDS_OPTION = typer.Option(
 )
 
 
+_TAG_BM25_OPTION = typer.Option(
+    None,
+    "--tag-bm25/--no-tag-bm25",
+    help="Also match the tags in keyword search (default: DUCKDB_VECTORS_TAG_BM25).",
+)
+
+
 def _emit(data: object, output: OutputFormat) -> None:
     """Print ``data`` as JSON (default) or YAML on stdout.
 
@@ -96,10 +103,13 @@ def index(
         False, "--recursive", help="Recurse into sub-folders."
     ),
     tag_fields: list[str] | None = _TAG_FIELDS_OPTION,
+    tag_bm25: bool | None = _TAG_BM25_OPTION,
     output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Index a folder of markdown into the database."""
-    settings = Settings(db_path=db, backend=backend, tag_fields=tag_fields)
+    settings = Settings(
+        db_path=db, backend=backend, tag_fields=tag_fields, tag_bm25=tag_bm25
+    )
     store = VectorStore(settings=settings)
     try:
         report = index_folder(store, folder, recursive=recursive)
