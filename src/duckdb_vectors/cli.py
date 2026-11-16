@@ -141,21 +141,31 @@ def tags(
         None, "--backend", help="Embedding backend spec."
     ),
     tag_fields: list[str] | None = _TAG_FIELDS_OPTION,
+    queries: str | None = typer.Option(
+        None,
+        "--queries",
+        help="File of sample queries, one per line, to check against tag values.",
+    ),
     output: OutputFormat = _OUTPUT_OPTION,
 ) -> None:
     """Measure which frontmatter tags help search and which only add noise.
 
     Reports, for each tag, its coverage, cardinality, entropy, documents per
-    value and embedding separation lift, with an effective or decorative
-    verdict. Tags come from ``--tag-fields`` or ``DUCKDB_VECTORS_TAG_FIELDS``.
+    value and embedding separation, with an effective or decorative verdict.
+    With ``--queries`` the verdict also checks that queries use the tag's values.
+    Tags come from ``--tag-fields`` or ``DUCKDB_VECTORS_TAG_FIELDS``.
     """
+    sample = None
+    if queries is not None:
+        with open(queries, encoding="utf-8") as handle:
+            sample = [line.strip() for line in handle if line.strip()]
     try:
         settings = Settings(db_path=db, backend=backend, tag_fields=tag_fields)
     except ValueError as error:
         raise typer.BadParameter(str(error)) from error
     store = VectorStore(settings=settings)
     try:
-        result = compute_tag_report(store)
+        result = compute_tag_report(store, queries=sample)
     except ValueError as error:
         raise typer.BadParameter(str(error)) from error
     finally:

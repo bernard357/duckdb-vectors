@@ -224,7 +224,11 @@ def h5_rows(results: dict, cache: Path, backend: str) -> list[dict]:
                 settings=Settings(db_path=f"{directory}/s.duckdb", backend=backend)
             )
             store.put_vectors(data.chunks)
-            stats = compute_tag_report(store, report["tag_fields"])
+            stats = compute_tag_report(
+                store,
+                report["tag_fields"],
+                queries=[query.text for query in data.queries],
+            )
             store.close()
         for stat in stats.tags:
             condition = f"without:{stat.label}"
@@ -239,6 +243,8 @@ def h5_rows(results: dict, cache: Path, backend: str) -> list[dict]:
                     "entropy": stat.entropy,
                     "documents_per_value": stat.documents_per_value,
                     "d_lift": stat.d_lift,
+                    "value_d_lift": stat.value_d_lift,
+                    "query_mention": stat.query_mention,
                     "verdict": stat.verdict,
                     "contribution": diff,
                     "ci": (low, high),
@@ -257,20 +263,30 @@ _LOADER = {
 }
 
 
+def _f(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:+.2f}"
+
+
 def h5_table(rows: list[dict]) -> str:
     out = [
-        "| Dataset | Tag | Coverage | Entropy | Docs per value | d lift "
-        "| Verdict | Contribution to Pass@20 |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Dataset | Tag | Coverage | Entropy | Docs per value | Document d lift "
+        "| Value d lift | Queries mentioning | Verdict | Contribution to Pass@20 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for r in rows:
         out.append(
             f"| {r['dataset']} | {r['tag']} | {r['coverage']:.2f} | {r['entropy']:.2f} "
-            f"| {r['documents_per_value']:.1f} | {r['d_lift']:+.2f} | {r['verdict']} "
+            f"| {r['documents_per_value']:.1f} | {r['d_lift']:+.2f} "
+            f"| {_f(r['value_d_lift'])} | {r['query_mention']:.2f} | {r['verdict']} "
             f"| {fmt(r['contribution'], *r['ci'], r['p'])} |"
         )
-    rho = spearman([r["d_lift"] for r in rows], [r["contribution"] for r in rows])
-    out.append(f"\nSpearman rank correlation of d lift with contribution: {rho}")
+    for name in ("d_lift", "value_d_lift", "query_mention"):
+        pairs = [(r[name], r["contribution"]) for r in rows if r[name] is not None]
+        rho = spearman([a for a, _ in pairs], [b for _, b in pairs])
+        out.append(
+            f"\nSpearman correlation of {name} with contribution: "
+            f"{rho} (n={len(pairs)})"
+        )
     return "\n".join(out)
 
 

@@ -1,10 +1,8 @@
-"""Corpus statistics that tell effective tags from decorative ones.
+"""Statistics that screen out tags unlikely to help search.
 
 A knowledge manager declares tags (see :mod:`duckdb_vectors.tagging`); this
-module measures, for each tag, how it is spread over the documents of an index
-and how much it separates the chunks of one document from the chunks of other
-documents once embedded. It answers "which tags can help", not "which tags help
-for my questions": query-based ablation belongs to the benchmark harness.
+module measures how each is spread over the documents of an index and, when
+sample queries are given, whether queries ever use its values.
 
 Per tag the report gives:
 
@@ -16,19 +14,29 @@ Per tag the report gives:
 * ``documents_per_value``: mean number of documents sharing a value. Values
   shared by about one document each get a note, not a verdict: a descriptive
   per-page label can help, an opaque code cannot, and statistics cannot tell.
-* ``margin_*`` and ``d_*``: the gap between the mean cosine similarity of chunk
-  pairs from the same document and of pairs from different documents, and the
-  same gap in pooled standard deviations (Cohen's d), measured on embeddings of
-  the raw chunks (``*_without``) and of chunks prefixed with this tag alone
-  (``*_with``); ``*_lift`` is the difference.
+* ``query_mention`` (with ``queries``): share of the queries that contain at
+  least one value of the tag, as whole words.
+* ``margin_*``, ``d_*``, ``value_*``: how much the tag raises the similarity of
+  chunks of the same document (``margin_*``, ``d_*``) or of chunks that share
+  its value (``value_*``) over chunks that do not, as a mean cosine margin and
+  in pooled standard deviations (Cohen's d), between embeddings of the raw
+  chunks and of chunks prefixed with this tag alone.
 
-The verdict thresholds below are provisional. They are set from first
-principles, not from benchmark results, and will be recalibrated.
+The verdict uses coverage, entropy and, when queries are given, ``query_mention``.
+The separation measures are reported but do not decide: over 17 tags in four
+corpora, their rank correlation with the gain each tag brings in a
+leave-one-tag-out run was about zero (-0.03 and -0.12), and they rated the tags
+that helped most, a company name and a news source, as decorative. The share of
+queries that mention a tag's values did predict the gain (rank correlation 0.62).
+The thresholds are fitted to those same 17 tags, so treat them as provisional
+until other corpora confirm them.
 """
 
 import math
 import random
+import re
 from collections import Counter
+from collections.abc import Sequence
 
 import duckdb
 from pydantic import BaseModel
@@ -46,7 +54,7 @@ from duckdb_vectors.tagging import (
 MIN_COVERAGE = 0.5
 CONSTANT_ENTROPY = 0.05
 NEAR_UNIQUE_DOCUMENTS_PER_VALUE = 1.5
-MIN_LIFT_D = 0.1
+MIN_QUERY_MENTION = 0.2
 
 # Pairs sampled per group when measuring separation, drawn with a fixed seed.
 MAX_PAIRS = 20_000
@@ -72,6 +80,9 @@ class TagStat(BaseModel):
     d_without: float | None = None
     d_with: float | None = None
     d_lift: float | None = None
+    value_margin_lift: float | None = None
+    value_d_lift: float | None = None
+    query_mention: float | None = None
     verdict: str
     reasons: list[str]
     notes: list[str] = []
@@ -130,29 +141,43 @@ def _entropy(counts: Counter) -> float:
     return entropy / math.log(len(counts))
 
 
-def _pairs(documents: list[str]) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
-    """Sample same-document and cross-document chunk index pairs."""
+def _pairs(
+    labels: Sequence[str | None],
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+    """Sample same-label and different-label chunk index pairs.
+
+    A chunk whose label is ``None`` is left out. With document ids as labels the
+    pairs are same-document and cross-document; with a tag's values as labels
+    they are chunks that share the value and chunks that do not.
+    """
     rng = random.Random(_SEED)
-    by_document: dict[str, list[int]] = {}
-    for index, document in enumerate(documents):
-        by_document.setdefault(document, []).append(index)
-    same = [
-        (a, b)
-        for members in by_document.values()
-        for position, a in enumerate(members)
-        for b in members[position + 1 :]
-    ]
-    if len(same) > MAX_PAIRS:
-        same = rng.sample(same, MAX_PAIRS)
+    groups: dict[str, list[int]] = {}
+    for index, label in enumerate(labels):
+        if label is not None:
+            groups.setdefault(label, []).append(index)
+    members = [indexes for indexes in groups.values() if len(indexes) > 1]
+    weights = [len(m) * (len(m) - 1) // 2 for m in members]
+    same: list[tuple[int, int]] = []
+    if sum(weights) <= MAX_PAIRS:
+        same = [
+            (a, b)
+            for indexes in members
+            for position, a in enumerate(indexes)
+            for b in indexes[position + 1 :]
+        ]
+    else:
+        for indexes in rng.choices(members, weights=weights, k=MAX_PAIRS):
+            first, second = rng.sample(indexes, 2)
+            same.append((first, second))
     cross: list[tuple[int, int]] = []
-    if len(by_document) > 1:
-        count = len(documents)
+    labelled = [i for i, label in enumerate(labels) if label is not None]
+    if len(groups) > 1:
         target = min(MAX_PAIRS, max(len(same), 1))
         attempts = 0
         while len(cross) < target and attempts < MAX_PAIRS * 20:
             attempts += 1
-            a, b = rng.randrange(count), rng.randrange(count)
-            if documents[a] != documents[b]:
+            a, b = rng.choice(labelled), rng.choice(labelled)
+            if labels[a] != labels[b]:
                 cross.append((a, b))
     return same, cross
 
@@ -206,12 +231,34 @@ def _verdict(stat: TagStat) -> tuple[str, list[str]]:
         )
     if stat.documents and stat.entropy <= CONSTANT_ENTROPY:
         reasons.append("constant: one value for every document that has the tag")
-    if stat.d_lift is not None and stat.d_lift < MIN_LIFT_D:
+    if stat.query_mention is not None and stat.query_mention < MIN_QUERY_MENTION:
         reasons.append(
-            f"negligible separation: Cohen's d lift {stat.d_lift:.2f} "
-            f"is below {MIN_LIFT_D}"
+            f"unmentioned: {stat.query_mention:.0%} of the queries contain one of "
+            f"its values, below {MIN_QUERY_MENTION:.0%}"
         )
     return ("decorative" if reasons else "effective"), reasons
+
+
+def _mentions(queries: list[str], values: set[str], is_list: bool = False) -> float:
+    """Share of the queries that contain at least one value, as whole words.
+
+    For a tag read from a list (a ``[*]`` path) each item of the comma-joined
+    value counts on its own; any other value is matched whole.
+    """
+    items = {
+        item.lower()
+        for value in values
+        for item in (value.split(", ") if is_list else [value])
+        if item
+    }
+    if not items or not queries:
+        return 0.0
+    pattern = re.compile(
+        r"(?<!\w)("
+        + "|".join(map(re.escape, sorted(items, key=len, reverse=True)))
+        + r")(?!\w)"
+    )
+    return sum(1 for query in queries if pattern.search(query.lower())) / len(queries)
 
 
 def _notes(stat: TagStat) -> list[str]:
@@ -223,16 +270,22 @@ def _notes(stat: TagStat) -> list[str]:
     an opaque code cannot. Statistics cannot tell the two apart, so the note
     asks for a check against real queries.
     """
+    notes = []
     if (
         stat.documents > 2
         and stat.documents_per_value <= NEAR_UNIQUE_DOCUMENTS_PER_VALUE
     ):
-        return [
+        notes.append(
             "nearly unique: values are shared by about one document each, so the "
             "separation lift may only reflect a document fingerprint; check that "
             "your queries contain such values"
-        ]
-    return []
+        )
+    if stat.query_mention is None:
+        notes.append(
+            "no queries given: only sparse and constant tags are screened out; "
+            "pass queries to see whether they ever use this tag's values"
+        )
+    return notes
 
 
 def _overflow_warning(
@@ -259,13 +312,16 @@ def _overflow_warning(
 
 
 def compute_tag_report(
-    store: VectorStore, fields: list[str] | None = None
+    store: VectorStore,
+    fields: list[str] | None = None,
+    queries: list[str] | None = None,
 ) -> TagsReport:
     """Measure every tag over the chunks of ``store``.
 
     ``fields`` defaults to ``store.settings.tag_fields``. Embeds the corpus once
     without tags and once per tag with that tag alone, using the store's own
-    embedder. Raises ``ValueError`` when no tag is declared.
+    embedder. With ``queries``, also measures how often they mention each tag's
+    values and decides on that. Raises ``ValueError`` when no tag is declared.
     """
     parsed = parse_tag_fields(store.settings.tag_fields if fields is None else fields)
     if not parsed:
@@ -295,18 +351,31 @@ def compute_tag_report(
             verdict="effective",
             reasons=[],
         )
-        if without is not None and covered:
+        if queries:
+            stat.query_mention = _mentions(
+                queries, set(values.values()), is_list="[*]" in field.path
+            )
+        if chunks and covered:
             single = project_many([chunk.metadata for chunk in chunks], [field])
             texts = [
                 tagged_text(chunk.text, chunk_tags)
                 for chunk, chunk_tags in zip(chunks, single, strict=True)
             ]
-            with_tag = _separation(store.embedder.embed(texts), same, cross)
-            if with_tag is not None:
-                stat.margin_without, stat.d_without = without
-                stat.margin_with, stat.d_with = with_tag
-                stat.margin_lift = with_tag[0] - without[0]
-                stat.d_lift = with_tag[1] - without[1]
+            vectors = store.embedder.embed(texts)
+            if without is not None:
+                with_tag = _separation(vectors, same, cross)
+                if with_tag is not None:
+                    stat.margin_without, stat.d_without = without
+                    stat.margin_with, stat.d_with = with_tag
+                    stat.margin_lift = with_tag[0] - without[0]
+                    stat.d_lift = with_tag[1] - without[1]
+            labels = [values.get(document) for document in documents]
+            value_same, value_cross = _pairs(labels)
+            value_without = _separation(baseline, value_same, value_cross)
+            value_with = _separation(vectors, value_same, value_cross)
+            if value_without is not None and value_with is not None:
+                stat.value_margin_lift = value_with[0] - value_without[0]
+                stat.value_d_lift = value_with[1] - value_without[1]
         stat.verdict, stat.reasons = _verdict(stat)
         stat.notes = _notes(stat)
         stats.append(stat)
