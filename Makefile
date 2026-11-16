@@ -35,7 +35,7 @@ PYTHONPATH ?= .
 # source locations for static analysis
 PYTHON_PATHS := src/ tests/ examples/ scripts/ benchmarks/
 # markdown files for static analysis
-MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md benchmarks/tagged_retrieval/README.md $(shell find documentation -name '*.md')
+MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find benchmarks -name '*.md') $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
