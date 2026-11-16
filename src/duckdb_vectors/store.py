@@ -204,8 +204,6 @@ class VectorStore:
         ).fetchone()
         if row is not None and row[0] == _STALE:
             return True
-        if self.count() > 0 and self._stored_keyword_fields() != self._keyword_fields():
-            return True
         has_index = self._con.execute(
             "SELECT count(*) FROM duckdb_tables() "
             "WHERE schema_name = 'fts_main_chunks' AND table_name = 'docs'"
@@ -218,6 +216,17 @@ class VectorStore:
         if self.settings.tag_bm25:
             fields.append("tags")
         return fields
+
+    def keyword_fields_changed(self) -> bool:
+        """True when this store's ``tag_bm25`` differs from the built index.
+
+        Only a writer acts on it (the folder indexer rebuilds); a reader keeps
+        whatever index the file holds, so processes with different settings do
+        not rebuild each other's index.
+        """
+        return self.count() > 0 and (
+            self._stored_keyword_fields() != self._keyword_fields()
+        )
 
     def _stored_keyword_fields(self) -> list[str]:
         """The columns the persisted index was built over.

@@ -215,8 +215,8 @@ def test_put_vectors_embeds_the_tagged_text_too(tmp_path):
 # Keyword matching of tags and the ``tags`` column migration
 
 
-def _tagged_pair(tmp_path, **settings):
-    store = _store(tmp_path, tag_fields=["product: $.product"], **settings)
+def _tagged_pair(tmp_path, name="idx.duckdb", **settings):
+    store = _store(tmp_path, name, tag_fields=["product: $.product"], **settings)
     store.add_texts(
         ids=["a", "b"],
         texts=["alpha words here", "gamma words there"],
@@ -226,23 +226,40 @@ def _tagged_pair(tmp_path, **settings):
 
 
 def test_tag_tokens_match_in_keyword_search_only_with_tag_bm25(tmp_path):
-    off = _tagged_pair(tmp_path, tag_bm25=False)
+    off = _tagged_pair(tmp_path, "off.duckdb", tag_bm25=False)
     assert all(hit.text_rank is None for hit in off.query("zyxwv"))
     off.close()
-    on = _store(tmp_path, tag_fields=["product: $.product"], tag_bm25=True)
+    on = _tagged_pair(tmp_path, "on.duckdb", tag_bm25=True)
     hits = on.query("zyxwv")
     assert hits[0].chunk.chunk_id == "a"
     assert hits[0].text_rank == 1
     on.close()
 
 
-def test_toggling_tag_bm25_rebuilds_the_index_on_the_next_search(tmp_path):
-    on = _tagged_pair(tmp_path, tag_bm25=True)
-    assert on.query("zyxwv")[0].text_rank == 1
+def test_reindexing_with_a_toggled_tag_bm25_rebuilds_the_keyword_index(
+    tmp_path, tagged_folder
+):
+    fields = ["product: $.product.name"]
+    on = _store(tmp_path, tag_fields=fields, tag_bm25=True)
+    index_folder(on, tagged_folder)
+    assert any(hit.text_rank for hit in on.query("beacon"))
     on.close()
-    off = _store(tmp_path, tag_fields=["product: $.product"], tag_bm25=False)
-    assert all(hit.text_rank is None for hit in off.query("zyxwv"))
+    off = _store(tmp_path, tag_fields=fields, tag_bm25=False)
+    assert off.keyword_fields_changed()
+    report = index_folder(off, tagged_folder)  # nothing else changed
+    assert report.written == 0
+    assert all(hit.text_rank is None for hit in off.query("beacon"))
+    assert not off.keyword_fields_changed()
     off.close()
+
+
+def test_a_reader_keeps_the_index_the_file_holds(tmp_path):
+    writer = _tagged_pair(tmp_path, tag_bm25=True)
+    writer.close()
+    reader = _store(tmp_path, tag_fields=["product: $.product"], tag_bm25=False)
+    assert reader.query("zyxwv")[0].text_rank == 1  # tags still matched
+    assert reader.keyword_fields_changed()  # but a writer would rebuild
+    reader.close()
 
 
 def test_stored_text_stays_raw_with_tag_bm25(tmp_path):

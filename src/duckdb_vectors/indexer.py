@@ -127,7 +127,7 @@ def index_folder(
     report.written = len(changed)
     report.pruned = _delete_chunks(store, stale)
 
-    if changed or stale:
+    if changed or stale or store.keyword_fields_changed():
         store._rebuild_fts()
     return report
 
