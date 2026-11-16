@@ -38,12 +38,13 @@ interval and an exact McNemar test on "every golden chunk found".
 | --- | --- |
 | Anthropic cookbook codebases (90 files, 737 chunks, 248 queries) | loader and runner done; uses the published chunks as they are, so results compare with the cookbook |
 | RAGMATE-10K (25 SEC 10-K filings, 4,490 chunks, 117 usable questions) | loader and runner done (`--dataset ragmate`, needs `pip install 'duckdb-vectors[benchmarks]'`); filings are re-chunked with the dataset's own recipe |
-| MultiHop-RAG | not yet |
+| MultiHop-RAG (609 news articles, 4,303 chunks, 2,255 usable questions) | loader and runner done (`--dataset multihop`); articles are cut into the package's word windows and each quoted fact is mapped to the chunks that hold it |
 | `engineering-brain/documentation` (private) | not yet |
 
 Tags default to a preset per dataset (`repo`, `directory` and `extension` for the
 cookbook set; `company`, `year` and `section` for RAGMATE-10K), and
-`--tag-fields` replaces it.
+`--tag-fields` replaces it. MultiHop-RAG uses `title`, `source`, `category` and
+`published`.
 
 ### RAGMATE-10K data quality
 
@@ -55,6 +56,16 @@ the 120 questions were left with no usable chunk. All 319 cited chunk texts ship
 with the ground truth are identical to the re-chunked text. The repository states
 no licence, so the data is used for local benchmarking and no derived set is
 published.
+
+### MultiHop-RAG golden-chunk mapping
+
+The dataset gives each question's evidence as a quoted fact in an article, not as
+a chunk. A fact counts as found in every chunk that contains it (whitespace
+squashed), and a question is satisfied for that fact by any one of them, so the
+score is the share of evidence items found. Of 6,084 evidence items, 3 are in no
+chunk and are dropped, and 499 sit in two overlapping chunks. The 301
+`null_query` questions have no evidence and are not used, which leaves 2,255 of
+2,556. The corpus is under ODC-BY.
 
 ## Sanity check of the baseline
 
