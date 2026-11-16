@@ -45,6 +45,7 @@ class Dataset(BaseModel):
     sources: dict[str, str]
     quality: dict[str, int] = {}
     default_tag_fields: list[str] = []
+    documents: dict[str, str] = {}
 
 
 def _chunk_id(document_uuid: str, index: int) -> str:
@@ -69,11 +70,13 @@ def parse_anthropic(
         for document in row["golden_documents"]:
             meta[document["uuid"]] = document["meta"]
     chunks: list[Chunk] = []
+    texts: dict[str, str] = {}
     for document in documents:
         uuid = document["original_uuid"]
         if uuid not in meta:
             raise ValueError(f"document {uuid} has no metadata in the evaluation set")
         native = meta[uuid]
+        texts[native["relative_path"]] = document["content"]
         path = PurePosixPath(native["relative_path"])
         tags = {
             "repo_name": native["repo_name"],
@@ -109,6 +112,7 @@ def parse_anthropic(
         chunks=chunks,
         queries=queries,
         sources=sources or {},
+        documents=texts,
         default_tag_fields=[
             "repo: $.repo_name",
             "directory: $.directory",
@@ -506,9 +510,35 @@ def load_engineering_brain(cache: Path) -> Dataset:
     )
 
 
+def load_anthropic_context(cache: Path) -> Dataset:
+    """The Anthropic set with each chunk's LLM-written context as a ``context`` tag.
+
+    Run ``python -m benchmarks.tagged_retrieval.contextualize`` first. The
+    conditions then read as Contextual Embeddings (``tags_embedding``),
+    Contextual BM25 (``tags_bm25``) and both (``tags_both``).
+    """
+    dataset = load_anthropic(cache)
+    path = cache / "anthropic-contexts.json"
+    if not path.exists():
+        raise ValueError(
+            "no contexts yet: run python -m benchmarks.tagged_retrieval.contextualize"
+        )
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    for chunk in dataset.chunks:
+        chunk.metadata = {
+            **chunk.metadata,
+            "context": stored["contexts"][chunk.chunk_id],
+        }
+    dataset.name = "anthropic-llm-context"
+    dataset.default_tag_fields = ["context: $.context"]
+    dataset.sources = {**dataset.sources, "context_model": stored["model"]}
+    return dataset
+
+
 LOADERS = {
     "anthropic": load_anthropic,
     "ragmate": load_ragmate,
     "multihop": load_multihop,
     "engineering-brain": load_engineering_brain,
+    "anthropic-context": load_anthropic_context,
 }

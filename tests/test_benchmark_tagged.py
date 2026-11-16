@@ -350,3 +350,17 @@ def test_suffix_embeds_the_tags_after_the_chunk(tmp_path, dataset):
     expected = store.embedder.embed(["alpha needle one\n\nrepo: org/repo1"])[0]
     assert list(row[0]) == pytest.approx(expected)
     store.close()
+
+
+def test_sweep_matrix_runs_large_embedders_on_the_codebase_set_only():
+    from benchmarks.tagged_retrieval import sweep
+
+    plan = sweep.jobs()
+    large = [job for job in plan if job[1] in (sweep.E5_LARGE, sweep.BGE_LARGE)]
+    assert {dataset for dataset, _, _ in large} == {"anthropic"}
+    ablated = {dataset for dataset, backend, ablate in plan if ablate}
+    assert ablated == sweep.ABLATED
+    assert all(backend == sweep.POTION for _, backend, ablate in plan if ablate)
+    assert "--sample-queries" in sweep.arguments("multihop", sweep.POTION, True)
+    assert "--ablate" in sweep.arguments("multihop", sweep.POTION, True)
+    assert "--sample-queries" not in sweep.arguments("anthropic", sweep.POTION, False)

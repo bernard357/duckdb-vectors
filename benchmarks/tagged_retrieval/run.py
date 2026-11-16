@@ -33,15 +33,47 @@ from pydantic import BaseModel
 from benchmarks.tagged_retrieval import metrics
 from benchmarks.tagged_retrieval.datasets import LOADERS, Dataset
 from duckdb_vectors.config import Settings
+from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.etag import compute_etag
 from duckdb_vectors.store import VectorStore
 
 DEFAULT_BACKEND = "fastembed:minishlab/potion-multilingual-128M"
 DEFAULT_KS = (5, 10, 20)
+COST_SAMPLE = 100
 CONDITIONS = ("baseline", "tags_embedding", "tags_bm25", "tags_both")
 _REPO = Path(__file__).resolve().parents[2]
 _CACHE = Path(__file__).resolve().parent / ".cache"
 _RESULTS = Path(__file__).resolve().parent / "results"
+
+
+class CachedEmbedder:
+    """Embeds each distinct text once per run and shares it across conditions.
+
+    Conditions overlap heavily: the baseline and the keyword-only condition
+    embed the same raw text, and every search repeats its query for each ``k``.
+    The vectors are exactly the ones the wrapped embedder returns.
+    """
+
+    def __init__(self, embedder) -> None:
+        self._embedder = embedder
+        self._cache: dict[str, list[float]] = {}
+
+    @property
+    def model_identifier(self) -> str:
+        return self._embedder.model_identifier
+
+    @property
+    def dimensions(self) -> int:
+        return self._embedder.dimensions
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        missing = list(dict.fromkeys(t for t in texts if t not in self._cache))
+        if missing:
+            for text, vector in zip(
+                missing, self._embedder.embed(missing), strict=True
+            ):
+                self._cache[text] = vector
+        return [self._cache[text] for text in texts]
 
 
 class Plan(BaseModel):
@@ -89,12 +121,56 @@ def reference_of(condition: str) -> str | None:
     return {"tags_suffix": "tags_embedding"}.get(condition)
 
 
+def embedded_texts(store: VectorStore, chunks: list, plan: Plan) -> list[str]:
+    """The text each chunk is embedded as under ``plan``."""
+    if plan.embed == "prefix":
+        return store.embedded_texts(chunks)
+    if plan.embed == "suffix":
+        prefixes = store.tag_prefixes(chunks)
+        return [
+            f"{chunk.text}\n\n{prefix}" if prefix else chunk.text
+            for chunk, prefix in zip(chunks, prefixes, strict=True)
+        ]
+    return [chunk.text for chunk in chunks]
+
+
+def cold_embed_ms(store: VectorStore, chunks: list, plan: Plan, backend: str) -> float:
+    """Milliseconds per chunk to embed a sample of this condition's texts.
+
+    Measured with a fresh embedder, because the run shares vectors between
+    conditions and so cannot time them. Longer prefixes cost more tokens.
+    """
+    sample = chunks[:: max(1, len(chunks) // COST_SAMPLE)][:COST_SAMPLE]
+    texts = embedded_texts(store, sample, plan)
+    fresh = resolve_embedder(backend)
+    fresh.embed(texts[:1])  # load the model before timing
+    started = time.perf_counter()
+    fresh.embed(texts)
+    return (time.perf_counter() - started) * 1000 / len(texts)
+
+
+def cold_query_embed_ms(dataset: Dataset, backend: str) -> float:
+    """Milliseconds to embed one query with a fresh embedder.
+
+    Search timings in a run exclude this: the embedder is shared, so a repeated
+    query costs nothing. Add it to ``p50_ms`` for the latency a caller sees.
+    """
+    texts = [query.text for query in dataset.queries[:COST_SAMPLE]]
+    fresh = resolve_embedder(backend)
+    fresh.embed(texts[:1])
+    started = time.perf_counter()
+    for text in texts:
+        fresh.embed([text])
+    return (time.perf_counter() - started) * 1000 / len(texts)
+
+
 def build_store(
     dataset: Dataset,
     db_path: Path,
     backend: str,
     condition: str,
     tag_fields: list[str],
+    embedder=None,
 ) -> VectorStore:
     """Index the dataset's chunks under one condition."""
     plan = plan_condition(condition, tag_fields)
@@ -104,18 +180,9 @@ def build_store(
         tag_fields=plan.tag_fields,
         tag_bm25=plan.bm25,
     )
-    store = VectorStore(settings=settings)
+    store = VectorStore(settings=settings, embedder=embedder)
     chunks = dataset.chunks
-    if plan.embed == "prefix":
-        texts = store.embedded_texts(chunks)
-    elif plan.embed == "suffix":
-        prefixes = store.tag_prefixes(chunks)
-        texts = [
-            f"{chunk.text}\n\n{prefix}" if prefix else chunk.text
-            for chunk, prefix in zip(chunks, prefixes, strict=True)
-        ]
-    else:
-        texts = [chunk.text for chunk in chunks]
+    texts = embedded_texts(store, chunks, plan)
     vectors = store.embedder.embed(texts)
     rows = [
         (
@@ -200,15 +267,20 @@ def run_benchmark(
 ) -> dict:
     """Run every condition in vector-only and hybrid mode."""
     results: dict = {}
+    embedder = CachedEmbedder(resolve_embedder(backend))
     with tempfile.TemporaryDirectory() as directory:
         for condition in conditions:
             started = time.perf_counter()
             db = Path(directory) / f"{condition}.duckdb"
-            store = build_store(dataset, db, backend, condition, tag_fields)
+            store = build_store(dataset, db, backend, condition, tag_fields, embedder)
             index_seconds = time.perf_counter() - started
-            store = VectorStore(settings=store.settings)
+            store = VectorStore(settings=store.settings, embedder=embedder)
+            plan = plan_condition(condition, tag_fields)
             results[condition] = {
                 "index_seconds": index_seconds,
+                "embed_ms_per_chunk": cold_embed_ms(
+                    store, dataset.chunks, plan, backend
+                ),
                 "db_bytes": db.stat().st_size,
                 "vector": evaluate(store, dataset, ks, hybrid=False),
                 "hybrid": evaluate(store, dataset, ks, hybrid=True),
@@ -236,6 +308,7 @@ def run_benchmark(
             "query_sample": sample,
         },
         "backend": backend,
+        "query_embed_ms": cold_query_embed_ms(dataset, backend),
         "tag_fields": tag_fields,
         "ks": list(ks),
         "conditions": results,
