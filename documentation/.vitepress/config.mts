@@ -52,6 +52,10 @@ export default withMermaid(
               link: '/register-package-procedure',
             },
             { text: 'Performance workbook', link: '/performance-workbook' },
+            {
+              text: 'Tagged retrieval research',
+              link: '/tagged-retrieval-research',
+            },
           ],
         },
         {
