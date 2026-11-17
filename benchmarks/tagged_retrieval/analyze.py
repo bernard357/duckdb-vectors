@@ -86,7 +86,10 @@ def gains_table(results: dict, mode: str = MODE, k: str = K) -> str:
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for (dataset, backend, _, _), report in sorted(results.items()):
-        if "baseline" not in report["conditions"]:
+        if (
+            "baseline" not in report["conditions"]
+            or "tags_both" not in report["conditions"]
+        ):
             continue
         base = report["conditions"]["baseline"][mode][k]["pass"]
         cells = []
@@ -109,9 +112,9 @@ def cost_table(results: dict) -> str:
         "| (tags) | Search ms p50 | Query embed ms |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for (dataset, backend, _, ablation), report in sorted(results.items()):
+    for (dataset, backend, _, _ablation), report in sorted(results.items()):
         conds = report["conditions"]
-        if "baseline" not in conds or "tags_both" not in conds or ablation:
+        if "baseline" not in conds or "tags_both" not in conds:
             continue
         base, both = conds["baseline"], conds["tags_both"]
         if "embed_ms_per_chunk" not in base:

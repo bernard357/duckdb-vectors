@@ -52,6 +52,10 @@ Each hypothesis is falsifiable and each has a verdict slot in the performance wo
 
 Constraints on reading the results. The codebase set has native tags only through a join on the evaluation file (repository, path). The `engineering-brain` corpus has one frontmatter key per page, `topic`, which is nearly an identifier, so its useful tags are derived with an LLM and live in a separate `llm` namespace. Under fastembed 0.9.1 every model truncates input at 512 tokens, the static default included, so a long prefix can push chunk text out of the window. The report warns about that case.
 
+## What did the runs find?
+
+The [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) reports every run with intervals. In short: H1 holds when queries use the words the tags carry and can fail otherwise, H2 and H4 are not supported, H3 holds in part, and H5 holds for the share of queries that mention a tag's values but not for embedding separation. Two results differ from the published work and are worth stating: tags placed before the chunk text moved a transformer's scores far more than tags placed after it, in both directions, and a title-like tag unique to each document did no harm.
+
 ## Follow-up
 
 - [Performance workbook](performance-workbook) - where the measured results and hypothesis verdicts will land.

@@ -107,7 +107,7 @@ $ duckdb-vectors tags --tag-fields "product: $.product.name" --tag-fields "kind:
 
 A tag is __decorative__ when its coverage is below 50%, when it has a single value, or, with queries, when fewer than 20% of the queries contain one of its values. Every other tag is __effective__. Without `--queries` only sparse and constant tags are screened out, and each tag carries a note that says so.
 
-The queries rule exists because the separation measures did not predict benefit. Over 17 tags in four corpora, the rank correlation between a tag's separation lift and the retrieval gain it brought was close to zero, and the company name and the news source that helped most scored as decorative. The share of queries that mention a tag's values correlated at 0.72. The 20% threshold was fitted to those same 17 tags, so treat it as a starting point. The [performance workbook](performance-workbook#which-tags-help) has the numbers.
+The queries rule exists because the separation measures did not predict benefit. Over 17 tags in four corpora, the rank correlation between a tag's separation lift and the retrieval gain it brought was close to zero, and the company name and the news source that helped most scored as decorative. The share of queries that mention a tag's values correlated at 0.62. The 20% threshold was fitted to those same 17 tags, so treat it as a starting point. The [performance workbook](performance-workbook#which-tags-help) has the numbers.
 
 The report cannot tell you whether a tag helps your searchers. It tells you which tags to try and which to drop first.
 

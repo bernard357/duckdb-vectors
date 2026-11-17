@@ -39,7 +39,8 @@ interval and an exact McNemar test on "every golden chunk found".
 | Anthropic cookbook codebases (90 files, 737 chunks, 248 queries) | loader and runner done; uses the published chunks as they are, so results compare with the cookbook |
 | RAGMATE-10K (25 SEC 10-K filings, 4,490 chunks, 117 usable questions) | loader and runner done (`--dataset ragmate`, needs `pip install 'duckdb-vectors[benchmarks]'`); filings are re-chunked with the dataset's own recipe |
 | MultiHop-RAG (609 news articles, 4,303 chunks, 2,255 usable questions) | loader and runner done (`--dataset multihop`); articles are cut into the package's word windows and each quoted fact is mapped to the chunks that hold it |
-| `engineering-brain/documentation` (private) | not yet |
+| `engineering-brain/documentation` (private) | loader, enrichment and question generation done (`--dataset engineering-brain`, needs `ENGINEERING_BRAIN_DIR`); results published, data not |
+| Anthropic set with LLM-written contexts | reference run for the hypothesis H4 (`--dataset anthropic-context`) |
 
 Tags default to a preset per dataset (`repo`, `directory` and `extension` for the
 cookbook set; `company`, `year` and `section` for RAGMATE-10K), and
@@ -75,3 +76,10 @@ cookbook reports 0.809 and 0.901 for its baseline with a Voyage embedding model.
 The ordering follows model quality. The numbers are not equal because the
 embedders differ, so they show that the chunk mapping works, not that this
 harness reproduces the cookbook.
+
+## Results
+
+Run `make bench-tagged` per dataset or `python -m benchmarks.tagged_retrieval.sweep` for the whole matrix, then
+`python -m benchmarks.tagged_retrieval.analyze` to print the tables. The measured results and the verdict on each
+hypothesis are in the
+[performance workbook](../../documentation/performance-workbook.md).
