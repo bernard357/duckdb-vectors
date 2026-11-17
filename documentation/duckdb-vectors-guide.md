@@ -287,7 +287,7 @@ $ duckdb-vectors search "how do retries work?"             # JSON by default
 $ duckdb-vectors search "how do retries work?" --output yaml   # or YAML
 ```
 
-To embed chunks with tags from their frontmatter, index with `--tag-fields "label: $.path"` (repeat the option for each tag) and run `duckdb-vectors tags` to see which tags help. The [tagged retrieval guide](tagged-retrieval-guide) explains both.
+To embed chunks with tags from their frontmatter, index with `--tag-fields "label: $.path"` (repeat the option for each tag), add `--tag-bm25` to match the tags in keyword search too, and run `duckdb-vectors tags --queries FILE` to see which tags your queries actually use. The [tagged retrieval guide](tagged-retrieval-guide) explains each step and the [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) shows when tags help.
 
 The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its `search` and `report` tools. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
 

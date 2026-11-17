@@ -62,7 +62,7 @@ Indexing a set of Markdown pages directly from the command-line. This produces a
 $ duckdb-vectors index ./docs            # index a folder of markdown and PDF
 $ duckdb-vectors report                  # report on database content
 $ duckdb-vectors search "my question"    # hybrid search
-$ duckdb-vectors tags                     # measure which frontmatter tags help search
+$ duckdb-vectors tags --tag-fields "product: $.product" --queries q.txt   # which tags help
 $ duckdb-vectors mcp                      # serve retrieval as an MCP stdio server
 $ duckdb-vectors --version                # print the tag-derived package version
 ```
