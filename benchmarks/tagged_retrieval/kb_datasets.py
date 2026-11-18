@@ -277,7 +277,132 @@ def prepare_financebench(folder: Path, work: Path, cache: Path = _CACHE) -> dict
     return validation.steps[-2]
 
 
-PREPARERS = {"anthropic": prepare_anthropic, "financebench": prepare_financebench}
+# LegalBench-RAG (Pipitone & Houir Alami 2024): questions over contracts and
+# privacy policies with human-annotated character spans. The corpus comes from
+# CUAD, ContractNLI and PrivacyQA (CC BY 4.0) and MAUD; it is used for local
+# benchmarking and derived pages are not republished. The mini variant here is
+# a seeded sample of 194 questions per sub-dataset with the corpus cut to the
+# documents they cite. MAUD is left out: its 106 cited merger agreements would
+# make about 21,000 chunks, more than the rest together several times over.
+LEGALBENCH_SUBSETS = ("privacy_qa", "contractnli", "cuad")
+LEGALBENCH_PER_SUBSET = 194
+SECTION_WORDS = 250
+_WORDS = re.compile(r"\S+")
+
+
+def word_windows(text: str, size: int = SECTION_WORDS) -> list[tuple[int, int]]:
+    """Character ranges of consecutive, non-overlapping windows of ``size`` words."""
+    spans = [match.span() for match in _WORDS.finditer(text)]
+    return [
+        (spans[i][0], spans[min(i + size, len(spans)) - 1][1])
+        for i in range(0, len(spans), size)
+    ]
+
+
+def legal_page(stem: str, front: dict, text: str, ranges: list) -> str:
+    header = yaml.safe_dump(front, sort_keys=False, allow_unicode=True).strip()
+    sections = [
+        f"## {stem} part {n}\n\n{fence(text[a:b], 'text')}"
+        for n, (a, b) in enumerate(ranges)
+    ]
+    return f"---\n{header}\n---\n# {stem}\n\n" + "\n\n".join(sections) + "\n"
+
+
+def prepare_legalbench(folder: Path, work: Path, cache: Path = _CACHE) -> dict:
+    """Write the cited documents as pages, one section per 250-word window.
+
+    A snippet (a character span) is satisfied by any section that overlaps it,
+    so each snippet is one evidence item, as in the cookbook's Pass@k. The data
+    must have been unpacked into ``.cache/legalbenchrag/data`` first.
+    """
+    import json
+
+    data = cache / "legalbenchrag" / "data"
+    if not (data / "benchmarks").exists():
+        raise ValueError(f"unpack the LegalBench-RAG archive into {data}")
+    rng_seed = 0
+    validation = ValidationSet(corpus="legalbench-rag-mini")
+    cited: dict[str, str] = {}
+    sampled: list[tuple[str, dict]] = []
+    import random
+
+    for subset in LEGALBENCH_SUBSETS:
+        tests = json.loads((data / "benchmarks" / f"{subset}.json").read_text())[
+            "tests"
+        ]
+        picked = random.Random(rng_seed).sample(
+            tests, min(LEGALBENCH_PER_SUBSET, len(tests))
+        )
+        for test in picked:
+            sampled.append((subset, test))
+            for snippet in test["snippets"]:
+                cited[snippet["file_path"]] = subset
+    ranges: dict[str, list[tuple[int, int]]] = {}
+    folder.mkdir(parents=True, exist_ok=True)
+    for path, subset in sorted(cited.items()):
+        text = (data / "corpus" / path).read_text(encoding="utf-8")
+        stem = Path(path).stem
+        ranges[path] = word_windows(text)
+        target = folder / f"{path}.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        front = {"collection": subset, "document": stem}
+        target.write_text(legal_page(stem, front, text, ranges[path]), "utf-8")
+    sections: dict[tuple[str, int], list[str]] = defaultdict(list)
+    for chunk in chunk_folder(folder):
+        match = re.search(r"part-(\d+)$", chunk.metadata.get("section_path", ""))
+        if match:
+            key = (chunk.source.removesuffix(".md"), int(match.group(1)))
+            sections[key].append(chunk.chunk_id)
+    quality = {"snippets": 0, "snippets_mapped": 0}
+    for number, (subset, test) in enumerate(sampled):
+        groups = []
+        for snippet in test["snippets"]:
+            quality["snippets"] += 1
+            start, end = snippet["span"]
+            path = snippet["file_path"]
+            group = [
+                cid
+                for n, (a, b) in enumerate(ranges[path])
+                if a < end and start < b
+                for cid in sections[(path, n)]
+            ]
+            if group:
+                quality["snippets_mapped"] += 1
+                groups.append(group)
+        if not groups:
+            continue
+        validation.items.append(
+            Item(
+                id=f"{subset}-{number:04d}",
+                text=test["query"],
+                stratum="native",
+                answer=" ".join(s.get("answer", "") for s in test["snippets"])[:2000],
+                source=f"{test['snippets'][0]['file_path']}.md",
+                golden=[cid for group in groups for cid in group],
+                alternatives=groups,
+                grades={cid: 1 for group in groups for cid in group},
+            )
+        )
+    validation.log(
+        "prepare",
+        dataset="legalbench-rag-mini",
+        subsets=list(LEGALBENCH_SUBSETS),
+        per_subset=LEGALBENCH_PER_SUBSET,
+        documents=len(cited),
+        questions=len(sampled),
+        questions_used=len(validation.items),
+        **quality,
+    )
+    freeze_split(validation)
+    write_json(work / "validation.json", validation.model_dump())
+    return validation.steps[-2]
+
+
+PREPARERS = {
+    "anthropic": prepare_anthropic,
+    "financebench": prepare_financebench,
+    "legalbench": prepare_legalbench,
+}
 
 
 def main(argv: list[str] | None = None) -> int:
