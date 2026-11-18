@@ -15,8 +15,8 @@ into it. Steps, each reading and extending ``WORK/validation.json``:
 * ``judge``: a model grades every pooled passage 0, 1 or 2 against the query
   and its reference answer, never seeing tags, contexts or the system. Golden
   chunks are the ones graded 1 or more.
-* ``audit``: a CSV of a balanced sample for a person to grade, and ``kappa``
-  to measure the agreement of that person with the judge.
+* ``audit``: a YAML sheet of a balanced sample for a person to grade, blind,
+  and ``kappa`` to measure the agreement of that person with the judge.
 
     $ make kb-validation KB=path/to/pages WORK=tmp/kb/work
     $ .venv/bin/python -m scripts.kb_validation local FOLDER --work DIR
@@ -26,7 +26,6 @@ and usage in the file.
 """
 
 import argparse
-import csv
 import datetime
 import hashlib
 import random
@@ -53,8 +52,10 @@ from scripts.kb_common import (
     load_prompt,
     parse_json_answer,
     read_json,
+    read_sheet,
     split_front_matter,
     write_json,
+    write_sheet,
 )
 
 DEFAULT_BACKENDS = (
@@ -622,6 +623,62 @@ def audit_rows(
     return rows
 
 
+AUDIT_HEADER = """\
+Audit of the relevance judge. Grade each passage blind, then run the kappa step.
+
+human_grade: 2 if the passage answers the question, 1 if it answers part of
+it or gives evidence needed for the answer, 0 if it does not help.
+question_valid: yes if a real user of this knowledge base would ask the
+question, no otherwise. The reference answer is what the question was written
+from; a passage need not repeat it word for word.
+"""
+AUDIT_HINTS = {"question_valid": "yes or no", "human_grade": "0, 1 or 2"}
+
+
+def audit_sheet(rows: list[dict]) -> list[dict]:
+    """The blind sheet: one record per question, with its passages to grade."""
+    records: dict[str, dict] = {}
+    for row in rows:
+        record = records.setdefault(
+            row["item"],
+            {
+                "item": row["item"],
+                "stratum": row["stratum"],
+                "question": row["question"],
+                "reference_answer": row["reference_answer"],
+                "question_valid": None,
+                "passages": [],
+            },
+        )
+        record["passages"].append(
+            {
+                "human_grade": None,
+                "chunk": row["chunk"],
+                "page": row["page"],
+                "passage": row["passage"],
+            }
+        )
+    return list(records.values())
+
+
+def sheet_rows(records: list[dict]) -> list[dict]:
+    """The graded sheet back as rows of ``item``, ``chunk`` and the grades."""
+    return [
+        {
+            "item": record["item"],
+            "chunk": passage["chunk"],
+            "human_grade": passage.get("human_grade"),
+            "question_valid": record.get("question_valid"),
+        }
+        for record in records
+        for passage in record.get("passages") or []
+    ]
+
+
+def _filled(value: object) -> bool:
+    return value is not None and str(value).strip() != ""
+
+
 def cohen_kappa(a: list[int], b: list[int]) -> float:
     """Cohen's kappa of two raters over the same items."""
     if not a or len(a) != len(b):
@@ -635,12 +692,14 @@ def cohen_kappa(a: list[int], b: list[int]) -> float:
 
 def agreement(rows: list[dict]) -> dict:
     """Judge-versus-person agreement from a graded audit sheet."""
-    graded = [r for r in rows if str(r.get("human_grade", "")).strip() != ""]
+    graded = [r for r in rows if _filled(r.get("human_grade"))]
     judge_grades = [int(r["judge_grade"]) for r in graded]
     human = [int(r["human_grade"]) for r in graded]
     validity = [
         str(r["question_valid"]).strip().lower() in ("1", "yes", "y", "true")
-        for r in {r["item"]: r for r in graded if r.get("question_valid")}.values()
+        for r in {
+            r["item"]: r for r in graded if _filled(r.get("question_valid"))
+        }.values()
     ]
     return {
         "rows": len(graded),
@@ -684,7 +743,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backends", nargs="+", default=list(DEFAULT_BACKENDS))
     parser.add_argument("--tag-fields", action="append", default=[])
     parser.add_argument("--depth", type=int, default=POOL_DEPTH)
-    parser.add_argument("--sheet", type=Path, help="audit CSV (audit, kappa)")
+    parser.add_argument("--sheet", type=Path, help="audit sheet (audit, kappa)")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--region", default=DEFAULT_REGION)
     parser.add_argument("--workers", type=int, default=8)
@@ -698,16 +757,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--batch applies to the judge step only")
     work = args.work
     validation = load_set(work, corpus=args.folder.name)
-    sheet = args.sheet or work / "audit.csv"
-    key_file = sheet.with_name(sheet.stem + "-judge.csv")
+    sheet = args.sheet or work / "audit.yaml"
+    key_file = sheet.with_name(sheet.stem + "-judge.yaml")
     if args.step == "kappa":
-        with sheet.open(encoding="utf-8") as handle:
-            graded = list(csv.DictReader(handle))
-        with key_file.open(encoding="utf-8") as handle:
-            judged = {
-                (r["item"], r["chunk"]): r["judge_grade"]
-                for r in csv.DictReader(handle)
-            }
+        graded = sheet_rows(read_sheet(sheet))
+        judged = {
+            (r["item"], r["chunk"]): r["judge_grade"] for r in read_sheet(key_file)
+        }
         for row in graded:
             row["judge_grade"] = judged[(row["item"], row["chunk"])]
         report = agreement(graded)
@@ -729,21 +785,13 @@ def main(argv: list[str] | None = None) -> int:
     chunks = chunk_folder(args.folder)
     if args.step == "audit":
         rows = audit_rows(validation, chunks, args.size, seed=args.seed)
-        sheet.parent.mkdir(parents=True, exist_ok=True)
         # The person grades a blind sheet; the judge's grades sit in a key file.
-        blind = [c for c in AUDIT_COLUMNS if c != "judge_grade"]
-        with sheet.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=blind, extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(rows)
-        with key_file.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(
-                handle,
-                fieldnames=["item", "chunk", "judge_grade"],
-                extrasaction="ignore",
-            )
-            writer.writeheader()
-            writer.writerows(rows)
+        write_sheet(sheet, audit_sheet(rows), AUDIT_HEADER, AUDIT_HINTS)
+        write_sheet(
+            key_file,
+            [{k: row[k] for k in ("item", "chunk", "judge_grade")} for row in rows],
+            "The judge's grades of audit.yaml: do not open before grading.",
+        )
         print(f"{len(rows)} rows written to {sheet} (key: {key_file})", file=sys.stderr)
         return 0
     if args.step == "pool":

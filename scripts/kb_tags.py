@@ -10,8 +10,8 @@ Steps, each reading and writing files in ``WORK``:
   "Other", ...) are removed from closed lists.
 * ``tag``: every page is tagged twice, the second time with the fields in
   reverse order, and the agreement of the two passes is reported per field. A
-  field below ``--min-agreement`` is dropped. A ``review.csv`` lists 30 pages
-  per field for a person to check.
+  field below ``--min-agreement`` is dropped. A ``review.yaml`` sheet lists 30
+  pages per field for a person to check.
 * ``apply``: the kept fields are written under the page's ``llm`` front matter
   key, so derived tags stay apart from native ones. Only that key is touched;
   the script never commits.
@@ -21,7 +21,6 @@ Steps, each reading and writing files in ``WORK``:
 """
 
 import argparse
-import csv
 import random
 import sys
 from collections import Counter
@@ -43,6 +42,7 @@ from scripts.kb_common import (
     set_front_matter_key,
     split_front_matter,
     write_json,
+    write_sheet,
 )
 
 NAMESPACE = "llm"
@@ -268,6 +268,12 @@ def coverage(schema: Schema, tags: dict) -> dict:
     return report
 
 
+REVIEW_HEADER = """\
+Review of the derived page tags. For each row, open the page and answer
+correct: yes if the value fits the page, no if it is wrong or missing.
+"""
+
+
 def review_rows(tags: dict, fields: list[str], seed: int = 0) -> list[dict]:
     """Up to ``REVIEW_PAGES`` pages per field for a person to check."""
     rng = random.Random(seed)
@@ -280,7 +286,7 @@ def review_rows(tags: dict, fields: list[str], seed: int = 0) -> list[dict]:
                     "field": field,
                     "page": page,
                     "value": tags[page].get(field) or "",
-                    "correct": "",
+                    "correct": None,
                 }
             )
     return rows
@@ -361,10 +367,12 @@ def main(argv: list[str] | None = None) -> int:
                 "tags": tags,
             },
         )
-        with (args.work / "review.csv").open("w", encoding="utf-8", newline="") as h:
-            writer = csv.DictWriter(h, fieldnames=["field", "page", "value", "correct"])
-            writer.writeheader()
-            writer.writerows(review_rows(tags, kept, args.seed))
+        write_sheet(
+            args.work / "review.yaml",
+            review_rows(tags, kept, args.seed),
+            REVIEW_HEADER,
+            {"correct": "yes or no"},
+        )
         print({"agreement": agreement, "kept": kept, "usage": model.usage.report()})
         return 0
     stored_tags = read_json(tags_file)

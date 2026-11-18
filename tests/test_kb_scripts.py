@@ -1,6 +1,5 @@
 """The knowledge-base curation scripts (scripts/kb_*.py), with a fake model."""
 
-import csv
 import json
 import shutil
 from pathlib import Path
@@ -9,7 +8,14 @@ import pytest
 
 from duckdb_vectors.chunkers.markdown import MarkdownChunker
 from duckdb_vectors.tagging import parse_tag_fields, project_many
-from scripts import kb_context, kb_evaluate, kb_metrics, kb_tags, kb_validation
+from scripts import (
+    kb_common,
+    kb_context,
+    kb_evaluate,
+    kb_metrics,
+    kb_tags,
+    kb_validation,
+)
 from scripts.kb_common import (
     PROMPTS,
     AnswerCache,
@@ -264,17 +270,29 @@ def test_validation_pool_judge_audit_and_kappa(kb, tmp_path):
         assert item.golden == [c for c in item.pooled if item.grades[c] >= 1]
     rows = kb_validation.audit_rows(validation, chunks, size=4)
     assert rows and all(row["human_grade"] == "" for row in rows)
-    for row in rows:
-        row["human_grade"] = row["judge_grade"]
-        row["question_valid"] = "yes"
-    sheet = tmp_path / "audit.csv"
-    with sheet.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=kb_validation.AUDIT_COLUMNS)
-        writer.writeheader()
-        writer.writerows(rows)
-    with sheet.open(encoding="utf-8") as handle:
-        result = kb_validation.agreement(list(csv.DictReader(handle)))
-    assert result["kappa_binary"] == 1.0 and result["questions_valid"] == 1.0
+    sheet = tmp_path / "audit.yaml"
+    kb_common.write_sheet(
+        sheet,
+        kb_validation.audit_sheet(rows),
+        kb_validation.AUDIT_HEADER,
+        kb_validation.AUDIT_HINTS,
+    )
+    text = sheet.read_text(encoding="utf-8")
+    assert "judge_grade" not in text and "human_grade:  # 0, 1 or 2" in text
+    # The person fills the blanks in place; a "no" still counts as rated.
+    grades = {(row["item"], row["chunk"]): row["judge_grade"] for row in rows}
+    records = kb_common.read_sheet(sheet)
+    for number, record in enumerate(records):
+        record["question_valid"] = number > 0  # YAML reads yes / no as booleans
+        for passage in record["passages"]:
+            passage["human_grade"] = grades[(record["item"], passage["chunk"])]
+    graded = kb_validation.sheet_rows(records)
+    for row in graded:
+        row["judge_grade"] = grades[(row["item"], row["chunk"])]
+    result = kb_validation.agreement(graded)
+    assert result["rows"] == len(rows) and result["kappa_binary"] == 1.0
+    assert result["questions_rated"] == len(records)
+    assert result["questions_valid"] == round(1 - 1 / len(records), 3)
 
 
 def test_cohen_kappa():

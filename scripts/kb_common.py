@@ -321,6 +321,57 @@ def set_front_matter_key(text: str, key: str, value: Any) -> str:
     return "---\n" + "\n".join(kept) + "\n---\n" + body
 
 
+class _SheetDumper(yaml.SafeDumper):
+    """Long text as ``|`` blocks, empty fields as blanks to fill in."""
+
+
+def _represent_text(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
+    if "\n" in value or len(value) > 80:
+        value = "\n".join(line.rstrip() for line in value.strip().splitlines())
+        return dumper.represent_scalar("tag:yaml.org,2002:str", value, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", value)
+
+
+def _represent_blank(dumper: yaml.SafeDumper, _: None) -> yaml.ScalarNode:
+    return dumper.represent_scalar("tag:yaml.org,2002:null", "")
+
+
+_SheetDumper.add_representer(str, _represent_text)
+_SheetDumper.add_representer(type(None), _represent_blank)
+
+
+def write_sheet(
+    path: Path,
+    records: list[dict],
+    header: str = "",
+    hints: dict[str, str] | None = None,
+) -> None:
+    """Write a sheet for a person to fill in, as YAML.
+
+    Fields to fill are ``None`` and come out blank; ``hints`` maps a field to
+    the comment written after it wherever it is blank. ``header`` becomes a
+    comment block at the top of the file.
+    """
+    text = yaml.dump(
+        records,
+        Dumper=_SheetDumper,
+        sort_keys=False,
+        allow_unicode=True,
+        width=88,
+    )
+    for field, hint in (hints or {}).items():
+        pattern = rf"^(\s*(?:- )?{re.escape(field)}:)$"
+        text = re.sub(pattern, rf"\1  # {hint}", text, flags=re.MULTILINE)
+    comment = "".join(f"# {line}".rstrip() + "\n" for line in header.splitlines())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(comment + ("\n" if comment else "") + text, encoding="utf-8")
+
+
+def read_sheet(path: Path) -> list[dict]:
+    """The records of a sheet written by :func:`write_sheet`."""
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or []
+
+
 def chunk_folder(folder: Path) -> list[Chunk]:
     """The folder's chunks, exactly as ``duckdb-vectors index`` cuts them."""
     return list(resolve_chunker("composite").chunk_folder(folder, recursive=True))
