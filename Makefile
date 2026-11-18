@@ -13,6 +13,7 @@ help:
 	@echo "$$ make kb-tags KB=dir       - Derive page-level tags (STEP=discover|tag|apply)"
 	@echo "$$ make kb-validation KB=dir - Build a validation set (STEP=local|contextual|...)"
 	@echo "$$ make kb-evaluate KB=dir   - Measure tags and contexts on a knowledge base"
+	@echo "$$ make kb-batch KB=dir      - Run queued requests as Bedrock batch jobs (STEP=submit|status|fetch)"
 	@echo "$$ make clean     - Remove build artifacts and caches"
 	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
@@ -158,6 +159,14 @@ kb-tags: kb-check
 kb-validation: kb-check
 	@echo "Building the validation set of $(KB) ($(or $(STEP),local))..."
 	.venv/bin/python -m scripts.kb_validation $(or $(STEP),local) "$(KB)" --work "$(WORK)" $(value KB_ARGS)
+
+# Batch inference: run a curation step with KB_ARGS="--batch" to queue its
+# requests, then STEP=submit, status and fetch, then the step again.
+BATCH_BUCKET ?=
+BATCH_ROLE_ARN ?=
+kb-batch: kb-check
+	@echo "Bedrock batch jobs of $(WORK) ($(or $(STEP),status))..."
+	.venv/bin/python -m scripts.kb_batch $(or $(STEP),status) --work "$(WORK)" $(if $(BATCH_BUCKET),--bucket "$(BATCH_BUCKET)") $(if $(BATCH_ROLE_ARN),--role-arn "$(BATCH_ROLE_ARN)")
 
 kb-evaluate: kb-check
 	@echo "Evaluating tags and contexts on $(KB)..."

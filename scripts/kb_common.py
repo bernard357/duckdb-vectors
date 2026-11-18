@@ -101,10 +101,80 @@ class Usage(BaseModel):
 Invoke = Callable[[str, list[dict], int], str]
 
 
+class Deferred(Exception):
+    """A request queued for a batch job, with no answer yet."""
+
+
+def request_key(model_id: str, system: str, blocks: list[dict], max_tokens: int) -> str:
+    """The identity of a request, the same in the queue and in the answers."""
+    texts = [block["text"] for block in blocks if "text" in block]
+    payload = json.dumps([model_id, system, texts, max_tokens], ensure_ascii=False)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+class BatchQueue:
+    """Requests for a Bedrock batch job, and the answers jobs brought back.
+
+    ``directory/pending.jsonl`` holds the queued requests and
+    ``directory/answers.jsonl`` the answers fetched by ``scripts/kb_batch.py``.
+    A request already answered is served from the answers; any other is queued
+    and raises :class:`Deferred`, so a script run in batch mode first collects
+    its requests, then, once the jobs are fetched, completes from the answers.
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self.directory = directory
+        directory.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
+        self.answers: dict[str, str] = {}
+        answers = directory / "answers.jsonl"
+        if answers.exists():
+            for line in answers.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    record = json.loads(line)
+                    self.answers[record["key"]] = record["text"]
+        self.pending: dict[str, dict] = {}
+        pending = directory / "pending.jsonl"
+        if pending.exists():
+            for line in pending.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    record = json.loads(line)
+                    if record["key"] not in self.answers:
+                        self.pending[record["key"]] = record
+        self.deferred = 0
+
+    def ask(
+        self, model_id: str, system: str, blocks: list[dict], max_tokens: int
+    ) -> str:
+        key = request_key(model_id, system, blocks, max_tokens)
+        with self._lock:
+            if key in self.answers:
+                return self.answers[key]
+            self.deferred += 1
+            self.pending[key] = {
+                "key": key,
+                "system": system,
+                "texts": [block["text"] for block in blocks if "text" in block],
+                "max_tokens": max_tokens,
+            }
+        raise Deferred(key)
+
+    def save(self) -> int:
+        """Write the queue; returns how many requests wait for a batch job."""
+        with self._lock:
+            lines = [json.dumps(r, ensure_ascii=False) for r in self.pending.values()]
+            (self.directory / "pending.jsonl").write_text(
+                "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
+            )
+            return len(lines)
+
+
 class Model:
     """A language model behind :data:`Invoke`, with usage accounting.
 
-    ``invoke`` defaults to Bedrock; tests pass a fake. Thread safe.
+    ``invoke`` defaults to Bedrock; tests pass a fake. With ``batch``, requests
+    go to a :class:`BatchQueue` instead: answered ones are returned, others
+    raise :class:`Deferred`. Thread safe.
     """
 
     def __init__(
@@ -113,11 +183,18 @@ class Model:
         region: str = DEFAULT_REGION,
         invoke: Invoke | None = None,
         session: Any = None,
+        batch: BatchQueue | None = None,
     ) -> None:
         self.model_id = model_id
         self.usage = Usage()
+        self.batch = batch
         self._lock = threading.Lock()
-        self._invoke = invoke or self._bedrock(model_id, region, session)
+        if batch is not None:
+            self._invoke = lambda system, blocks, max_tokens: batch.ask(
+                model_id, system, blocks, max_tokens
+            )
+        else:
+            self._invoke = invoke or self._bedrock(model_id, region, session)
 
     def _bedrock(self, model_id: str, region: str, session: Any) -> Invoke:
         import boto3

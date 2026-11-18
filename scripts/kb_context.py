@@ -35,6 +35,8 @@ from scripts.kb_common import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
     AnswerCache,
+    BatchQueue,
+    Deferred,
     Model,
     load_prompt,
     pages,
@@ -110,9 +112,11 @@ def contexts_for_page(
         key = cache.key(prompt.name, prompt.version, model.model_id, document, section)
         answer = cache.get(key)
         if answer is None:
-            answer = cache.put(
-                key, model(prompt.system, blocks_for(document, section), 300)
-            )
+            try:
+                text = model(prompt.system, blocks_for(document, section), 300)
+            except Deferred:
+                continue  # queued for a batch job; the page stays incomplete
+            answer = cache.put(key, text)
         result[path] = " ".join(str(answer).split())
     return result
 
@@ -205,12 +209,19 @@ def main(argv: list[str] | None = None) -> int:
         "instead of the whole page (bounds the cost of very long pages)",
     )
     parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="queue unanswered requests for a Bedrock batch job (scripts/kb_batch.py)"
+        " instead of calling the model; write the pages once all are answered",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="write the contexts to WORK/contexts.json only, not into the pages",
     )
     args = parser.parse_args(argv)
-    model = Model(args.model, args.region)
+    queue = BatchQueue(args.work / "batch") if args.batch else None
+    model = Model(args.model, args.region, batch=queue)
     cache = AnswerCache(args.work / "cache" / "context", model.usage)
     contexts = contextualize_folder(
         args.folder, model, cache, args.workers, args.max_document_chars
@@ -227,6 +238,15 @@ def main(argv: list[str] | None = None) -> int:
         "max_document_chars": args.max_document_chars,
         "usage": model.usage.report(),
     }
+    if queue is not None and queue.deferred:
+        waiting = queue.save()
+        print(
+            f"{queue.deferred} sections deferred; {waiting} requests wait in "
+            f"{queue.directory}. Run scripts/kb_batch.py submit, then fetch, then "
+            "this command again.",
+            file=sys.stderr,
+        )
+        return 3
     write_json(args.work / "contexts.json", {**report, "contexts": contexts})
     if not args.dry_run:
         report["pages_changed"] = apply_contexts(args.folder, contexts)

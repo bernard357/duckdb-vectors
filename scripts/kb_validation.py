@@ -44,7 +44,9 @@ from scripts.kb_common import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
     AnswerCache,
+    BatchQueue,
     CachedEmbedder,
+    Deferred,
     Model,
     build_index,
     chunk_folder,
@@ -503,7 +505,7 @@ def judge(
         if chunk_id not in item.grades and chunk_id in by_id
     ]
 
-    def one(task: tuple[Item, str]) -> int:
+    def one(task: tuple[Item, str]) -> int | None:
         item, chunk_id = task
         chunk = by_id[chunk_id]
         values = {
@@ -515,13 +517,19 @@ def judge(
         key = cache.key(prompt.name, prompt.version, model.model_id, *values.values())
         answer = cache.get(key)
         if answer is None:
-            raw = model.text(prompt.system, prompt.render(**values), 200)
+            try:
+                raw = model.text(prompt.system, prompt.render(**values), 200)
+            except Deferred:
+                return None  # queued for a batch job
             answer = cache.put(key, parse_json_answer(raw))
         grade = int(answer.get("grade", 0))
         return grade if grade in (0, 1, 2) else 0
 
     with ThreadPoolExecutor(workers) as executor:
         grades = list(executor.map(one, tasks))
+    deferred = sum(grade is None for grade in grades)
+    if deferred:
+        return {"judged": len(tasks) - deferred, "deferred": deferred}
     for (item, chunk_id), grade in zip(tasks, grades, strict=True):
         item.grades[chunk_id] = grade
     invalid = 0
@@ -680,7 +688,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--region", default=DEFAULT_REGION)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="queue model requests for a Bedrock batch job (scripts/kb_batch.py)",
+    )
     args = parser.parse_args(argv)
+    if args.batch and args.step != "judge":
+        parser.error("--batch applies to the judge step only")
     work = args.work
     validation = load_set(work, corpus=args.folder.name)
     sheet = args.sheet or work / "audit.csv"
@@ -716,7 +731,8 @@ def main(argv: list[str] | None = None) -> int:
         print(pool(validation, chunks, args.backends, args.tag_fields, args.depth))
         save_set(work, validation)
         return 0
-    model = Model(args.model, args.region)
+    queue = BatchQueue(work / "batch") if args.batch else None
+    model = Model(args.model, args.region, batch=queue)
     cache = AnswerCache(work / "cache" / "validation", model.usage)
     if args.step == "local":
         report = generate_local(
@@ -737,6 +753,13 @@ def main(argv: list[str] | None = None) -> int:
         report = judge(validation, chunks, model, cache, args.workers)
     report["usage"] = model.usage.report()
     print(report)
+    if queue is not None and queue.deferred:
+        print(
+            f"{queue.save()} requests wait in {queue.directory}; run "
+            "scripts/kb_batch.py submit, then fetch, then this step again.",
+            file=sys.stderr,
+        )
+        return 3
     save_set(work, validation)
     return 0
 
