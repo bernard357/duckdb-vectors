@@ -1,0 +1,347 @@
+"""The knowledge-base curation scripts (scripts/kb_*.py), with a fake model."""
+
+import csv
+import json
+import shutil
+from pathlib import Path
+
+import pytest
+
+from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.tagging import parse_tag_fields, project_many
+from scripts import kb_context, kb_evaluate, kb_metrics, kb_tags, kb_validation
+from scripts.kb_common import (
+    PROMPTS,
+    AnswerCache,
+    Model,
+    chunk_folder,
+    load_prompt,
+    read_front_matter,
+    set_front_matter_key,
+)
+
+FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "tagged"
+HASHING = "hashing"
+
+
+@pytest.fixture
+def kb(tmp_path):
+    folder = tmp_path / "kb"
+    shutil.copytree(FIXTURES, folder)
+    return folder
+
+
+def fake_invoke(system: str, blocks: list[dict], max_tokens: int) -> str:
+    """Answers each prompt in the shape it asks for, from the text it gets."""
+    text = "\n".join(block.get("text", "") for block in blocks)
+    if "situate this chunk" in text:
+        chunk = text.split("<chunk>")[1].split("</chunk>")[0].split()
+        return "Context about " + " ".join(chunk[:3])
+    if "Propose at most" in text:
+        return json.dumps(
+            {
+                "fields": [
+                    {
+                        "name": "product",
+                        "description": "The product.",
+                        "values": ["Beacon", "Cedar", "Other"],
+                        "example_queries": [],
+                        "lost_context": "procedures",
+                    },
+                    {
+                        "name": "mood",
+                        "description": "Unstable.",
+                        "values": "free",
+                    },
+                ],
+                "rejected": [{"name": "title", "reason": "unique"}],
+            }
+        )
+    if "Schema (field" in text:
+        product = "Cedar" if "Cedar" in text else "Beacon" if "Beacon" in text else None
+        reverse = text.index("- mood") < text.index("- product")
+        return json.dumps({"product": product, "mood": "calm" if reverse else "busy"})
+    if "reference answer taken from the passage" in text:
+        words = text.split("Passage:")[1].split()
+        return json.dumps(
+            {
+                "items": [
+                    {"question": f"what about {words[0]} please", "answer": "a"},
+                    {"question": " ".join(words[:8]), "answer": "copied"},
+                ]
+            }
+        )
+    if "passage A answers and passage B does not" in text:
+        words = text.split("Passage A:")[1].split()
+        return json.dumps({"question": f"which {words[1]} applies", "answer": "x"})
+    if "Grade the passage" in text:
+        question = text.split("Question:")[1].split("Reference answer")[0]
+        passage = text.split("Candidate passage")[1]
+        shared = set(question.lower().split()) & set(passage.lower().split())
+        return json.dumps({"grade": 2 if len(shared) > 2 else 0, "reason": ""})
+    raise AssertionError(f"unexpected prompt: {text[:80]}")
+
+
+def fake_model() -> Model:
+    return Model("fake", invoke=fake_invoke)
+
+
+ALL_PROMPTS = [
+    ("contextual-header", 1),
+    ("schema-discovery", 2),
+    ("tagging", 2),
+    ("query-local", 1),
+    ("query-contextual", 1),
+    ("relevance-judge", 1),
+]
+
+
+@pytest.mark.parametrize(("name", "version"), ALL_PROMPTS)
+def test_prompts_declare_exactly_the_inputs_they_use(name, version):
+    prompt = load_prompt(name, version)
+    assert (PROMPTS / f"{name}.v{version}.md").exists()
+    assert prompt.name == name
+    assert prompt.placeholders() == set(prompt.inputs)
+    assert prompt.system
+
+
+def test_leakage_guard_of_the_prompts():
+    for name in ("query-local", "query-contextual", "relevance-judge"):
+        prompt = load_prompt(name)
+        assert prompt.sees_tags is False
+        assert not {"tags", "schema", "metadata", "context"} & set(prompt.inputs)
+    for name, version in (("tagging", 2), ("contextual-header", 1)):
+        assert load_prompt(name, version).sees_queries is False
+    # Schema discovery sees dev queries by design; the script passes only those.
+    assert load_prompt("schema-discovery", 2).sees_queries is True
+
+
+def test_render_requires_every_input():
+    prompt = load_prompt("query-local")
+    assert "Refunds" in prompt.render(passage="Refunds take 30 days.", count="2")
+    with pytest.raises(ValueError, match="missing inputs"):
+        prompt.render(passage="x")
+
+
+def test_set_front_matter_key_rewrites_only_that_key():
+    page = "---\ntitle: A\nllm:\n  old: 1\nowner: bob\n---\n# A\n\nBody.\n"
+    updated = set_front_matter_key(page, "llm", {"product": "Cedar"})
+    assert read_front_matter(updated) == {
+        "title": "A",
+        "owner": "bob",
+        "llm": {"product": "Cedar"},
+    }
+    assert updated.endswith("# A\n\nBody.\n")
+    assert read_front_matter(set_front_matter_key(updated, "llm", None)) == {
+        "title": "A",
+        "owner": "bob",
+    }
+    assert set_front_matter_key("# A\n", "k", 1).startswith("---\nk: 1\n---\n")
+
+
+def test_kb_context_writes_section_contexts_that_the_projection_reads(kb, tmp_path):
+    model = fake_model()
+    cache = AnswerCache(tmp_path / "cache", model.usage)
+    contexts = kb_context.contextualize_folder(kb, model, cache, workers=2)
+    calls = model.usage.calls
+    assert calls == sum(len(page) for page in contexts.values())
+    assert kb_context.apply_contexts(kb, contexts) == len(contexts)
+    # A second run is served from the cache and changes nothing.
+    again = kb_context.contextualize_folder(kb, model, cache, workers=2)
+    assert again == contexts and model.usage.calls == calls
+    assert kb_context.apply_contexts(kb, again) == 0
+    chunks = chunk_folder(kb)
+    tags = project_many(
+        [c.metadata for c in chunks], parse_tag_fields(["context: $.llm.context"])
+    )
+    assert all(t and t[0][1].startswith("Context about") for t in tags)
+    for chunk in chunks:
+        assert "sections" not in chunk.metadata
+
+
+def test_kb_context_keeps_other_section_metadata():
+    front = {"sections": {"a": {"owner": "bob", "llm": {"context": "old", "x": 1}}}}
+    merged = kb_context.merge_sections(front, {"a": "new", "b": "other"})
+    assert merged == {
+        "a": {"owner": "bob", "llm": {"x": 1, "context": "new"}},
+        "b": {"llm": {"context": "other"}},
+    }
+
+
+def test_kb_context_sections_match_the_chunker():
+    text = (FIXTURES / "rotate-keys.md").read_text(encoding="utf-8")
+    sections = kb_context.page_sections(MarkdownChunker(), text)
+    paths = {c.metadata["section_path"] for c in MarkdownChunker().chunk(text, "x")}
+    assert set(sections) == paths
+
+
+def test_kb_tags_discovers_cleans_tags_twice_and_applies(kb, tmp_path):
+    model = fake_model()
+    schema = kb_tags.discover(kb, model, ["refund for Cedar"], size=4)
+    product = schema.fields[0]
+    assert product.values == ["Beacon", "Cedar"]
+    assert schema.removed_values == {"product": ["Other"]}
+    cache = AnswerCache(tmp_path / "cache", model.usage)
+    tags, agreement = kb_tags.tag_folder(kb, schema, model, cache, workers=2)
+    assert agreement["product"] == 1.0
+    assert agreement["mood"] == 0.0  # the two passes disagree on every page
+    assert all(values["mood"] is None for values in tags.values())
+    changed = kb_tags.apply_tags(kb, tags, ["product"])
+    assert changed == sum(1 for values in tags.values() if values["product"])
+    front = read_front_matter((kb / "deploy-runbook.md").read_text("utf-8"))
+    assert front["llm"] == {"product": "Cedar"}
+    assert len(kb_tags.review_rows(tags, ["product"])) == len(tags)
+
+
+def test_kb_tags_existing_fields_skip_reserved_keys(kb):
+    fields = kb_tags.existing_fields(kb_tags.pages(kb))
+    assert "title" in fields and "llm" not in fields and "sections" not in fields
+
+
+def test_kb_tags_clean_value_rejects_sentinels_and_long_free_text():
+    field = kb_tags.Field(name="x", description="", values="free")
+    assert kb_tags.clean_value(field, "Other") is None
+    assert kb_tags.clean_value(field, "a b c d e") is None
+    assert kb_tags.clean_value(field, "Cedar") == "Cedar"
+
+
+def _validation(kb, tmp_path):
+    model = fake_model()
+    cache = AnswerCache(tmp_path / "vcache", model.usage)
+    validation = kb_validation.ValidationSet(corpus="tagged")
+    chunks = chunk_folder(kb)
+    for chunk in chunks:  # fixture chunks are short; make them eligible
+        chunk.text = (chunk.text + " ") * 12
+    return validation, chunks, model, cache
+
+
+def test_validation_local_drops_copies_and_records_origin(kb, tmp_path):
+    validation, chunks, model, cache = _validation(kb, tmp_path)
+    report = kb_validation.generate_local(validation, chunks, model, cache, size=4)
+    assert report["copied_too_much"] == 4
+    assert report["kept"] == len(validation.items) == 4
+    for item in validation.items:
+        assert item.stratum == "local" and len(item.origin) == 1
+
+
+def test_validation_contextual_pairs_come_from_different_pages(kb, tmp_path):
+    validation, chunks, model, cache = _validation(kb, tmp_path)
+    kb_validation.generate_contextual(
+        validation, kb, chunks, model, cache, size=3, backend=HASHING
+    )
+    by_id = {c.chunk_id: c for c in chunks}
+    assert validation.items
+    for item in validation.items:
+        assert item.stratum == "contextual"
+        assert by_id[item.confuser].source != item.source
+
+
+def test_validation_split_is_by_page_and_frozen(kb, tmp_path):
+    validation, chunks, model, cache = _validation(kb, tmp_path)
+    kb_validation.generate_local(validation, chunks, model, cache, size=8)
+    split = kb_validation.freeze_split(validation, dev_share=0.5)
+    by_page: dict[str, set] = {}
+    for item in validation.items:
+        by_page.setdefault(item.source, set()).add(item.split)
+    assert all(len(splits) == 1 for splits in by_page.values())
+    assert split["dev"] + split["test"] == len(validation.items)
+    with pytest.raises(ValueError, match="frozen"):
+        kb_validation.freeze_split(validation, dev_share=0.3)
+    assert kb_validation.freeze_split(validation, dev_share=0.5) == split
+
+
+def test_validation_pool_judge_audit_and_kappa(kb, tmp_path):
+    validation, chunks, model, cache = _validation(kb, tmp_path)
+    kb_validation.generate_local(validation, chunks, model, cache, size=4)
+    kb_validation.import_queries(validation, ["refund window", "refund window", ""])
+    assert sum(item.stratum == "real" for item in validation.items) == 1
+    kb_validation.pool(validation, chunks, [HASHING], ["product: $.product.name"], 5)
+    for item in validation.items:
+        assert set(item.origin) <= set(item.pooled)
+    report = kb_validation.judge(validation, chunks, model, cache, workers=2)
+    assert report["judged"] == sum(len(item.pooled) for item in validation.items)
+    for item in validation.items:
+        assert item.golden == [c for c in item.pooled if item.grades[c] >= 1]
+    rows = kb_validation.audit_rows(validation, chunks, size=4)
+    assert rows and all(row["human_grade"] == "" for row in rows)
+    for row in rows:
+        row["human_grade"] = row["judge_grade"]
+        row["question_valid"] = "yes"
+    sheet = tmp_path / "audit.csv"
+    with sheet.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=kb_validation.AUDIT_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    with sheet.open(encoding="utf-8") as handle:
+        result = kb_validation.agreement(list(csv.DictReader(handle)))
+    assert result["kappa_binary"] == 1.0 and result["questions_valid"] == 1.0
+
+
+def test_cohen_kappa():
+    assert kb_validation.cohen_kappa([0, 1, 2, 2], [0, 1, 2, 2]) == 1.0
+    assert kb_validation.cohen_kappa([0, 0, 1, 1], [0, 1, 0, 1]) == 0.0
+
+
+def test_kb_evaluate_runs_every_condition_per_stratum(kb, tmp_path):
+    model = fake_model()
+    kb_context.apply_contexts(
+        kb,
+        kb_context.contextualize_folder(
+            kb, model, AnswerCache(tmp_path / "c", model.usage), workers=2
+        ),
+    )
+    chunks = chunk_folder(kb)
+    items = [
+        kb_validation.Item(
+            id=f"q{i}",
+            text=chunk.text[:60],
+            stratum="local" if i % 2 else "contextual",
+            golden=[chunk.chunk_id],
+            grades={chunk.chunk_id: 2},
+            split="test",
+        )
+        for i, chunk in enumerate(chunks[:6])
+    ]
+    report = kb_evaluate.run_evaluation(
+        chunks,
+        items,
+        HASHING,
+        {"context": ["context: $.llm.context"]},
+        ks=(5, 10),
+    )
+    assert list(report["conditions"]) == [
+        "baseline",
+        "context:embedding",
+        "context:bm25",
+        "context:both",
+    ]
+    hybrid = report["versus_baseline"]["context:both"]["hybrid"]["10"]
+    assert set(hybrid) == {"all", "contextual", "local"}
+    assert hybrid["all"]["queries"] == 6
+    assert "failure_reduction" in hybrid["all"]
+    # Tags in the keyword index only leave the vectors as in the baseline.
+    base = report["conditions"]["baseline"]["vector"]["k"]["10"]["scores"]
+    bm25 = report["conditions"]["context:bm25"]["vector"]["k"]["10"]["scores"]
+    assert base == bm25
+    assert "failure" in kb_evaluate.summary(report, "10")
+
+
+def test_kb_evaluate_parse_tag_set():
+    assert kb_evaluate.parse_tag_set("ctx=context: $.llm.context;p: $.p") == (
+        "ctx",
+        ["context: $.llm.context", "p: $.p"],
+    )
+    with pytest.raises(ValueError):
+        kb_evaluate.parse_tag_set("no-equals")
+
+
+def test_metrics_ndcg_sign_flip_and_holm():
+    assert kb_metrics.ndcg(["a", "b"], {"a": 2, "b": 1}, 2) == 1.0
+    assert kb_metrics.ndcg(["x", "a"], {"a": 2}, 2) == pytest.approx(1 / 1.58496, 1e-4)
+    assert kb_metrics.sign_flip_p([0.0] * 30, [1.0] * 30) < 0.001
+    assert kb_metrics.sign_flip_p([0.5] * 10, [0.5] * 10) == 1.0
+    assert kb_metrics.holm({"a": 0.01, "b": 0.04, "c": 0.03}) == {
+        "a": True,
+        "b": False,
+        "c": False,
+    }

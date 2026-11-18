@@ -9,6 +9,10 @@ help:
 	@echo "$$ make format    - Format Python code with Ruff"
 	@echo "$$ make build     - Build the wheel and sdist with uv"
 	@echo "$$ make bench-tagged - Run the tagged retrieval benchmark (downloads data)"
+	@echo "$$ make kb-context KB=dir    - Write offline section contexts into a knowledge base"
+	@echo "$$ make kb-tags KB=dir       - Derive page-level tags (STEP=discover|tag|apply)"
+	@echo "$$ make kb-validation KB=dir - Build a validation set (STEP=local|contextual|...)"
+	@echo "$$ make kb-evaluate KB=dir   - Measure tags and contexts on a knowledge base"
 	@echo "$$ make clean     - Remove build artifacts and caches"
 	@echo "$$ make ping-docker    - End-to-end ping: offline RAG container"
 	@echo "$$ make ping-lambda    - End-to-end ping: deploy and invoke on AWS Lambda"
@@ -35,7 +39,7 @@ PYTHONPATH ?= .
 # source locations for static analysis
 PYTHON_PATHS := src/ tests/ examples/ scripts/ benchmarks/
 # markdown files for static analysis
-MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find benchmarks -name '*.md') $(shell find documentation -name '*.md')
+MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find benchmarks scripts -name '*.md' -not -path '*/.cache/*') $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
@@ -129,6 +133,35 @@ BENCH_ARGS ?=
 bench-tagged:
 	@echo "Running the tagged retrieval benchmark..."
 	.venv/bin/python -m benchmarks.tagged_retrieval.run $(BENCH_ARGS)
+
+# Knowledge-base curation, upstream of indexing (scripts/kb_*.py). KB is the
+# folder of Markdown pages, WORK the folder for caches, the validation set and
+# results. A language model is called through Amazon Bedrock (eu. profile);
+# answers are cached by content. Extra options go through KB_ARGS, for example
+# make kb-validation KB=docs STEP=contextual KB_ARGS="--size 300"
+KB ?=
+WORK ?= tmp/kb/$(notdir $(KB))
+STEP ?=
+TAGS ?=
+KB_ARGS ?=
+kb-check:
+	@test -n "$(KB)" || (echo "Set KB to the folder of Markdown pages"; exit 1)
+
+kb-context: kb-check
+	@echo "Writing section contexts into $(KB)..."
+	.venv/bin/python -m scripts.kb_context "$(KB)" --work "$(WORK)" $(value KB_ARGS)
+
+kb-tags: kb-check
+	@echo "Deriving page-level tags for $(KB) ($(or $(STEP),discover))..."
+	.venv/bin/python -m scripts.kb_tags $(or $(STEP),discover) "$(KB)" --work "$(WORK)" $(value KB_ARGS)
+
+kb-validation: kb-check
+	@echo "Building the validation set of $(KB) ($(or $(STEP),local))..."
+	.venv/bin/python -m scripts.kb_validation $(or $(STEP),local) "$(KB)" --work "$(WORK)" $(value KB_ARGS)
+
+kb-evaluate: kb-check
+	@echo "Evaluating tags and contexts on $(KB)..."
+	.venv/bin/python -m scripts.kb_evaluate "$(KB)" --work "$(WORK)" $(if $(TAGS),--tags '$(value TAGS)') $(value KB_ARGS)
 
 coverage:
 	@echo "Running tests with coverage..."

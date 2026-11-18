@@ -435,81 +435,6 @@ def load_multihop(cache: Path) -> Dataset:
     )
 
 
-_BRAIN_FIELDS = (
-    "aws_service",
-    "document_type",
-    "programming_language",
-    "operational_domain",
-    "audience_level",
-    "has_code_examples",
-)
-
-
-def parse_engineering_brain(
-    chunks: list[Chunk],
-    derived: dict[str, dict[str, str | None]],
-    generated: dict,
-    sources: dict[str, str] | None = None,
-) -> Dataset:
-    """Combine the corpus chunks, the model-derived tags and generated questions.
-
-    Each page's derived tags replace its ``llm`` front matter, so the benchmark
-    can test every proposed tag, including the ones left out of the pages. The
-    golden chunk of a question is the chunk it was written from.
-    """
-    known = {chunk.chunk_id for chunk in chunks}
-    for chunk in chunks:
-        values = derived.get(chunk.source, {})
-        llm = {name: values[name] for name in _BRAIN_FIELDS if values.get(name)}
-        chunk.metadata = {**chunk.metadata, "llm": llm}
-    queries = [
-        Query(text=item["question"], golden=[item["chunk_id"]])
-        for item in generated["queries"]
-        if item["chunk_id"] in known
-    ]
-    quality = {**generated["quality"], "questions_used": len(queries)}
-    return Dataset(
-        name="engineering-brain",
-        chunks=chunks,
-        queries=queries,
-        sources=sources or {},
-        quality=quality,
-        default_tag_fields=[
-            "topic: $.topic",
-            *(f"{name}: $.llm.{name}" for name in _BRAIN_FIELDS),
-        ],
-    )
-
-
-def load_engineering_brain(cache: Path) -> Dataset:
-    """Load the private engineering-brain set.
-
-    Needs ``ENGINEERING_BRAIN_DIR`` (the documentation folder) and the work
-    folder ``ENGINEERING_BRAIN_WORK`` (default ``tmp/enrichment``) holding
-    ``tags.json`` from ``enrich`` and ``queries.json`` from ``queries``. The
-    corpus and the questions are private and are not published.
-    """
-    import os
-
-    from benchmarks.tagged_retrieval.queries import chunk_folder
-
-    folder = os.environ.get("ENGINEERING_BRAIN_DIR")
-    if not folder:
-        raise ValueError("set ENGINEERING_BRAIN_DIR to the documentation folder")
-    work = Path(os.environ.get("ENGINEERING_BRAIN_WORK", "tmp/enrichment"))
-    tags = json.loads((work / "tags.json").read_text(encoding="utf-8"))
-    generated = json.loads((work / "queries.json").read_text(encoding="utf-8"))
-    return parse_engineering_brain(
-        chunk_folder(Path(folder)),
-        tags,
-        generated,
-        sources={
-            "prompt_version": str(generated["prompt_version"]),
-            "model": generated["model"],
-        },
-    )
-
-
 def load_anthropic_context(cache: Path) -> Dataset:
     """The Anthropic set with each chunk's LLM-written context as a ``context`` tag.
 
@@ -539,6 +464,5 @@ LOADERS = {
     "anthropic": load_anthropic,
     "ragmate": load_ragmate,
     "multihop": load_multihop,
-    "engineering-brain": load_engineering_brain,
     "anthropic-context": load_anthropic_context,
 }

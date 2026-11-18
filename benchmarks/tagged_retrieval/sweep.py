@@ -25,8 +25,8 @@ E5_LARGE = "fastembed:intfloat/multilingual-e5-large"
 BGE_LARGE = "fastembed:BAAI/bge-large-en-v1.5"
 SAMPLE = 500
 # Datasets whose queries are sampled to bound run time.
-SAMPLED = {"multihop", "engineering-brain"}
-ABLATED = {"anthropic", "ragmate", "multihop", "engineering-brain"}
+SAMPLED = {"multihop"}
+ABLATED = {"anthropic", "ragmate", "multihop"}
 
 
 def jobs() -> list[tuple[str, str, bool]]:
@@ -36,7 +36,6 @@ def jobs() -> list[tuple[str, str, bool]]:
         "anthropic-context",
         "ragmate",
         "multihop",
-        "engineering-brain",
     ]
     plan = [(d, POTION, d in ABLATED) for d in datasets]
     for backend in (MINILM, BGE_SMALL):

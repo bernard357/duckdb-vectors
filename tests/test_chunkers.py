@@ -324,3 +324,74 @@ def test_frontmatter_set_is_json_serializable():
     for chunk in chunks:
         json.dumps(chunk.metadata)
         assert isinstance(chunk.metadata["flags"], str)
+
+
+SECTIONED = """---
+product: Cedar
+llm:
+  kind: guide
+sections:
+  title/section-a:
+    llm:
+      context: Alpha is the setup part of the Cedar guide.
+  title/missing:
+    llm:
+      context: never used
+---
+# Title
+
+Intro paragraph with context.
+
+## Section A
+
+Alpha body content for the first section.
+
+## Section B
+
+Beta body content for the second section.
+"""
+
+
+def test_sections_entry_is_merged_into_its_section_only(caplog):
+    chunks = {
+        c.metadata["section_path"]: c
+        for c in MarkdownChunker().chunk(SECTIONED, "doc.md")
+    }
+    alpha = chunks["title/section-a"].metadata
+    assert alpha["llm"] == {
+        "kind": "guide",
+        "context": "Alpha is the setup part of the Cedar guide.",
+    }
+    assert alpha["product"] == "Cedar"
+    assert chunks["title/section-b"].metadata["llm"] == {"kind": "guide"}
+    for chunk in chunks.values():
+        assert "sections" not in chunk.metadata
+    assert "title/missing" in caplog.text
+
+
+def test_sections_entry_applies_to_every_window_of_a_long_section():
+    body = " ".join(f"word{i}" for i in range(700))
+    text = (
+        f"---\nsections:\n  long:\n    context: the long one\n---\n# Long\n\n{body}\n"
+    )
+    chunks = MarkdownChunker(target_words=300).chunk(text, "doc.md")
+    assert len(chunks) > 1
+    assert {c.metadata["context"] for c in chunks} == {"the long one"}
+
+
+def test_sections_key_that_is_not_a_mapping_is_page_metadata():
+    text = "---\nsections: 4\n---\n# Title\n\nBody text here.\n"
+    chunks = MarkdownChunker().chunk(text, "doc.md")
+    assert chunks[0].metadata["sections"] == 4
+
+
+def test_page_without_sections_is_unchanged():
+    plain = SECTIONED.split("sections:")[0] + "---\n" + SECTIONED.split("---\n", 2)[2]
+    chunks = MarkdownChunker().chunk(plain, "doc.md")
+    for chunk in chunks:
+        assert chunk.metadata["llm"] == {"kind": "guide"}
+
+
+def test_sections_lists_the_keys_a_curator_must_use():
+    paths = [path for path, _, _ in MarkdownChunker().sections(SECTIONED)]
+    assert paths == ["title", "title/section-a", "title/section-b"]

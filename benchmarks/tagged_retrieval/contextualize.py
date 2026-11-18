@@ -17,8 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from benchmarks.tagged_retrieval.datasets import Dataset, load_anthropic
-from benchmarks.tagged_retrieval.enrich import DEFAULT_MODEL, DEFAULT_REGION
-from benchmarks.tagged_retrieval.prompts import load_prompt
+from scripts.kb_common import DEFAULT_MODEL, DEFAULT_REGION, Model, load_prompt
 
 BlocksInvoke = Callable[[str, list[dict]], str]
 _CACHE = Path(__file__).resolve().parent / ".cache"
@@ -29,26 +28,8 @@ def make_bedrock_blocks_invoke(
     model_id: str = DEFAULT_MODEL, region: str = DEFAULT_REGION, session=None
 ) -> BlocksInvoke:
     """``invoke(system, content_blocks) -> text`` through the Converse API."""
-    import boto3
-    from botocore.config import Config
-
-    session = session or boto3.Session()
-    client = session.client(
-        "bedrock-runtime",
-        region_name=region,
-        config=Config(retries={"mode": "adaptive", "max_attempts": 8}),
-    )
-
-    def invoke(system: str, blocks: list[dict]) -> str:
-        response = client.converse(
-            modelId=model_id,
-            system=[{"text": system}],
-            messages=[{"role": "user", "content": blocks}],
-            inferenceConfig={"maxTokens": 300, "temperature": 0},
-        )
-        return response["output"]["message"]["content"][0]["text"].strip()
-
-    return invoke
+    model = Model(model_id, region, session=session)
+    return lambda system, blocks: model(system, blocks, 300)
 
 
 def blocks_for(document: str, chunk: str, cached: bool = True) -> list[dict]:

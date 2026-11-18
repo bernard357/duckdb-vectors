@@ -221,6 +221,8 @@ def h5_rows(results: dict, cache: Path, backend: str) -> list[dict]:
     for (dataset, used, _, ablation), report in sorted(results.items()):
         if not ablation or used != backend or "tags_both" not in report["conditions"]:
             continue
+        if _LOADER.get(dataset) not in LOADERS:
+            continue  # a dataset whose loader was retired, such as engineering-brain
         data = LOADERS[_LOADER[dataset]](cache)
         with tempfile.TemporaryDirectory() as directory:
             store = VectorStore(
@@ -261,7 +263,6 @@ _LOADER = {
     "anthropic-codebases": "anthropic",
     "ragmate-10k": "ragmate",
     "multihop-rag": "multihop",
-    "engineering-brain": "engineering-brain",
     "anthropic-llm-context": "anthropic-context",
 }
 

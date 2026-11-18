@@ -8,8 +8,14 @@ position (``{source}:{position}``) so re-indexing a document upserts in place.
 Sections longer than a soft word budget are split into word windows with a
 small overlap, keeping each chunk near the target size for good embedding
 differentiation.
+
+The frontmatter may carry a reserved ``sections`` mapping from a section's
+``section_path`` to metadata for that section only. It is merged into the
+chunks of that section, so a curator can attach a tag, such as an offline
+context string, to one part of a page instead of the whole page.
 """
 
+import logging
 import os
 import tempfile
 from collections.abc import Iterator
@@ -26,6 +32,9 @@ DEFAULT_TARGET_WORDS = 300
 DEFAULT_OVERLAP_WORDS = 40
 MIN_CHARS = 1
 FRONTMATTER_FENCE = "---"
+SECTIONS_KEY = "sections"
+
+logger = logging.getLogger(__name__)
 
 
 def _split_frontmatter(text: str) -> tuple[dict, str]:
@@ -52,6 +61,39 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
             return {}, text
         return parsed, "".join(lines[index + 1 :])
     return {}, text
+
+
+def _deep_merge(base: dict, extra: dict) -> dict:
+    """Merge ``extra`` into a copy of ``base``; nested mappings merge too."""
+    merged = dict(base)
+    for key, value in extra.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _split_sections(frontmatter: dict, source: str) -> tuple[dict, dict[str, dict]]:
+    """Take the reserved ``sections`` mapping out of the page's frontmatter.
+
+    Returns the page-level frontmatter and ``{section_path: metadata}``. A
+    ``sections`` key that is not a mapping is ordinary page metadata and is left
+    in place. An entry whose value is not a mapping is ignored with a warning.
+    """
+    sections = frontmatter.get(SECTIONS_KEY)
+    if not isinstance(sections, dict):
+        return frontmatter, {}
+    page = {key: value for key, value in frontmatter.items() if key != SECTIONS_KEY}
+    kept: dict[str, dict] = {}
+    for path, metadata in sections.items():
+        if isinstance(metadata, dict):
+            kept[str(path)] = metadata
+        else:
+            logger.warning(
+                "%s: sections entry %r is not a mapping and is ignored", source, path
+            )
+    return page, kept
 
 
 class MarkdownChunker(FilesystemChunker):
@@ -134,6 +176,16 @@ class MarkdownChunker(FilesystemChunker):
                 pass
         return [(row[0], row[1], row[2].strip()) for row in rows]
 
+    def sections(self, text: str) -> list[tuple[str, str, str]]:
+        """Return ``(section_path, title, body)`` of a page, frontmatter removed.
+
+        These are the sections :meth:`chunk` cuts into chunks, in page order,
+        before windowing; the ``section_path`` is the key a ``sections`` entry
+        of the frontmatter must use. Sections with an empty body are skipped.
+        """
+        _, body_text = _split_frontmatter(text)
+        return [item for item in self._sections(body_text) if item[2]]
+
     def _windows(self, body: str) -> list[str]:
         """Split a long body into overlapping word windows."""
         return split_windows(body, self._target_words, self._overlap_words)
@@ -143,16 +195,24 @@ class MarkdownChunker(FilesystemChunker):
 
         A leading YAML frontmatter block is parsed and merged into every
         chunk's metadata; the reserved ``section_path`` key always wins over
-        frontmatter keys of the same name.
+        frontmatter keys of the same name. The entry of the reserved
+        ``sections`` mapping whose key is a chunk's ``section_path`` is merged
+        on top, for that section's chunks only; the mapping itself is not
+        copied into chunk metadata, and a key that matches no section is
+        reported as a warning.
         """
         frontmatter, body_text = _split_frontmatter(text)
+        page, per_section = _split_sections(frontmatter, source)
         chunks: list[Chunk] = []
         position = 0
+        seen: set[str] = set()
         for section_path, title, body in self._sections(body_text):
             if not body:
                 continue
+            seen.add(section_path)
+            base = _deep_merge(page, per_section.get(section_path, {}))
             for window in self._windows(body):
-                metadata = {**frontmatter, "section_path": section_path}
+                metadata = {**base, "section_path": section_path}
                 chunks.append(
                     Chunk(
                         chunk_id=f"{source}:{position}",
@@ -164,6 +224,11 @@ class MarkdownChunker(FilesystemChunker):
                     )
                 )
                 position += 1
+        unknown = sorted(set(per_section) - seen)
+        if unknown:
+            logger.warning(
+                "%s: sections entries match no section: %s", source, ", ".join(unknown)
+            )
         return chunks
 
     def chunk_file(self, path: Path) -> Iterator[Chunk]:

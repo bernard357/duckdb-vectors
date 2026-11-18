@@ -267,44 +267,6 @@ def test_multihop_maps_facts_to_every_chunk_that_holds_them():
     }
 
 
-PROMPT_NAMES = ["schema-discovery", "tagging", "query-generation"]
-
-
-@pytest.mark.parametrize("name", PROMPT_NAMES)
-def test_prompts_declare_exactly_the_inputs_they_use(name):
-    from benchmarks.tagged_retrieval.prompts import PROMPTS, load_prompt
-
-    prompt = load_prompt(name)
-    assert (PROMPTS / f"{name}.v{prompt.version}.md").exists()
-    assert prompt.name == name
-    assert prompt.placeholders() == set(prompt.inputs)
-    assert prompt.system
-
-
-def test_enrichment_never_sees_evaluation_queries_and_questions_never_see_tags():
-    from benchmarks.tagged_retrieval.prompts import load_prompt
-
-    for name in PROMPT_NAMES:
-        prompt = load_prompt(name)
-        assert prompt.sees_queries is False
-        assert "query" not in " ".join(prompt.inputs)
-    generation = load_prompt("query-generation")
-    assert generation.sees_tags is False
-    assert not {"tags", "frontmatter", "metadata", "schema"} & set(generation.inputs)
-
-
-def test_render_fills_the_placeholders_and_requires_every_input():
-    from benchmarks.tagged_retrieval.prompts import load_prompt
-
-    prompt = load_prompt("query-generation")
-    text = prompt.render(passage="Refunds take 30 days.", count="2")
-    assert "Refunds take 30 days." in text
-    assert "Write 2 different questions" in text
-    assert '{"questions"' in text  # the JSON example is left alone
-    with pytest.raises(ValueError, match="missing inputs"):
-        prompt.render(passage="x")
-
-
 def test_plan_condition_covers_ablation_and_suffix():
     from benchmarks.tagged_retrieval.run import label_of, plan_condition, reference_of
 
