@@ -345,3 +345,53 @@ def test_metrics_ndcg_sign_flip_and_holm():
         "b": False,
         "c": False,
     }
+
+
+def test_kb_context_window_keeps_the_opening_and_the_neighbourhood():
+    ordered = [f"section {i} " + "x" * 300 for i in range(10)]
+    document = "OPENING " + "\n\n".join(ordered)
+    text = kb_context.window(document, ordered, 5, 800)
+    assert text.startswith("OPENING")
+    assert "section 5" in text and "section 9" not in text
+    assert len(text) < 900
+
+
+def test_anthropic_pages_map_every_published_chunk_to_its_section(
+    tmp_path, monkeypatch
+):
+    from benchmarks.tagged_retrieval import kb_datasets
+    from benchmarks.tagged_retrieval.datasets import Dataset, Query
+    from duckdb_vectors.models import Chunk
+
+    meta = {"repo_name": "acme/lib", "directory": "/src", "extension": "py"}
+    code = "def handler():\n    return '``` not a fence'\n"
+    chunks = [
+        Chunk(
+            chunk_id=f"doc:{i}",
+            text=f"{code}# part {i}",
+            source="/src/app.py",
+            position=i,
+            title="app.py",
+            metadata=meta,
+        )
+        for i in range(3)
+    ]
+    dataset = Dataset(
+        name="anthropic-codebases",
+        chunks=chunks,
+        queries=[Query(text="what does handler return", golden=["doc:1", "doc:2"])],
+        sources={},
+    )
+    monkeypatch.setattr(kb_datasets, "load_anthropic", lambda cache: dataset)
+    kb_datasets.prepare_anthropic(tmp_path / "pages", tmp_path / "work")
+    page = (tmp_path / "pages" / "src" / "app.py.md").read_text("utf-8")
+    assert page.startswith("---\nrepo: acme/lib\n") and "````python" in page
+    folder_chunks = chunk_folder(tmp_path / "pages")
+    assert [c.text for c in folder_chunks] == [c.text for c in chunks]
+    validation = json.loads((tmp_path / "work" / "validation.json").read_text())
+    item = validation["items"][0]
+    assert item["stratum"] == "native"
+    assert item["alternatives"] == [
+        [folder_chunks[1].chunk_id],
+        [folder_chunks[2].chunk_id],
+    ]

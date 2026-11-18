@@ -105,6 +105,8 @@ $ duckdb-vectors tags --tag-fields "product: $.product.name" --tag-fields "kind:
 | `verdict`, `reasons` | `effective` or `decorative`, and why. |
 | `margin_*`, `d_*`, `value_*` | How much the tag raises the similarity of chunks of one document (`margin`, `d`) or of chunks that share its value (`value`) over other chunks, with and without the tag. Reported, not used for the verdict. |
 
+> __Provisional.__ The query-mention rule below was fitted on 17 tags from validation sets that are being rebuilt in [issue #65](https://github.com/bernard357/duckdb-vectors/issues/65). Use it as a hint, not a verdict.
+
 A tag is __decorative__ when its coverage is below 50%, when it has a single value, or, with queries, when fewer than 20% of the queries contain one of its values. Every other tag is __effective__. Without `--queries` only sparse and constant tags are screened out, and each tag carries a note that says so.
 
 The queries rule exists because the separation measures did not predict benefit. Over 17 tags in four corpora, the rank correlation between a tag's separation lift and the retrieval gain it brought was close to zero, and the company name and the news source that helped most scored as decorative. The share of queries that mention a tag's values correlated at 0.62. The 20% threshold was fitted to those same 17 tags, so treat it as a starting point. The [performance workbook](performance-workbook#which-tags-help) has the numbers.

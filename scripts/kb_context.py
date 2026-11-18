@@ -69,15 +69,44 @@ def page_sections(chunker: MarkdownChunker, text: str) -> dict[str, str]:
     return {path: "\n\n".join(parts) for path, parts in bodies.items()}
 
 
+def window(document: str, ordered: list[str], index: int, limit: int) -> str:
+    """A stand-in for a page longer than ``limit`` characters.
+
+    The opening of the page (half the budget), then the section and its
+    neighbours (the other half), so the model still sees what the page is
+    about and where the section sits. Without caching across sections, this
+    bounds the cost of very long pages, at the price of a partial view.
+    """
+    half = limit // 2
+    near = "\n\n".join(ordered[max(0, index - 1) : index + 2])
+    if len(near) > half:
+        start = near.find(ordered[index][:200])
+        near = near[max(0, start - half // 4) :][:half]
+    return f"{document[:half]}\n\n[...]\n\n{near}"
+
+
 def contexts_for_page(
-    text: str, chunker: MarkdownChunker, model: Model, cache: AnswerCache
+    text: str,
+    chunker: MarkdownChunker,
+    model: Model,
+    cache: AnswerCache,
+    max_document_chars: int | None = None,
 ) -> dict[str, str]:
-    """The context of every section of one page, cached by content."""
+    """The context of every section of one page, cached by content.
+
+    With ``max_document_chars``, a longer page is replaced, for each section,
+    by its opening and the section's neighbourhood (see :func:`window`).
+    """
     prompt = load_prompt(PROMPT)
     _, body = split_front_matter(text)
-    document = body.strip()
+    full = body.strip()
+    sections = page_sections(chunker, text)
+    ordered = list(sections.values())
     result: dict[str, str] = {}
-    for path, section in page_sections(chunker, text).items():
+    for index, (path, section) in enumerate(sections.items()):
+        document = full
+        if max_document_chars and len(full) > max_document_chars:
+            document = window(full, ordered, index, max_document_chars)
         key = cache.key(prompt.name, prompt.version, model.model_id, document, section)
         answer = cache.get(key)
         if answer is None:
@@ -117,7 +146,11 @@ def merge_sections(front: dict, contexts: dict[str, str]) -> dict:
 
 
 def contextualize_folder(
-    folder: Path, model: Model, cache: AnswerCache, workers: int = 8
+    folder: Path,
+    model: Model,
+    cache: AnswerCache,
+    workers: int = 8,
+    max_document_chars: int | None = None,
 ) -> dict[str, dict[str, str]]:
     """``{page: {section_path: context}}`` for every page of the folder."""
     files = pages(folder)
@@ -126,7 +159,11 @@ def contextualize_folder(
         chunker = MarkdownChunker()
         try:
             return contexts_for_page(
-                path.read_text(encoding="utf-8"), chunker, model, cache
+                path.read_text(encoding="utf-8"),
+                chunker,
+                model,
+                cache,
+                max_document_chars,
             )
         finally:
             chunker.end_indexing()
@@ -161,6 +198,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--region", default=DEFAULT_REGION)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument(
+        "--max-document-chars",
+        type=int,
+        default=None,
+        help="for longer pages, send the opening and the section's neighbours "
+        "instead of the whole page (bounds the cost of very long pages)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="write the contexts to WORK/contexts.json only, not into the pages",
@@ -168,7 +212,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     model = Model(args.model, args.region)
     cache = AnswerCache(args.work / "cache" / "context", model.usage)
-    contexts = contextualize_folder(args.folder, model, cache, args.workers)
+    contexts = contextualize_folder(
+        args.folder, model, cache, args.workers, args.max_document_chars
+    )
     sizes = sorted(
         len(text.split()) for page in contexts.values() for text in page.values()
     )
@@ -178,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         "pages": len(contexts),
         "sections": len(sizes),
         "median_words": sizes[len(sizes) // 2] if sizes else 0,
+        "max_document_chars": args.max_document_chars,
         "usage": model.usage.report(),
     }
     write_json(args.work / "contexts.json", {**report, "contexts": contexts})
