@@ -54,6 +54,10 @@ export default withMermaid(
             { text: 'Performance workbook', link: '/performance-workbook' },
             { text: 'Tagged retrieval guide', link: '/tagged-retrieval-guide' },
             {
+              text: 'Curate a knowledge base',
+              link: '/curate-knowledge-base-procedure',
+            },
+            {
               text: 'Tagged retrieval research',
               link: '/tagged-retrieval-research',
             },

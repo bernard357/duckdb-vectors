@@ -170,6 +170,12 @@ that format.
 | PdfChunker | `application/pdf` (`.pdf`) | per-page text with a local OCR fallback for scanned pages |
 | CompositeChunker | dispatches by MIME type | default; indexes a mixed-type folder in one pass |
 
+A Markdown page's front matter is copied into the metadata of each of its chunks.
+Under the reserved `sections` key, a page can also give metadata to one section
+only, keyed by its `section_path`; the chunker merges it into that section's
+chunks. The [curation procedure](https://bernard357.github.io/duckdb-vectors/curate-knowledge-base-procedure)
+uses it to store a context per section, written offline by a language model.
+
 ## Metadata-aware search (injectable ranking SQL)
 
 `duckdb-vectors` has built-in SQL statements for searching in DuckDB database. This is good enough for common cases. In addition, you can provide your own SQL statements for refining to your exact needs.

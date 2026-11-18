@@ -39,7 +39,7 @@ interval and an exact McNemar test on "every golden chunk found".
 | Anthropic cookbook codebases (90 files, 737 chunks, 248 queries) | loader and runner done; uses the published chunks as they are, so results compare with the cookbook |
 | RAGMATE-10K (25 SEC 10-K filings, 4,490 chunks, 117 usable questions) | loader and runner done (`--dataset ragmate`, needs `pip install 'duckdb-vectors[benchmarks]'`); filings are re-chunked with the dataset's own recipe |
 | MultiHop-RAG (609 news articles, 4,303 chunks, 2,255 usable questions) | loader and runner done (`--dataset multihop`); articles are cut into the package's word windows and each quoted fact is mapped to the chunks that hold it |
-| `engineering-brain/documentation` (private) | loader, enrichment and question generation done (`--dataset engineering-brain`, needs `ENGINEERING_BRAIN_DIR`); results published, data not |
+| `engineering-brain/documentation` (private) | retired from this runner; now curated and measured with `scripts/kb_*.py` (see below) |
 | Anthropic set with LLM-written contexts | reference run for the hypothesis H4 (`--dataset anthropic-context`) |
 
 Tags default to a preset per dataset (`repo`, `directory` and `extension` for the
@@ -76,6 +76,34 @@ cookbook reports 0.809 and 0.901 for its baseline with a Voyage embedding model.
 The ordering follows model quality. The numbers are not equal because the
 embedders differ, so they show that the chunk mapping works, not that this
 harness reproduces the cookbook.
+
+## Knowledge-base runs (#65)
+
+The runs that replace the first results treat every corpus as a folder of
+Markdown pages, the way a knowledge manager's corpus is, and go through the
+[curation scripts](../../documentation/curate-knowledge-base-procedure.md).
+`kb_datasets.py` writes a public dataset out as such a folder, with its
+questions as a validation set whose golden chunks are the folder's own chunk
+ids, split once into dev and test:
+
+```shell
+$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets anthropic \
+    --folder tmp/kb/anthropic/pages --work tmp/kb/anthropic
+```
+
+| Preparer | Pages | Questions and golden chunks |
+| --- | --- | --- |
+| `anthropic` | one page per code file, one section per published chunk | the cookbook's 248 questions; the converted baseline equals the published one |
+| `legalbench` | privacy policies, NDAs and contracts from LegalBench-RAG (privacy_qa, contractnli, cuad; MAUD left out), 250-word sections | 194 seeded questions per subset; a section is golden when it overlaps an answer span |
+| `financebench` | one page per filing, one section per PDF page, pinned to one commit | 149 of the 150 questions of the public sample; evidence pages matched by text, 188 of 189 exactly |
+
+Section contexts then come from `make kb-context`, and `make kb-evaluate` scores
+each condition. `kb_analyze.py` prints the tables and the pre-registered
+decision, Holm-corrected over every primary test given:
+
+```shell
+$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze tmp/kb/*/results/test-*.json
+```
 
 ## Results
 

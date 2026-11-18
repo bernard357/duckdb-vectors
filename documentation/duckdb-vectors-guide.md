@@ -200,6 +200,8 @@ Custom chunkers subclass `FilesystemChunker` and implement only the `mimetypes` 
 | PdfChunker | `application/pdf` | per-page text with local OCR for scanned pages |
 | CompositeChunker | dispatches by MIME type | default; dispatches a mixed folder to the matching chunker per file in one pass |
 
+The markdown chunker copies a page's front matter into each chunk's metadata, except the reserved `sections` key: a mapping from a `section_path` to metadata for that section's chunks only, merged into them key by key. An entry that matches no section is logged as a warning. The [tagged retrieval guide](tagged-retrieval-guide#how-to-give-each-section-its-own-context) shows how to index it as a tag.
+
 ### Indexing a mixed folder in one pass
 
 A real folder often mixes formats — some `.md`, some `.pdf`. The composite chunker is the default indexing path, so `index_folder` handles a mixed folder in a single pass with no selector: it dispatches each file to the first registered chunker that claims its MIME type, so markdown files go to the markdown chunker and PDFs go to the PDF chunker, with ids byte-identical to what each chunker would produce on its own.

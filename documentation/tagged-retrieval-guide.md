@@ -5,6 +5,7 @@ How knowledge managers choose, control and evaluate the tags that `duckdb-vector
 - [What is a tag for?](#what-is-a-tag-for)
 - [How to turn tags on?](#how-to-turn-tags-on)
 - [Which JSONPath expressions work?](#which-jsonpath-expressions-work)
+- [How to give each section its own context?](#how-to-give-each-section-its-own-context)
 - [How to read the tags report?](#how-to-read-the-tags-report)
 - [How long can the prefix be?](#how-long-can-the-prefix-be)
 - [How to iterate on tag selection?](#how-to-iterate-on-tag-selection)
@@ -86,6 +87,28 @@ $ DUCKDB_VECTORS_TAG_FIELDS="product: $.product.name" duckdb-vectors report
 
 Dates are ISO text. PDF files expose their document information as `$.title`, `$.author`, `$.subject` and `$.keywords`, when the file declares them, so the same tag paths work on PDFs and Markdown. Filter expressions such as `$.authors[?(@.name=='x')]` and bracket-quoted keys such as `$['title']` are rejected by DuckDB. Use the quoted dot form instead.
 
+## How to give each section its own context?
+
+Front matter describes a whole page, so its tags are the same for every chunk of the page. A Markdown page can also carry metadata for one section only, under the reserved `sections` key, keyed by the section path that the chunker reports in each chunk's `section_path`:
+
+```yaml
+---
+title: Deployment runbook
+sections:
+  deployment-runbook/rollback:
+    llm:
+      context: How to roll back a failed Cedar release, after the canary step.
+---
+```
+
+The chunker merges each entry into the chunks of that section, so `$.llm.context` is a tag like any other:
+
+```shell
+$ duckdb-vectors index ./docs --recursive --tag-fields "context: $.llm.context" --tag-bm25
+```
+
+An entry whose path matches no section is logged as a warning. Writing a context like this for every section, with a language model reading each page once, is Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) moved upstream of indexing. The [curation procedure](curate-knowledge-base-procedure) does it, and measures the result on your own questions.
+
 ## How to read the tags report?
 
 ```shell
@@ -129,10 +152,11 @@ Keep the prefix to the few tags that matter. The benchmark found no reliable dif
 
 ## How to control the tag vocabulary?
 
-Tags only group documents if the same thing is always written the same way. `Enterprise`, `enterprise plan` and `Ent.` count as three values and split a group that should be one. Agree on a list of allowed values for each tag, check frontmatter against it in review, and prefer a short fixed list over free text. If a language model proposes tags for you, keep its output under its own key, such as `$.llm.product`, compare it with the native tags before you trust it, and discard answers such as "Other" or "None": a tag that says nothing tells a search nothing.
+Tags only group documents if the same thing is always written the same way. `Enterprise`, `enterprise plan` and `Ent.` count as three values and split a group that should be one. Agree on a list of allowed values for each tag, check frontmatter against it in review, and prefer a short fixed list over free text. If a language model proposes tags for you, keep its output under its own key, such as `$.llm.product`, compare it with the native tags before you trust it, and discard answers such as "Other" or "None": a tag that says nothing tells a search nothing. The [curation procedure](curate-knowledge-base-procedure#step-3-derive-page-tags) derives tags this way, checks that the model agrees with itself, and has a person review a sample.
 
 ## Follow-up
 
 - [Tagged retrieval research note](tagged-retrieval-research): the evidence and hypotheses behind the feature.
 - [Performance workbook](performance-workbook): the measured results.
+- [Curate a knowledge base](curate-knowledge-base-procedure): write section contexts and page tags offline, and measure them.
 - [User guide](duckdb-vectors-guide): indexing and search reference.

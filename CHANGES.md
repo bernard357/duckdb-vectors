@@ -20,6 +20,19 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   retrieval conditions over four datasets and five embedders, with paired
   bootstrap and McNemar tests, leave-one-tag-out and suffix ablations, and a
   reference run with LLM-written chunk contexts. `make bench-tagged` runs it.
+- __Per-section metadata in Markdown front matter.__ Under the reserved
+  `sections` key, a page maps a `section_path` to metadata for that section's
+  chunks only; the Markdown chunker merges it into them and leaves the key out
+  of chunk metadata. An entry that matches no section is logged as a warning.
+  `MarkdownChunker.sections(text)` lists a page's sections (#65).
+- __Knowledge-base curation scripts.__ `make kb-validation`, `kb-context`,
+  `kb-tags`, `kb-batch` and `kb-evaluate` (`scripts/kb_*.py`) build a
+  validation set with strata, a frozen dev/test split, pooled and LLM-judged
+  golden passages and a human audit; write Anthropic's contextual header for
+  every section offline, into the `sections` key; derive page tags under
+  `llm`; run the model requests as Bedrock batch jobs; and measure each tag
+  set per stratum. The [curation procedure](documentation/curate-knowledge-base-procedure.md)
+  walks through them (#65).
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,
   on a synthetic Markdown folder generated from a fixed seed or on a real one
@@ -32,6 +45,12 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __Tagged retrieval results redone (#65).__ The first measurements used
+  questions written from one passage alone, a single golden chunk per question
+  and an engineering-pages baseline near its ceiling. The benchmark's
+  engineering-pages loader, LLM enrichment and question generation are
+  replaced by the curation scripts, and the performance workbook reports the
+  new, pre-registered runs on four corpora.
 - __PDF chunks carry the document information of their file.__ A non-empty
   `title`, `author`, `subject` or `keywords` in the PDF now appears in each
   chunk's metadata next to `page`, so tags such as `title: $.title` work on
