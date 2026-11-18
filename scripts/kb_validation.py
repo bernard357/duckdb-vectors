@@ -699,9 +699,18 @@ def main(argv: list[str] | None = None) -> int:
     work = args.work
     validation = load_set(work, corpus=args.folder.name)
     sheet = args.sheet or work / "audit.csv"
+    key_file = sheet.with_name(sheet.stem + "-judge.csv")
     if args.step == "kappa":
         with sheet.open(encoding="utf-8") as handle:
-            report = agreement(list(csv.DictReader(handle)))
+            graded = list(csv.DictReader(handle))
+        with key_file.open(encoding="utf-8") as handle:
+            judged = {
+                (r["item"], r["chunk"]): r["judge_grade"]
+                for r in csv.DictReader(handle)
+            }
+        for row in graded:
+            row["judge_grade"] = judged[(row["item"], row["chunk"])]
+        report = agreement(graded)
         validation.log("kappa", **report)
         save_set(work, validation)
         print(report)
@@ -721,11 +730,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.step == "audit":
         rows = audit_rows(validation, chunks, args.size, seed=args.seed)
         sheet.parent.mkdir(parents=True, exist_ok=True)
+        # The person grades a blind sheet; the judge's grades sit in a key file.
+        blind = [c for c in AUDIT_COLUMNS if c != "judge_grade"]
         with sheet.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=AUDIT_COLUMNS)
+            writer = csv.DictWriter(handle, fieldnames=blind, extrasaction="ignore")
             writer.writeheader()
             writer.writerows(rows)
-        print(f"{len(rows)} rows written to {sheet}", file=sys.stderr)
+        with key_file.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=["item", "chunk", "judge_grade"],
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f"{len(rows)} rows written to {sheet} (key: {key_file})", file=sys.stderr)
         return 0
     if args.step == "pool":
         print(pool(validation, chunks, args.backends, args.tag_fields, args.depth))
