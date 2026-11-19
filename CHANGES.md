@@ -6,12 +6,17 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 ## Unreleased
 
 ### Added
+- __Context packs for reproduction.__ `fixtures/benchmarks/` holds the section
+  contexts written for the Anthropic code set and LegalBench-RAG, gzipped, with
+  their licences and checksums, and `kb_context --from-pack` writes them into
+  freshly prepared pages with no model call. A pack that names a page or a
+  section the folder does not have is refused.
 - __Skill `transcode-to-markdown`.__ An agent skill that converts `.docx`, `.odt`,
   `.pptx` and `.odp` files into Markdown with markitdown, run with `uvx`, ready
   to be indexed. Known limits are listed in the skill and in a new procedure
   page. PDF files are not converted, since they are indexed directly.
 - __Tagged retrieval.__ Chunks are embedded with a prefix of tags projected from
-  their document's frontmatter with JSONPath (`tag_fields`, `--tag-fields`),
+  their document's frontmatter with JSONPath (`tag_fields`, `--tag-field`),
   optionally matched in the keyword index too (`tag_bm25`, `--tag-bm25`). The
   stored and returned text stay raw, only changed prefixes are re-embedded, and
   an index built without tags is unchanged. `duckdb-vectors tags` reports each
@@ -57,6 +62,10 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __The source distribution holds the package only.__ The sdist carries
+  `src/duckdb_vectors`, the README, the changelog and the licence, like the
+  wheel; fixtures, tests, scripts and documentation stay in the repository, so
+  no derived benchmark data is redistributed on PyPI.
 - __Test modules are named after the code they test (#68).__ For example,
   `tests/test_duckdb_vectors_config.py` tests `src/duckdb_vectors/config.py`
   and `tests/test_scripts_kb_tags.py` tests `scripts/kb_tags.py`. The tests of
