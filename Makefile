@@ -38,9 +38,9 @@ DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 # default Python path for imports
 PYTHONPATH ?= .
 # source locations for static analysis
-PYTHON_PATHS := src/ tests/ examples/ scripts/ benchmarks/
+PYTHON_PATHS := src/ tests/ fixtures/ scripts/
 # markdown files for static analysis
-MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find benchmarks scripts -name '*.md' -not -path '*/.cache/*') $(shell find documentation -name '*.md')
+MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find scripts fixtures/prompts -name '*.md') $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
 DOCKERFILES := $(shell find . -name 'Dockerfile' -not -path './.venv/*')
 
@@ -133,7 +133,7 @@ test:
 BENCH_ARGS ?=
 bench-tagged:
 	@echo "Running the tagged retrieval benchmark..."
-	.venv/bin/python -m benchmarks.tagged_retrieval.run $(BENCH_ARGS)
+	.venv/bin/python -m scripts.benchmark_tagged $(BENCH_ARGS)
 
 # Knowledge-base curation, upstream of indexing (scripts/kb_*.py). KB is the
 # folder of Markdown pages, WORK the folder for caches, the validation set and

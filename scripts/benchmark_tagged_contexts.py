@@ -6,7 +6,7 @@ how much of its gain deterministic tags recover. It is not part of the package.
 The document is sent as a cached prompt prefix, so each document is paid for
 once and then read from the cache for its other chunks.
 
-    $ .venv/bin/python -m benchmarks.tagged_retrieval.contextualize
+    $ .venv/bin/python -m scripts.benchmark_tagged_contexts
 """
 
 import argparse
@@ -16,11 +16,12 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from benchmarks.tagged_retrieval.datasets import Dataset, load_anthropic
-from scripts.kb_common import DEFAULT_MODEL, DEFAULT_REGION, Model, load_prompt
+from development.curation import DEFAULT_MODEL, DEFAULT_REGION, Model, load_prompt
+from development.datasets import Dataset, load_anthropic
+from development.paths import BENCHMARK_CACHE
 
 BlocksInvoke = Callable[[str, list[dict]], str]
-_CACHE = Path(__file__).resolve().parent / ".cache"
+_CACHE = BENCHMARK_CACHE
 _SPLIT = "Here is the chunk we want to situate"
 
 

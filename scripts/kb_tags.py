@@ -30,7 +30,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from scripts.kb_common import (
+from development.curation import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
     LEGACY_NAMESPACE,

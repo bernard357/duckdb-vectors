@@ -231,15 +231,15 @@ $ .venv/bin/python scripts/benchmark_indexing.py                   # first index
 $ .venv/bin/python scripts/benchmark_indexing.py --folder /path/to/your/docs
 $ .venv/bin/python scripts/benchmark_embedders.py                  # the model comparison
 $ make bench-tagged BENCH_ARGS="--dataset multihop --sample-queries 500 --ablate --suffix"  # tagged retrieval
-$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets legalbench \
+$ .venv/bin/python -m scripts.benchmark_kb_datasets legalbench \
     --folder tmp/kb/legalbench/pages --work tmp/kb/legalbench       # a public set as Markdown pages
 $ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the curation procedure)
 $ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
     TAGS="context=context: \$.retrieval.context"                           # one test run
-$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze tmp/kb/*/results/test-*.json  # tables and decision
+$ .venv/bin/python -m scripts.benchmark_kb_analyze tmp/kb/*/results/test-*.json  # tables and decision
 ```
 
-The [curation procedure](curate-knowledge-base-procedure) explains each `kb-` step. The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/benchmarks/tagged_retrieval/README.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
+The [curation procedure](curate-knowledge-base-procedure) explains each `kb-` step. The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/scripts/benchmark_tagged.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
 
 ## Follow-up
 

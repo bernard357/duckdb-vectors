@@ -30,8 +30,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from duckdb_vectors.chunkers.markdown import MarkdownChunker
-from scripts.kb_common import (
+from development.curation import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
     LEGACY_NAMESPACE,
@@ -47,6 +46,7 @@ from scripts.kb_common import (
     split_front_matter,
     write_json,
 )
+from duckdb_vectors.chunkers.markdown import MarkdownChunker
 
 PROMPT = "contextual-header"
 FIELD = "context"

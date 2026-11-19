@@ -13,9 +13,9 @@ REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="duckdb-vectors-ping-agentcore"
 ROLE_NAME="duckdb-vectors-ping-agentcore-role"
 AGENT_NAME="duckdb_vectors_ping"
-# examples/agentcore-rag-agent is the pristine template; the deployable agent
+# fixtures/agentcore-rag-agent is the pristine template; the deployable agent
 # is assembled into a transient *.out directory so no tracked file is mutated.
-TEMPLATE_DIR="examples/agentcore-rag-agent"
+TEMPLATE_DIR="fixtures/agentcore-rag-agent"
 BUILD_DIR="ping-agentcore.out"
 QUERY="how is a search answered?"
 export AWS_DEFAULT_REGION="${REGION}"

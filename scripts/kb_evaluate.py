@@ -29,17 +29,17 @@ import tempfile
 import time
 from pathlib import Path
 
-from duckdb_vectors.embedders.registry import resolve_embedder
-from duckdb_vectors.models import Chunk
-from scripts import kb_metrics as metrics
-from scripts.kb_common import (
-    REPO_ROOT,
+from development import metrics
+from development.curation import (
     CachedEmbedder,
     build_index,
     chunk_folder,
     read_json,
     write_json,
 )
+from development.paths import REPO_ROOT
+from duckdb_vectors.embedders.registry import resolve_embedder
+from duckdb_vectors.models import Chunk
 from scripts.kb_validation import Item, ValidationSet
 
 DEFAULT_BACKEND = "fastembed:minishlab/potion-multilingual-128M"

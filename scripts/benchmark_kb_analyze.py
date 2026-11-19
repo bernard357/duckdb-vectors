@@ -5,7 +5,7 @@ Pass@20, in the primary stratum of each corpus (``contextual`` where it exists,
 ``all`` otherwise). It "helps" when the 95% CI excludes zero and the sign-flip
 p-value survives a Holm correction over every primary test given.
 
-    $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze \\
+    $ .venv/bin/python -m scripts.benchmark_kb_analyze \\
         tmp/kb/*/results/test-*.json
 """
 
@@ -13,7 +13,7 @@ import argparse
 import json
 from pathlib import Path
 
-from scripts.kb_metrics import holm
+from development.metrics import holm
 
 PRIMARY = "context:both"
 MODE = "hybrid"

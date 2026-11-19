@@ -3,7 +3,7 @@
 Measures whether embedding frontmatter-projected tags with each chunk, or
 matching them in the keyword index, changes retrieval quality. The design and
 the hypotheses H1 to H5 are in
-[the research note](../../documentation/tagged-retrieval-research.md).
+[the research note](../documentation/tagged-retrieval-research.md).
 
 ## Run it
 
@@ -12,8 +12,9 @@ $ make bench-tagged
 $ make bench-tagged BENCH_ARGS="--conditions baseline --backend hashing --limit-queries 20"
 ```
 
-The first run downloads the Anthropic cookbook data, pinned to one commit, into
-`.cache/`. Each run writes a JSON file to `results/`, named after the git SHA and
+The script is `scripts/benchmark_tagged.py`. The first run downloads the
+Anthropic cookbook data, pinned to one commit, into `tmp/benchmarks/cache/`. Each
+run writes a JSON file to `tmp/benchmarks/results/`, named after the git SHA and
 the backend, with the dirty-tree flag, the SHA-256 of the data files, every
 per-query score and the comparisons with the baseline. Both folders are
 ignored by git.
@@ -81,13 +82,13 @@ harness reproduces the cookbook.
 
 The runs that replace the first results treat every corpus as a folder of
 Markdown pages, the way a knowledge manager's corpus is, and go through the
-[curation scripts](../../documentation/curate-knowledge-base-procedure.md).
-`kb_datasets.py` writes a public dataset out as such a folder, with its
+[curation scripts](../documentation/curate-knowledge-base-procedure.md).
+`benchmark_kb_datasets.py` writes a public dataset out as such a folder, with its
 questions as a validation set whose golden chunks are the folder's own chunk
 ids, split once into dev and test:
 
 ```shell
-$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets anthropic \
+$ .venv/bin/python -m scripts.benchmark_kb_datasets anthropic \
     --folder tmp/kb/anthropic/pages --work tmp/kb/anthropic
 ```
 
@@ -102,23 +103,23 @@ $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets anthropic \
 | Dataset | Licence | Source and size | Republished here |
 | --- | --- | --- | --- |
 | FinanceBench open sample | CC BY-NC 4.0 (its [dataset card](https://huggingface.co/datasets/PatronusAI/financebench)); the filings are public SEC documents | downloaded on first use from `patronus-ai/financebench` on GitHub, pinned to commit `cc39aeb`; 84 PDFs and the questions, 159 MB | no: results only |
-| LegalBench-RAG | code MIT; data under its sources' terms: CUAD and ContractNLI CC BY 4.0, PrivacyQA MIT (MAUD, CC BY 4.0, is not used) | the authors' [Dropbox folder](https://github.com/zeroentropy-ai/legalbenchrag#download), downloaded by hand and unpacked into `.cache/legalbenchrag/data`; an 86 MB archive, 88 MB unpacked | no: results only |
+| LegalBench-RAG | code MIT; data under its sources' terms: CUAD and ContractNLI CC BY 4.0, PrivacyQA MIT (MAUD, CC BY 4.0, is not used) | the authors' [Dropbox folder](https://github.com/zeroentropy-ai/legalbenchrag#download), downloaded by hand and unpacked into `tmp/benchmarks/cache/legalbenchrag/data`; an 86 MB archive, 88 MB unpacked | no: results only |
 
 Both are used for local benchmarking only. The Markdown pages, contexts and
 validation sets derived from them stay in git-ignored work folders, and only
 results are published, with the datasets named, as their licences ask.
 
 Section contexts then come from `make kb-context`, and `make kb-evaluate` scores
-each condition. `kb_analyze.py` prints the tables and the pre-registered
+each condition. `benchmark_kb_analyze.py` prints the tables and the pre-registered
 decision, Holm-corrected over every primary test given:
 
 ```shell
-$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze tmp/kb/*/results/test-*.json
+$ .venv/bin/python -m scripts.benchmark_kb_analyze tmp/kb/*/results/test-*.json
 ```
 
 ## Results
 
-Run `make bench-tagged` per dataset or `python -m benchmarks.tagged_retrieval.sweep` for the whole matrix, then
-`python -m benchmarks.tagged_retrieval.analyze` to print the tables. The measured results and the verdict on each
+Run `make bench-tagged` per dataset or `python -m scripts.benchmark_tagged_sweep` for the whole matrix, then
+`python -m scripts.benchmark_tagged_analyze` to print the tables. The measured results and the verdict on each
 hypothesis are in the
-[performance workbook](../../documentation/performance-workbook.md).
+[performance workbook](../documentation/performance-workbook.md).

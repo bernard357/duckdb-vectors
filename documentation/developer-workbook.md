@@ -14,8 +14,8 @@ You do not need to understand the whole codebase to help:
   [below](#how-do-i-add-an-embedding-backend).
 - __Add a chunker__ — for a format not covered well yet; see
   [below](#how-do-i-add-a-chunker).
-- __Improve the docs__ — clarify a page, add a worked example under
-  `examples/`, or document a pattern.
+- __Improve the docs__ — clarify a page, add a worked example agent under
+  `fixtures/`, or document a pattern.
 - __Share a ranking recipe__ — a neat injectable `vector_sql` / `text_sql` for
   scoping or decay.
 - __Report a rough edge__ — a clear issue with a minimal reproduction.
@@ -156,6 +156,18 @@ The `Makefile` consolidates the most frequent commands used throughout this proj
 - `make push` — rebase onto `main`, then push
 - `make build` — build the wheel and sdist with uv
 - `make clean` — remove build artifacts and caches (including `*.out`)
+
+## Where does each kind of file go?
+
+| Folder | Holds | Rule |
+| --- | --- | --- |
+| `src/duckdb_vectors/` | the package | the only code shipped in the wheel |
+| `src/development/` | helpers shared by tests, benchmarks and scripts: paths, metrics, dataset loaders, curation helpers, the fake model | importable everywhere through the editable install, never imported by the package |
+| `tests/` | the pytest suite and its own small fixtures | |
+| `scripts/` | every runnable command: `benchmark_*.py`, the `kb_*.py` curation steps, maintenance utilities | run from the repository root with `python -m scripts.<name>` or a `make` target |
+| `fixtures/` | every input: sample pages (`markdown/`, `tagged/`), PDFs, versioned prompts (`prompts/`), and the runnable example agents | one place for the prompts used anywhere in the system |
+| `documentation/` | the VitePress site | |
+| `tmp/` | local outputs: downloaded datasets, benchmark results, curation work folders | ignored by git |
 
 ## How do I set up a development environment?
 

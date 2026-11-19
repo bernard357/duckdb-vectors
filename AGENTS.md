@@ -49,12 +49,12 @@ duckdb-vectors/
 │   ├── py.typed          # ships type information
 │   ├── chunkers/         # pluggable chunkers (markdown, pdf, composite default)
 │   └── embedders/        # pluggable embedders (fastembed, hf, bedrock, hashing)
+├── src/development/      # helpers shared by tests, benchmarks and scripts (not shipped)
 ├── tests/                # pytest suite
 ├── documentation/        # the VitePress site
-├── examples/             # runnable container / Lambda / AgentCore agents
 ├── skills/               # agent skills (e.g. search-duckdb-vectors)
-├── fixtures/             # test and reference data
-├── scripts/              # maintenance utilities
+├── fixtures/             # every input: sample pages, PDFs, prompts, runnable example agents
+├── scripts/              # every command: benchmark_*.py, kb_*.py curation, maintenance
 ├── pyproject.toml        # metadata, deps, tag-driven version (hatch-vcs)
 └── Makefile              # the task toolbox
 ```

@@ -14,7 +14,7 @@ exact McNemar test on "all golden chunks found".
 
 Run from the repository root:
 
-    $ .venv/bin/python -m benchmarks.tagged_retrieval.run \\
+    $ .venv/bin/python -m scripts.benchmark_tagged \\
         --tag-fields "repo: $.repo_name" --tag-fields "directory: $.directory"
 """
 
@@ -30,8 +30,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from benchmarks.tagged_retrieval import metrics
-from benchmarks.tagged_retrieval.datasets import LOADERS, Dataset
+from development import metrics
+from development.datasets import LOADERS, Dataset
+from development.paths import BENCHMARK_CACHE, BENCHMARK_RESULTS, REPO_ROOT
 from duckdb_vectors.config import Settings
 from duckdb_vectors.embedders.registry import resolve_embedder
 from duckdb_vectors.etag import compute_etag
@@ -41,9 +42,9 @@ DEFAULT_BACKEND = "fastembed:minishlab/potion-multilingual-128M"
 DEFAULT_KS = (5, 10, 20)
 COST_SAMPLE = 100
 CONDITIONS = ("baseline", "tags_embedding", "tags_bm25", "tags_both")
-_REPO = Path(__file__).resolve().parents[2]
-_CACHE = Path(__file__).resolve().parent / ".cache"
-_RESULTS = Path(__file__).resolve().parent / "results"
+_REPO = REPO_ROOT
+_CACHE = BENCHMARK_CACHE
+_RESULTS = BENCHMARK_RESULTS
 
 
 class CachedEmbedder:
@@ -382,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
         tuple(args.top_k),
         sample,
     )
-    _RESULTS.mkdir(exist_ok=True)
+    _RESULTS.mkdir(parents=True, exist_ok=True)
     name = args.backend.replace(":", "_").replace("/", "_")
     stem = f"{report['git']['sha'][:8]}-{dataset.name}-{name}"
     if sample:

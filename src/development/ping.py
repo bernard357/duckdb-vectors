@@ -6,10 +6,8 @@ validate the outcome the same way, so the deployment targets are directly
 comparable.
 """
 
-from pathlib import Path
+from development.paths import REPO_ROOT
 
-# The repository root, derived from this file's location (scripts/).
-REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCUMENTATION_DIR = REPO_ROOT / "documentation"
 
 # AWS region and models for the cloud ping scripts.

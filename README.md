@@ -82,7 +82,7 @@ for hit in store.query("how does an embedded database work?", top_k=3):
     print(hit.score, hit.chunk.chunk_id, hit.chunk.text)
 ```
 
-Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, add a semantic skills registry, wire a knowledge base into Kilo Code, or share one across every Kiro workspace, or copy a runnable example from [`examples/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
+Next steps: follow a step-by-step procedure under [Documentation](#documentation) to build a RAG answering machine, chat with an LLM-wiki, add a semantic skills registry, wire a knowledge base into Kilo Code, or share one across every Kiro workspace, or copy a runnable example from [`fixtures/`](https://github.com/bernard357/duckdb-vectors/tree/main/examples).
 
 ## Customization
 
@@ -238,13 +238,13 @@ Because we are frugal.
 
 - We won't embrace a fat framework, but limit our code base and dependencies to the strict minimum. We just want to install and import a dedicated PyPI package that does one thing well.
 
-- We won't delegate via the network a search across some thousands of items. A local function call is by far the fastest path to relevant answers. DuckDB is a perfect fit for such in-process use case. See [`examples/skill_registry.py`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/skill_registry.py).
+- We won't delegate via the network a search across some thousands of items. A local function call is by far the fastest path to relevant answers. DuckDB is a perfect fit for such in-process use case. See [`fixtures/skill_registry.py`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/skill_registry.py).
 
 - We won't use stemming search at all. Semantic search for sentences and exact matches for keywords cover our needs.
 
 - We won't externalize a read-only vector database or knowledge store for some thousands of items. This should be baked into the file system of the agent itself. DuckDB just needs a single database file, this is just what we need.
 
-- We won't introduce separate baking for the code and for data, since modern agents rely on Docker images anyway. See [`examples/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/Dockerfile).
+- We won't introduce separate baking for the code and for data, since modern agents rely on Docker images anyway. See [`fixtures/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/Dockerfile).
 
 - We won't invest on non-differentiating features. Trusted harnessing will come from [boring technologies](https://mcfunley.com/choose-boring-technology).
 

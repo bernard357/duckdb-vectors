@@ -25,7 +25,7 @@ python scripts/ping_host_index.py documentation vectors.duckdb
 
 echo "[lambda] building the wheel and image..."
 uv build
-docker build --platform linux/amd64 -f examples/lambda-rag-agent/Dockerfile -t "${IMAGE_URI}" .
+docker build --platform linux/amd64 -f fixtures/lambda-rag-agent/Dockerfile -t "${IMAGE_URI}" .
 
 echo "[lambda] pushing to ECR..."
 aws ecr describe-repositories --repository-names "${ECR_REPO}" --region "${REGION}" >/dev/null 2>&1 \

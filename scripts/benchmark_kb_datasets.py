@@ -6,7 +6,7 @@ such a folder and its questions into a ``validation.json`` whose golden chunks
 are the folder's own chunk ids, so the whole path, from offline contexts in
 front matter to indexing, is the one a user follows.
 
-    $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets anthropic \\
+    $ .venv/bin/python -m scripts.benchmark_kb_datasets anthropic \\
         --folder tmp/kb/anthropic/pages --work tmp/kb/anthropic
 """
 
@@ -17,11 +17,12 @@ from pathlib import Path, PurePosixPath
 
 import yaml
 
-from benchmarks.tagged_retrieval.datasets import load_anthropic
-from scripts.kb_common import chunk_folder, write_json
+from development.curation import chunk_folder, write_json
+from development.datasets import load_anthropic
+from development.paths import BENCHMARK_CACHE
 from scripts.kb_validation import Item, ValidationSet, freeze_split
 
-_CACHE = Path(__file__).resolve().parent / ".cache"
+_CACHE = BENCHMARK_CACHE
 _BACKTICKS = re.compile(r"`+")
 _LANGUAGES = {
     "py": "python",
@@ -313,7 +314,7 @@ def prepare_legalbench(folder: Path, work: Path, cache: Path = _CACHE) -> dict:
 
     A snippet (a character span) is satisfied by any section that overlaps it,
     so each snippet is one evidence item, as in the cookbook's Pass@k. The data
-    must have been unpacked into ``.cache/legalbenchrag/data`` first.
+    must have been unpacked into ``tmp/benchmarks/cache/legalbenchrag/data`` first.
     """
     import json
 

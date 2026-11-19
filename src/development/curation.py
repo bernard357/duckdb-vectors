@@ -2,7 +2,7 @@
 
 The curation scripts call a language model once, upstream of the package, on a
 folder of Markdown pages: never at chunking or indexing time. This module holds
-what they share: the versioned prompts in ``scripts/prompts/``, the Bedrock
+what they share: the versioned prompts in ``fixtures/prompts/``, the Bedrock
 client with usage and cost accounting, a content-addressed answer cache, the
 front matter editor, and the chunking of a folder exactly as the package does.
 """
@@ -18,17 +18,16 @@ from typing import Any
 import yaml
 from pydantic import BaseModel
 
+from development.paths import PROMPTS
 from duckdb_vectors.chunkers.registry import resolve_chunker
 from duckdb_vectors.models import Chunk
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 # Front matter key of the values the curation scripts derive: page tags at
 # ``retrieval.<field>`` and section contexts at ``sections.<path>.retrieval``.
 # They serve retrieval, in the embedding and the keyword index alike. Before
 # #66 the key was ``llm``; the scripts migrate the fields they wrote there.
 NAMESPACE = "retrieval"
 LEGACY_NAMESPACE = "llm"
-PROMPTS = Path(__file__).resolve().parent / "prompts"
 DEFAULT_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 DEFAULT_REGION = "eu-central-1"
 # USD per million tokens for Claude Haiku 4.5 on Bedrock: input, output, cache
@@ -63,7 +62,7 @@ class Prompt(BaseModel):
 
 
 def load_prompt(name: str, version: int = 1, directory: Path = PROMPTS) -> Prompt:
-    """Read ``{name}.v{version}.md`` from ``scripts/prompts/``."""
+    """Read ``{name}.v{version}.md`` from ``fixtures/prompts/``."""
     text = (directory / f"{name}.v{version}.md").read_text(encoding="utf-8")
     _, front, body = text.split("---\n", 2)
     meta = yaml.safe_load(front)
@@ -178,7 +177,7 @@ class BatchQueue:
 class Model:
     """A language model behind :data:`Invoke`, with usage accounting.
 
-    ``invoke`` defaults to Bedrock, or to :mod:`scripts.kb_fake` when
+    ``invoke`` defaults to Bedrock, or to :mod:`development.fake_model` when
     ``model_id`` is ``"fake"``; tests pass their own. With ``batch``, requests
     go to a :class:`BatchQueue` instead: answered ones are returned, others
     raise :class:`Deferred`. Thread safe.
@@ -201,7 +200,7 @@ class Model:
                 model_id, system, blocks, max_tokens
             )
         elif invoke is None and model_id == "fake":
-            from scripts.kb_fake import fake_invoke
+            from development.fake_model import fake_invoke
 
             self._invoke = fake_invoke
         else:

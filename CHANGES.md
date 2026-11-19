@@ -16,7 +16,7 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   decorative ones. Measured gains and their limits are in the performance
   workbook, and the [tagged retrieval guide](documentation/tagged-retrieval-guide.md)
   explains how to use it.
-- __`benchmarks/tagged_retrieval/`.__ A resumable benchmark of the tagged
+- __`scripts/benchmark_tagged.py`.__ A resumable benchmark of the tagged
   retrieval conditions over four datasets and five embedders, with paired
   bootstrap and McNemar tests, leave-one-tag-out and suffix ablations, and a
   reference run with LLM-written chunk contexts. `make bench-tagged` runs it.
@@ -48,6 +48,14 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __Repository layout (#67).__ Every input sits under `fixtures/`: the
+  versioned prompts (`fixtures/prompts/`), the sample pages
+  (`fixtures/markdown/`) and the runnable example agents, which were in
+  `examples/`. Every command sits under `scripts/`: the tagged retrieval
+  benchmark is now `scripts/benchmark_tagged*.py` and
+  `scripts/benchmark_kb_*.py`, and `benchmarks/` is gone. Helpers shared by
+  tests, benchmarks and scripts are in `src/development/`, which the wheel does
+  not ship. Downloaded datasets and benchmark results live in `tmp/benchmarks/`.
 - __Tagged retrieval results redone (#65).__ The first measurements used
   questions written from one passage alone, a single golden chunk per question
   and an engineering-pages baseline near its ceiling. The benchmark's

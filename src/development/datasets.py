@@ -438,7 +438,7 @@ def load_multihop(cache: Path) -> Dataset:
 def load_anthropic_context(cache: Path) -> Dataset:
     """The Anthropic set with each chunk's LLM-written context as a ``context`` tag.
 
-    Run ``python -m benchmarks.tagged_retrieval.contextualize`` first. The
+    Run ``python -m scripts.benchmark_tagged_contexts`` first. The
     conditions then read as Contextual Embeddings (``tags_embedding``),
     Contextual BM25 (``tags_bm25``) and both (``tags_both``).
     """
@@ -446,7 +446,7 @@ def load_anthropic_context(cache: Path) -> Dataset:
     path = cache / "anthropic-contexts.json"
     if not path.exists():
         raise ValueError(
-            "no contexts yet: run python -m benchmarks.tagged_retrieval.contextualize"
+            "no contexts yet: run python -m scripts.benchmark_tagged_contexts"
         )
     stored = json.loads(path.read_text(encoding="utf-8"))
     for chunk in dataset.chunks:

@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from scripts.kb_common import DEFAULT_MODEL, DEFAULT_REGION, read_json, write_json
+from development.curation import DEFAULT_MODEL, DEFAULT_REGION, read_json, write_json
 
 MIN_RECORDS = 100  # Bedrock refuses smaller batch jobs
 MAX_RECORDS = 50_000

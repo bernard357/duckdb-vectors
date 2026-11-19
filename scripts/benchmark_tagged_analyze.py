@@ -1,7 +1,7 @@
 """Turn result files into the tables and verdicts of the tagged retrieval study.
 
-Reads every file in ``results/``, keeps the latest for each dataset, embedder,
-sample and ablation setting, and prints Markdown tables:
+Reads every file in ``tmp/benchmarks/results/``, keeps the latest for each
+dataset, embedder, sample and ablation setting, and prints Markdown tables:
 
 * gain of each condition over the baseline, per dataset and embedder (H1, H2, H3);
 * the cost of tagging: embedding time, file size, query time;
@@ -11,7 +11,7 @@ sample and ablation setting, and prints Markdown tables:
 All differences are in Pass@k on the same queries, with a 95% paired bootstrap
 interval computed here from the stored per-query scores.
 
-    $ .venv/bin/python -m benchmarks.tagged_retrieval.analyze
+    $ .venv/bin/python -m scripts.benchmark_tagged_analyze
 """
 
 import argparse
@@ -19,13 +19,14 @@ import json
 import tempfile
 from pathlib import Path
 
-from benchmarks.tagged_retrieval import metrics
-from benchmarks.tagged_retrieval.datasets import LOADERS
+from development import metrics
+from development.datasets import LOADERS
+from development.paths import BENCHMARK_CACHE, BENCHMARK_RESULTS
 from duckdb_vectors.config import Settings
 from duckdb_vectors.store import VectorStore
 from duckdb_vectors.tag_stats import compute_tag_report
 
-_RESULTS = Path(__file__).resolve().parent / "results"
+_RESULTS = BENCHMARK_RESULTS
 MODE = "hybrid"
 K = "20"
 SHORT = {
@@ -308,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     print(ablation_table(results))
     if args.h5:
         backend = "fastembed:minishlab/potion-multilingual-128M"
-        cache = Path(__file__).resolve().parent / ".cache"
+        cache = BENCHMARK_CACHE
         print("\n## H5\n")
         print(h5_table(h5_rows(results, cache, backend)))
     print("\n## H4\n")

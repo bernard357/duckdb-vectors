@@ -9,7 +9,7 @@ from pathlib import Path
 
 from duckdb_vectors import VectorStore, index_folder
 
-EXAMPLE_DOCS = Path(__file__).resolve().parent.parent / "examples" / "docs"
+SAMPLE_PAGES = Path(__file__).resolve().parent.parent / "fixtures" / "markdown"
 
 
 def test_build_then_open_readonly_and_search(tmp_path):
@@ -17,7 +17,7 @@ def test_build_then_open_readonly_and_search(tmp_path):
 
     # Build-time: index the example corpus and freeze the file.
     builder = VectorStore(db_path=db, backend="hashing")
-    report = index_folder(builder, EXAMPLE_DOCS)
+    report = index_folder(builder, SAMPLE_PAGES)
     builder.close()
     assert report.chunks > 0
 

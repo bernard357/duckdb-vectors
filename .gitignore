@@ -43,5 +43,3 @@ documentation/.vitepress/cache/
 tmp/
 
 # Tagged retrieval benchmark: downloaded data and raw run output
-benchmarks/tagged_retrieval/.cache/
-benchmarks/tagged_retrieval/results/

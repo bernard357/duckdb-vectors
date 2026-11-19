@@ -18,6 +18,6 @@ RUN pip install --no-cache-dir "$(echo ${LAMBDA_TASK_ROOT}/dist/*.whl)[bedrock]"
 
 # Bake the pre-built index (host-indexed with Titan — no credentials in build).
 COPY vectors.duckdb ${LAMBDA_TASK_ROOT}/vectors.duckdb
-COPY examples/lambda-rag-agent/handler.py ${LAMBDA_TASK_ROOT}/
+COPY fixtures/lambda-rag-agent/handler.py ${LAMBDA_TASK_ROOT}/
 ENV DUCKDB_VECTORS_DB_PATH=${LAMBDA_TASK_ROOT}/vectors.duckdb
 CMD ["handler.lambda_handler"]

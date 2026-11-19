@@ -58,7 +58,7 @@ agents:
           DUCKDB_VECTORS_DB_PATH: ${env.DUCKDB_VECTORS_DB_PATH}
 ```
 
-The runnable config and a companion README live in [`examples/docker-agent/`](https://github.com/bernard357/duckdb-vectors/blob/main/examples/docker-agent/agent.yaml).
+The runnable config and a companion README live in [`fixtures/docker-agent/`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/docker-agent/agent.yaml).
 
 ## Step 1 — install duckdb-vectors
 
@@ -90,13 +90,13 @@ $ export DUCKDB_VECTORS_DB_PATH="$PWD/vectors.duckdb"
 ## Step 4 — run the agent and ask a question
 
 ```shell
-$ docker agent run examples/docker-agent/agent.yaml "how is a search answered?"
+$ docker agent run fixtures/docker-agent/agent.yaml "how is a search answered?"
 ```
 
 Docker Agent spawns `duckdb-vectors mcp`, the agent calls the `search` tool, and the model grounds its answer in the returned chunks. Ask what the index holds to exercise the `report` tool:
 
 ```shell
-$ docker agent run examples/docker-agent/agent.yaml "what does the index contain?"
+$ docker agent run fixtures/docker-agent/agent.yaml "what does the index contain?"
 ```
 
 ## Verify the server on its own

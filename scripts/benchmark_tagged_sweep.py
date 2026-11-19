@@ -1,7 +1,7 @@
 """Run the benchmark matrix: datasets by embedders, resumable.
 
-Each job writes one JSON file in ``results/``; a job whose file already exists
-is skipped, so an interrupted sweep continues where it stopped.
+Each job writes one JSON file in ``tmp/benchmarks/results/``; a job whose file
+already exists is skipped, so an interrupted sweep continues where it stopped.
 
 The large embedders (``e5-large``, ``bge-large``) run on the Anthropic codebase
 set only: on a laptop CPU they embed under one chunk per second, which is hours
@@ -9,14 +9,14 @@ for the larger corpora. The static default and the two small transformers run
 everywhere, and the leave-one-tag-out and suffix ablations run with the default.
 
     $ ENGINEERING_BRAIN_DIR=.../documentation \\
-      .venv/bin/python -m benchmarks.tagged_retrieval.sweep
+      .venv/bin/python -m scripts.benchmark_tagged_sweep
 """
 
 import argparse
 import sys
 import time
 
-from benchmarks.tagged_retrieval import run
+from scripts import benchmark_tagged as run
 
 POTION = "fastembed:minishlab/potion-multilingual-128M"
 MINILM = "fastembed:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

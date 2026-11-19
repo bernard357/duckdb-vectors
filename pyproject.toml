@@ -120,7 +120,7 @@ omit = ["*/__pycache__/*"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src/duckdb_vectors"]
+files = ["src/duckdb_vectors", "src/development"]
 warn_unused_ignores = true
 
 # Optional-dependency backends ship no type stubs; their imports are lazy and
@@ -129,6 +129,8 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = [
     "boto3",
+    "botocore",
+    "botocore.*",
     "fastembed",
     "huggingface_hub",
     "huggingface_hub.*",

@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from benchmarks.tagged_retrieval import metrics
-from benchmarks.tagged_retrieval.datasets import parse_anthropic
-from benchmarks.tagged_retrieval.run import (
+from development import metrics
+from development.datasets import parse_anthropic
+from scripts.benchmark_tagged import (
     CONDITIONS,
     build_store,
     run_benchmark,
@@ -167,7 +167,7 @@ def _filing(words: int) -> list[dict]:
 
 
 def test_ragmate_rechunks_like_the_dataset_and_reports_quality(cl100k):
-    from benchmarks.tagged_retrieval.datasets import parse_ragmate
+    from development.datasets import parse_ragmate
 
     forms = {"ACME_2024_10-K_chunks.json": _filing(400)}
     dataset = parse_ragmate(forms, [], {})
@@ -224,7 +224,7 @@ def _article(url, title, words):
 
 
 def test_multihop_maps_facts_to_every_chunk_that_holds_them():
-    from benchmarks.tagged_retrieval.datasets import parse_multihop
+    from development.datasets import parse_multihop
 
     words = [f"w{i}" for i in range(700)]
     corpus = [_article("u1", "One", words), _article("u2", "Two", ["short", "text"])]
@@ -268,7 +268,7 @@ def test_multihop_maps_facts_to_every_chunk_that_holds_them():
 
 
 def test_plan_condition_covers_ablation_and_suffix():
-    from benchmarks.tagged_retrieval.run import label_of, plan_condition, reference_of
+    from scripts.benchmark_tagged import label_of, plan_condition, reference_of
 
     fields = ["repo: $.repo_name", "ext: $.extension"]
     assert label_of(fields[0]) == "repo"
@@ -301,7 +301,7 @@ def test_ablation_and_suffix_runs_compare_against_their_references(dataset):
 
 
 def test_suffix_embeds_the_tags_after_the_chunk(tmp_path, dataset):
-    from benchmarks.tagged_retrieval.run import build_store
+    from scripts.benchmark_tagged import build_store
 
     store = build_store(
         dataset, tmp_path / "s.duckdb", "hashing", "tags_suffix", ["repo: $.repo_name"]
@@ -315,7 +315,7 @@ def test_suffix_embeds_the_tags_after_the_chunk(tmp_path, dataset):
 
 
 def test_sweep_matrix_runs_large_embedders_on_the_codebase_set_only():
-    from benchmarks.tagged_retrieval import sweep
+    from scripts import benchmark_tagged_sweep as sweep
 
     plan = sweep.jobs()
     large = [job for job in plan if job[1] in (sweep.E5_LARGE, sweep.BGE_LARGE)]
@@ -347,7 +347,7 @@ def _report(dataset, scores_by_condition, ablation=False, sample=False):
 
 
 def test_analyze_ranks_correlates_and_tabulates_gains():
-    from benchmarks.tagged_retrieval import analyze
+    from scripts import benchmark_tagged_analyze as analyze
 
     assert analyze.rank([3, 1, 1, 2]) == [4.0, 1.5, 1.5, 3.0]
     assert analyze.spearman([1, 2, 3, 4], [10, 20, 30, 40]) == pytest.approx(1.0)

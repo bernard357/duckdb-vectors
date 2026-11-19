@@ -38,8 +38,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from duckdb_vectors.models import Chunk
-from scripts.kb_common import (
+from development.curation import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
     AnswerCache,
@@ -57,6 +56,7 @@ from scripts.kb_common import (
     write_json,
     write_sheet,
 )
+from duckdb_vectors.models import Chunk
 
 DEFAULT_BACKENDS = (
     "fastembed:minishlab/potion-multilingual-128M",

@@ -12,7 +12,7 @@ Usage::
 import json
 import sys
 
-from ping_support import (
+from development.ping import (
     assert_answer_grounded,
     assert_sources_contain_expected,
     report,

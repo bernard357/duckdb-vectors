@@ -6,24 +6,23 @@ from pathlib import Path
 
 import pytest
 
-from duckdb_vectors.chunkers.markdown import MarkdownChunker
-from duckdb_vectors.tagging import parse_tag_fields, project_many
-from scripts import (
-    kb_common,
-    kb_context,
-    kb_evaluate,
-    kb_metrics,
-    kb_tags,
-    kb_validation,
-)
-from scripts.kb_common import (
-    PROMPTS,
+from development import curation, metrics
+from development.curation import (
     AnswerCache,
     Model,
     chunk_folder,
     load_prompt,
     read_front_matter,
     set_front_matter_key,
+)
+from development.paths import PROMPTS
+from duckdb_vectors.chunkers.markdown import MarkdownChunker
+from duckdb_vectors.tagging import parse_tag_fields, project_many
+from scripts import (
+    kb_context,
+    kb_evaluate,
+    kb_tags,
+    kb_validation,
 )
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "tagged"
@@ -273,7 +272,7 @@ def test_validation_pool_judge_audit_and_kappa(kb, tmp_path):
     rows = kb_validation.audit_rows(validation, chunks, size=4)
     assert rows and all(row["human_grade"] == "" for row in rows)
     sheet = tmp_path / "audit.yaml"
-    kb_common.write_sheet(
+    curation.write_sheet(
         sheet,
         kb_validation.audit_sheet(rows),
         kb_validation.AUDIT_HEADER,
@@ -283,7 +282,7 @@ def test_validation_pool_judge_audit_and_kappa(kb, tmp_path):
     assert "judge_grade" not in text and "human_grade:  # 0, 1 or 2" in text
     # The person fills the blanks in place; a "no" still counts as rated.
     grades = {(row["item"], row["chunk"]): row["judge_grade"] for row in rows}
-    records = kb_common.read_sheet(sheet)
+    records = curation.read_sheet(sheet)
     for number, record in enumerate(records):
         record["question_valid"] = number > 0  # YAML reads yes / no as booleans
         for passage in record["passages"]:
@@ -356,11 +355,11 @@ def test_kb_evaluate_parse_tag_set():
 
 
 def test_metrics_ndcg_sign_flip_and_holm():
-    assert kb_metrics.ndcg(["a", "b"], {"a": 2, "b": 1}, 2) == 1.0
-    assert kb_metrics.ndcg(["x", "a"], {"a": 2}, 2) == pytest.approx(1 / 1.58496, 1e-4)
-    assert kb_metrics.sign_flip_p([0.0] * 30, [1.0] * 30) < 0.001
-    assert kb_metrics.sign_flip_p([0.5] * 10, [0.5] * 10) == 1.0
-    assert kb_metrics.holm({"a": 0.01, "b": 0.04, "c": 0.03}) == {
+    assert metrics.ndcg(["a", "b"], {"a": 2, "b": 1}, 2) == 1.0
+    assert metrics.ndcg(["x", "a"], {"a": 2}, 2) == pytest.approx(1 / 1.58496, 1e-4)
+    assert metrics.sign_flip_p([0.0] * 30, [1.0] * 30) < 0.001
+    assert metrics.sign_flip_p([0.5] * 10, [0.5] * 10) == 1.0
+    assert metrics.holm({"a": 0.01, "b": 0.04, "c": 0.03}) == {
         "a": True,
         "b": False,
         "c": False,
@@ -379,9 +378,9 @@ def test_kb_context_window_keeps_the_opening_and_the_neighbourhood():
 def test_anthropic_pages_map_every_published_chunk_to_its_section(
     tmp_path, monkeypatch
 ):
-    from benchmarks.tagged_retrieval import kb_datasets
-    from benchmarks.tagged_retrieval.datasets import Dataset, Query
+    from development.datasets import Dataset, Query
     from duckdb_vectors.models import Chunk
+    from scripts import benchmark_kb_datasets as kb_datasets
 
     meta = {"repo_name": "acme/lib", "directory": "/src", "extension": "py"}
     code = "def handler():\n    return '``` not a fence'\n"
@@ -418,7 +417,7 @@ def test_anthropic_pages_map_every_published_chunk_to_its_section(
 
 
 def test_kb_analyze_applies_holm_and_the_ci_to_the_primary_stratum():
-    from benchmarks.tagged_retrieval import kb_analyze
+    from scripts import benchmark_kb_analyze as kb_analyze
 
     def report(corpus, p, low, strata=("contextual", "local")):
         entry = {
@@ -449,8 +448,8 @@ def test_kb_analyze_applies_holm_and_the_ci_to_the_primary_stratum():
 
 
 def test_batch_mode_queues_then_completes_from_fetched_answers(kb, tmp_path):
+    from development.curation import BatchQueue, request_key
     from scripts import kb_batch
-    from scripts.kb_common import BatchQueue, request_key
 
     queue = BatchQueue(tmp_path / "batch")
     model = Model("fake", batch=queue)
@@ -507,7 +506,7 @@ def test_batch_jobs_respect_the_record_limit(monkeypatch):
 def test_curation_chain_runs_offline_with_the_fake_model(kb, tmp_path):
     """What ``make kb-validation``, ``kb-context``, ``kb-tags`` and
     ``kb-evaluate`` run, with ``--model fake``: no AWS, no cost."""
-    from benchmarks.tagged_retrieval import kb_analyze
+    from scripts import benchmark_kb_analyze as kb_analyze
 
     work = str(tmp_path / "work")
     fake = ["--model", "fake"]

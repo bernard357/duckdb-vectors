@@ -23,7 +23,7 @@ Build an index, then point the agent at it:
 $ pip install duckdb-vectors
 $ duckdb-vectors index ./documentation --db vectors.duckdb
 $ export DUCKDB_VECTORS_DB_PATH="$PWD/vectors.duckdb"
-$ docker agent run examples/docker-agent/agent.yaml "how is a search answered?"
+$ docker agent run fixtures/docker-agent/agent.yaml "how is a search answered?"
 ```
 
 The agent calls the `search` tool, which opens the index and returns
