@@ -29,11 +29,13 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   `kb-tags`, `kb-batch` and `kb-evaluate` (`scripts/kb_*.py`) build a
   validation set with strata, a frozen dev/test split, pooled and LLM-judged
   golden passages and a human audit; write Anthropic's contextual header for
-  every section offline, into the `sections` key; derive page tags under
-  `llm`; run the model requests as Bedrock batch jobs; and measure each tag
-  set per stratum. `--model fake` runs the whole path offline, at no cost.
-  The [curation procedure](documentation/curate-knowledge-base-procedure.md)
-  walks through them (#65).
+  every section offline, into the `sections` key; derive page tags; run the
+  model requests as Bedrock batch jobs; and measure each tag set per stratum.
+  Derived values sit under a `retrieval` key, in the page and in each section,
+  apart from tags people write (#66). `--model fake` runs the whole path
+  offline, at no cost. The
+  [curation procedure](documentation/curate-knowledge-base-procedure.md) walks
+  through them (#65).
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,
   on a synthetic Markdown folder generated from a fixed seed or on a real one

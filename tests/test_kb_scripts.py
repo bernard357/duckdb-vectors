@@ -130,15 +130,15 @@ def test_render_requires_every_input():
 
 
 def test_set_front_matter_key_rewrites_only_that_key():
-    page = "---\ntitle: A\nllm:\n  old: 1\nowner: bob\n---\n# A\n\nBody.\n"
-    updated = set_front_matter_key(page, "llm", {"product": "Cedar"})
+    page = "---\ntitle: A\nretrieval:\n  old: 1\nowner: bob\n---\n# A\n\nBody.\n"
+    updated = set_front_matter_key(page, "retrieval", {"product": "Cedar"})
     assert read_front_matter(updated) == {
         "title": "A",
         "owner": "bob",
-        "llm": {"product": "Cedar"},
+        "retrieval": {"product": "Cedar"},
     }
     assert updated.endswith("# A\n\nBody.\n")
-    assert read_front_matter(set_front_matter_key(updated, "llm", None)) == {
+    assert read_front_matter(set_front_matter_key(updated, "retrieval", None)) == {
         "title": "A",
         "owner": "bob",
     }
@@ -158,7 +158,7 @@ def test_kb_context_writes_section_contexts_that_the_projection_reads(kb, tmp_pa
     assert kb_context.apply_contexts(kb, again) == 0
     chunks = chunk_folder(kb)
     tags = project_many(
-        [c.metadata for c in chunks], parse_tag_fields(["context: $.llm.context"])
+        [c.metadata for c in chunks], parse_tag_fields(["context: $.retrieval.context"])
     )
     assert all(t and t[0][1].startswith("Context about") for t in tags)
     for chunk in chunks:
@@ -166,11 +166,13 @@ def test_kb_context_writes_section_contexts_that_the_projection_reads(kb, tmp_pa
 
 
 def test_kb_context_keeps_other_section_metadata():
-    front = {"sections": {"a": {"owner": "bob", "llm": {"context": "old", "x": 1}}}}
+    front = {
+        "sections": {"a": {"owner": "bob", "retrieval": {"context": "old", "x": 1}}}
+    }
     merged = kb_context.merge_sections(front, {"a": "new", "b": "other"})
     assert merged == {
-        "a": {"owner": "bob", "llm": {"x": 1, "context": "new"}},
-        "b": {"llm": {"context": "other"}},
+        "a": {"owner": "bob", "retrieval": {"x": 1, "context": "new"}},
+        "b": {"retrieval": {"context": "other"}},
     }
 
 
@@ -195,13 +197,13 @@ def test_kb_tags_discovers_cleans_tags_twice_and_applies(kb, tmp_path):
     changed = kb_tags.apply_tags(kb, tags, ["product"])
     assert changed == sum(1 for values in tags.values() if values["product"])
     front = read_front_matter((kb / "deploy-runbook.md").read_text("utf-8"))
-    assert front["llm"] == {"product": "Cedar"}
+    assert front["retrieval"] == {"product": "Cedar"}
     assert len(kb_tags.review_rows(tags, ["product"])) == len(tags)
 
 
 def test_kb_tags_existing_fields_skip_reserved_keys(kb):
     fields = kb_tags.existing_fields(kb_tags.pages(kb))
-    assert "title" in fields and "llm" not in fields and "sections" not in fields
+    assert "title" in fields and "retrieval" not in fields and "sections" not in fields
 
 
 def test_kb_tags_clean_value_rejects_sentinels_and_long_free_text():
@@ -324,7 +326,7 @@ def test_kb_evaluate_runs_every_condition_per_stratum(kb, tmp_path):
         chunks,
         items,
         HASHING,
-        {"context": ["context: $.llm.context"]},
+        {"context": ["context: $.retrieval.context"]},
         ks=(5, 10),
     )
     assert list(report["conditions"]) == [
@@ -345,9 +347,9 @@ def test_kb_evaluate_runs_every_condition_per_stratum(kb, tmp_path):
 
 
 def test_kb_evaluate_parse_tag_set():
-    assert kb_evaluate.parse_tag_set("ctx=context: $.llm.context;p: $.p") == (
+    assert kb_evaluate.parse_tag_set("ctx=context: $.retrieval.context;p: $.p") == (
         "ctx",
-        ["context: $.llm.context", "p: $.p"],
+        ["context: $.retrieval.context", "p: $.p"],
     )
     with pytest.raises(ValueError):
         kb_evaluate.parse_tag_set("no-equals")
@@ -534,9 +536,40 @@ def test_curation_chain_runs_offline_with_the_fake_model(kb, tmp_path):
     assert all(item["golden"] for item in validation["items"] if item["valid"])
     assert (tmp_path / "work" / "audit.yaml").exists()
     front = read_front_matter((kb / "refund-policy.md").read_text())
-    assert front["llm"]["subject"] and front["sections"]
+    assert front["retrieval"]["subject"] and front["sections"]
     output = tmp_path / "work" / "results" / "all.json"
     argv = [*common, "--split", "all", "--backend", HASHING, "--output", str(output)]
-    argv += ["--tags", "context=context: $.llm.context"]
+    argv += ["--tags", "context=context: $.retrieval.context"]
     assert kb_evaluate.main(argv) == 0
     assert kb_analyze.main([str(output)]) == 0
+
+
+def test_kb_context_moves_a_legacy_llm_context_to_retrieval():
+    front = {
+        "sections": {
+            "a": {"llm": {"context": "old"}},
+            "b": {"llm": {"context": "old", "note": "kept"}},
+        }
+    }
+    merged = kb_context.merge_sections(front, {"a": "new", "b": "new"})
+    assert merged == {
+        "a": {"retrieval": {"context": "new"}},
+        "b": {"llm": {"note": "kept"}, "retrieval": {"context": "new"}},
+    }
+
+
+def test_kb_tags_apply_moves_legacy_fields_and_keeps_the_rest(kb, caplog):
+    page = kb / "deploy-runbook.md"
+    text = page.read_text(encoding="utf-8")
+    text = set_front_matter_key(text, "llm", {"product": "Beacon", "mine": "x"})
+    page.write_text(text, encoding="utf-8")
+    assert "llm" not in kb_tags.existing_fields(kb_tags.pages(kb))
+    assert "legacy 'llm' key" in caplog.text
+    kb_tags.apply_tags(kb, {"deploy-runbook.md": {"product": "Cedar"}}, ["product"])
+    front = read_front_matter(page.read_text(encoding="utf-8"))
+    assert front["retrieval"] == {"product": "Cedar"}
+    assert front["llm"] == {"mine": "x"}
+    kb_tags.apply_tags(kb, {"deploy-runbook.md": {"mine": "y"}}, ["mine"])
+    front = read_front_matter(page.read_text(encoding="utf-8"))
+    assert "llm" not in front
+    assert front["retrieval"] == {"product": "Cedar", "mine": "y"}

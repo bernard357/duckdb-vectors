@@ -22,6 +22,12 @@ from duckdb_vectors.chunkers.registry import resolve_chunker
 from duckdb_vectors.models import Chunk
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Front matter key of the values the curation scripts derive: page tags at
+# ``retrieval.<field>`` and section contexts at ``sections.<path>.retrieval``.
+# They serve retrieval, in the embedding and the keyword index alike. Before
+# #66 the key was ``llm``; the scripts migrate the fields they wrote there.
+NAMESPACE = "retrieval"
+LEGACY_NAMESPACE = "llm"
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 DEFAULT_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 DEFAULT_REGION = "eu-central-1"

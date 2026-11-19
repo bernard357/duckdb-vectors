@@ -12,8 +12,8 @@ Steps, each reading and writing files in ``WORK``:
   reverse order, and the agreement of the two passes is reported per field. A
   field below ``--min-agreement`` is dropped. A ``review.yaml`` sheet lists 30
   pages per field for a person to check.
-* ``apply``: the kept fields are written under the page's ``llm`` front matter
-  key, so derived tags stay apart from native ones. Only that key is touched;
+* ``apply``: the kept fields are written under the page's ``retrieval`` front
+  matter key, so derived tags stay apart from native ones. Only that key is touched;
   the script never commits.
 
     $ make kb-tags KB=path/to/pages WORK=tmp/kb/work
@@ -21,6 +21,7 @@ Steps, each reading and writing files in ``WORK``:
 """
 
 import argparse
+import logging
 import random
 import sys
 from collections import Counter
@@ -32,6 +33,8 @@ from pydantic import BaseModel
 from scripts.kb_common import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
+    LEGACY_NAMESPACE,
+    NAMESPACE,
     AnswerCache,
     Model,
     load_prompt,
@@ -45,7 +48,6 @@ from scripts.kb_common import (
     write_sheet,
 )
 
-NAMESPACE = "llm"
 SAMPLE_PAGES = 40
 EXCERPT_CHARS = 900
 PAGE_CHARS = 12000
@@ -57,7 +59,8 @@ REVIEW_PAGES = 30
 SENTINELS = frozenset(
     {"other", "none", "n/a", "na", "unknown", "null", "general", "not applicable"}
 )
-RESERVED = frozenset({NAMESPACE, "sections"})
+RESERVED = frozenset({NAMESPACE, LEGACY_NAMESPACE, "sections"})
+logger = logging.getLogger(__name__)
 
 
 class Field(BaseModel):
@@ -91,10 +94,22 @@ class Schema(BaseModel):
 
 
 def existing_fields(files: list[Path]) -> list[str]:
-    """Top-level front matter keys found in the pages, reserved keys excepted."""
+    """Top-level front matter keys found in the pages, reserved keys excepted.
+
+    A legacy ``llm`` key, where these scripts wrote before #66, is not a native
+    field: it is reported, and ``apply`` moves the fields it holds.
+    """
     found: Counter = Counter()
     for path in files:
         found.update(read_front_matter(path.read_text(encoding="utf-8")).keys())
+    if found[LEGACY_NAMESPACE]:
+        logger.warning(
+            "%d pages keep derived tags under the legacy '%s' key; "
+            "'apply' moves them to '%s'",
+            found[LEGACY_NAMESPACE],
+            LEGACY_NAMESPACE,
+            NAMESPACE,
+        )
     return sorted(key for key in found if key not in RESERVED)
 
 
@@ -293,7 +308,11 @@ def review_rows(tags: dict, fields: list[str], seed: int = 0) -> list[dict]:
 
 
 def apply_tags(folder: Path, tags: dict, keep: list[str]) -> int:
-    """Write the kept fields under ``llm`` in each page; returns pages changed."""
+    """Write the kept fields under ``retrieval`` in each page.
+
+    The same fields are removed from a legacy ``llm`` block, and the block once
+    it is empty. Returns the number of pages changed.
+    """
     changed = 0
     for name, values in tags.items():
         path = folder / name
@@ -305,6 +324,11 @@ def apply_tags(folder: Path, tags: dict, keep: list[str]) -> int:
             if values.get(field):
                 block[field] = values[field]
         updated = set_front_matter_key(text, NAMESPACE, block or None)
+        legacy = read_front_matter(updated).get(LEGACY_NAMESPACE)
+        if isinstance(legacy, dict):
+            rest = {k: v for k, v in legacy.items() if k not in keep}
+            if rest != legacy:
+                updated = set_front_matter_key(updated, LEGACY_NAMESPACE, rest or None)
         if updated != text:
             path.write_text(updated, encoding="utf-8")
             changed += 1

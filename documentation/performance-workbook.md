@@ -146,7 +146,7 @@ One change is worth a note, because the projection behind it was wrong. Rebuildi
 
 ## How much do tags improve retrieval?
 
-__A context written offline for each section helps on every corpus; page tags help only where they carry what queries ask for.__ A language model, Claude Haiku 4.5, read each page once and wrote, for every section, the short context that situates it in its page, with Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) prompt word for word. The contexts went into the pages' front matter, under the [`sections` key](tagged-retrieval-guide#how-to-give-each-section-its-own-context), and were indexed as an ordinary tag, `context: $.llm.context`, in the embedding and the keyword index. No model ran at indexing or search time. The [curation procedure](curate-knowledge-base-procedure) does the same on any folder of Markdown pages.
+__A context written offline for each section helps on every corpus; page tags help only where they carry what queries ask for.__ A language model, Claude Haiku 4.5, read each page once and wrote, for every section, the short context that situates it in its page, with Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) prompt word for word. The contexts went into the pages' front matter, under the [`sections` key](tagged-retrieval-guide#how-to-give-each-section-its-own-context), and were indexed as an ordinary tag, `context: $.retrieval.context`, in the embedding and the keyword index. No model ran at indexing or search time. The [curation procedure](curate-knowledge-base-procedure) does the same on any folder of Markdown pages.
 
 The test was recorded in [issue #65](https://github.com/bernard357/duckdb-vectors/issues/65) before any test split was scored: context in both the embedding and the keyword index (`context:both`) against the same index without it, hybrid search, Pass@20, on the test split, in the stratum where page context should matter, for three embedders on three corpora. It "helps" when the 95% paired bootstrap interval excludes zero and the sign-flip p-value survives a Holm correction over the nine tests. Seven of nine help:
 
@@ -235,7 +235,7 @@ $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets legalbench \
     --folder tmp/kb/legalbench/pages --work tmp/kb/legalbench       # a public set as Markdown pages
 $ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the curation procedure)
 $ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
-    TAGS="context=context: \$.llm.context"                           # one test run
+    TAGS="context=context: \$.retrieval.context"                           # one test run
 $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze tmp/kb/*/results/test-*.json  # tables and decision
 ```
 

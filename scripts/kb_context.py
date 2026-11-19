@@ -8,12 +8,12 @@ The contexts are stored in the page's own front matter, under the reserved
 
     sections:
       setup/retries:
-        llm:
+        retrieval:
           context: The retry settings of the Cedar deployment runbook ...
 
 The Markdown chunker merges each entry into that section's chunks, so the
 context is indexed like any other tag, with ``--tag-fields "context:
-$.llm.context"`` (and ``--tag-bm25`` for the keyword index). No model runs at
+$.retrieval.context"`` (and ``--tag-bm25`` for the keyword index). No model runs at
 chunking or indexing time. The page is sent once as a cached prompt prefix and
 then read from the cache for its other sections. Answers are cached on disk by
 content, so a re-run costs nothing and an edited page costs one page.
@@ -34,6 +34,8 @@ from duckdb_vectors.chunkers.markdown import MarkdownChunker
 from scripts.kb_common import (
     DEFAULT_MODEL,
     DEFAULT_REGION,
+    LEGACY_NAMESPACE,
+    NAMESPACE,
     AnswerCache,
     BatchQueue,
     Deferred,
@@ -47,7 +49,6 @@ from scripts.kb_common import (
 )
 
 PROMPT = "contextual-header"
-NAMESPACE = "llm"
 FIELD = "context"
 _SPLIT = "Here is the chunk we want to situate"
 
@@ -122,10 +123,11 @@ def contexts_for_page(
 
 
 def merge_sections(front: dict, contexts: dict[str, str]) -> dict:
-    """The page's ``sections`` mapping with ``llm.context`` set per section.
+    """The page's ``sections`` mapping with ``retrieval.context`` per section.
 
     Other keys of existing entries are kept; contexts of sections that no
-    longer exist are dropped.
+    longer exist are dropped. A context left under the legacy ``llm`` key is
+    removed, and so is that key once empty.
     """
     existing = front.get("sections")
     merged: dict = {}
@@ -134,12 +136,15 @@ def merge_sections(front: dict, contexts: dict[str, str]) -> dict:
             if not isinstance(entry, dict):
                 continue
             entry = dict(entry)
-            llm = dict(entry.get(NAMESPACE) or {})
-            llm.pop(FIELD, None)
-            if llm:
-                entry[NAMESPACE] = llm
-            else:
-                entry.pop(NAMESPACE, None)
+            for key in (NAMESPACE, LEGACY_NAMESPACE):
+                if not isinstance(entry.get(key), dict):
+                    continue
+                block = dict(entry[key])
+                block.pop(FIELD, None)
+                if block:
+                    entry[key] = block
+                else:
+                    entry.pop(key)
             if entry:
                 merged[str(path)] = entry
     for path, context in contexts.items():

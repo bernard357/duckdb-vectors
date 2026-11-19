@@ -347,10 +347,10 @@ SECTIONED_PAGE = """---
 title: Guide
 sections:
   guide/setup:
-    llm:
+    retrieval:
       context: {setup}
   guide/usage:
-    llm:
+    retrieval:
       context: How to call the Cedar API once it is set up.
 ---
 # Guide
@@ -371,7 +371,7 @@ def _tagged_store(tmp_path):
     settings = Settings(
         db_path=str(tmp_path / "idx.duckdb"),
         backend="hashing",
-        tag_fields=["context: $.llm.context"],
+        tag_fields=["context: $.retrieval.context"],
     )
     return VectorStore(settings=settings)
 
@@ -392,7 +392,7 @@ def test_editing_one_section_context_reembeds_only_that_section(tmp_path):
     assert second.written == 1
     assert second.reused == second.chunks - 1
     hit = store._con.execute(
-        "SELECT json_extract_string(metadata, '$.llm.context') FROM chunks "
+        "SELECT json_extract_string(metadata, '$.retrieval.context') FROM chunks "
         "WHERE json_extract_string(metadata, '$.section_path') = 'guide/setup'"
     ).fetchone()
     assert hit == ("How to install Cedar on Linux.",)

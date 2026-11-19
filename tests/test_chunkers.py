@@ -328,14 +328,14 @@ def test_frontmatter_set_is_json_serializable():
 
 SECTIONED = """---
 product: Cedar
-llm:
+retrieval:
   kind: guide
 sections:
   title/section-a:
-    llm:
+    retrieval:
       context: Alpha is the setup part of the Cedar guide.
   title/missing:
-    llm:
+    retrieval:
       context: never used
 ---
 # Title
@@ -358,12 +358,12 @@ def test_sections_entry_is_merged_into_its_section_only(caplog):
         for c in MarkdownChunker().chunk(SECTIONED, "doc.md")
     }
     alpha = chunks["title/section-a"].metadata
-    assert alpha["llm"] == {
+    assert alpha["retrieval"] == {
         "kind": "guide",
         "context": "Alpha is the setup part of the Cedar guide.",
     }
     assert alpha["product"] == "Cedar"
-    assert chunks["title/section-b"].metadata["llm"] == {"kind": "guide"}
+    assert chunks["title/section-b"].metadata["retrieval"] == {"kind": "guide"}
     for chunk in chunks.values():
         assert "sections" not in chunk.metadata
     assert "title/missing" in caplog.text
@@ -389,7 +389,7 @@ def test_page_without_sections_is_unchanged():
     plain = SECTIONED.split("sections:")[0] + "---\n" + SECTIONED.split("---\n", 2)[2]
     chunks = MarkdownChunker().chunk(plain, "doc.md")
     for chunk in chunks:
-        assert chunk.metadata["llm"] == {"kind": "guide"}
+        assert chunk.metadata["retrieval"] == {"kind": "guide"}
 
 
 def test_sections_lists_the_keys_a_curator_must_use():

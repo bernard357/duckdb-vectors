@@ -96,15 +96,15 @@ Front matter describes a whole page, so its tags are the same for every chunk of
 title: Deployment runbook
 sections:
   deployment-runbook/rollback:
-    llm:
+    retrieval:
       context: How to roll back a failed Cedar release, after the canary step.
 ---
 ```
 
-The chunker merges each entry into the chunks of that section, so `$.llm.context` is a tag like any other:
+The chunker merges each entry into the chunks of that section, so `$.retrieval.context` is a tag like any other:
 
 ```shell
-$ duckdb-vectors index ./docs --recursive --tag-fields "context: $.llm.context" --tag-bm25
+$ duckdb-vectors index ./docs --recursive --tag-fields "context: $.retrieval.context" --tag-bm25
 ```
 
 An entry whose path matches no section is logged as a warning. Writing a context like this for every section, with a language model reading each page once, is Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) moved upstream of indexing. The [curation procedure](curate-knowledge-base-procedure) does it, and measures the result on your own questions.
@@ -134,7 +134,7 @@ A tag is __decorative__ when its coverage is below 50%, when it has a single val
 
 The queries rule exists because the separation measures did not predict benefit. In the first benchmark, over 17 tags in four corpora, the rank correlation between a tag's separation lift and the retrieval gain it brought was close to zero, while the share of queries that mention a tag's values correlated at 0.62. The 20% threshold was fitted to those same 17 tags, so treat it as a starting point. The [performance workbook](performance-workbook#which-tags-help) says which tags helped in the later runs.
 
-The report judges page tags. A section context such as `$.llm.context` is a sentence that no query contains, and it differs from section to section, so the report counts one value per page and always calls it decorative. Ignore the verdict for contexts, and judge them on your own questions, as the [curation procedure](curate-knowledge-base-procedure#step-4-measure-then-index) does.
+The report judges page tags. A section context such as `$.retrieval.context` is a sentence that no query contains, and it differs from section to section, so the report counts one value per page and always calls it decorative. Ignore the verdict for contexts, and judge them on your own questions, as the [curation procedure](curate-knowledge-base-procedure#step-4-measure-then-index) does.
 
 The report cannot tell you whether a tag helps your searchers. It tells you which tags to try and which to drop first.
 
@@ -154,7 +154,7 @@ Keep the prefix to the few tags that matter. The benchmark found no reliable dif
 
 ## How to control the tag vocabulary?
 
-Tags only group documents if the same thing is always written the same way. `Enterprise`, `enterprise plan` and `Ent.` count as three values and split a group that should be one. Agree on a list of allowed values for each tag, check frontmatter against it in review, and prefer a short fixed list over free text. If a language model proposes tags for you, keep its output under its own key, such as `$.llm.product`, compare it with the native tags before you trust it, and discard answers such as "Other" or "None": a tag that says nothing tells a search nothing. The [curation procedure](curate-knowledge-base-procedure#step-3-derive-page-tags) derives tags this way, checks that the model agrees with itself, and has a person review a sample.
+Tags only group documents if the same thing is always written the same way. `Enterprise`, `enterprise plan` and `Ent.` count as three values and split a group that should be one. Agree on a list of allowed values for each tag, check frontmatter against it in review, and prefer a short fixed list over free text. If a language model proposes tags for you, keep its output under its own key, such as `$.retrieval.product`, compare it with the native tags before you trust it, and discard answers such as "Other" or "None": a tag that says nothing tells a search nothing. The [curation procedure](curate-knowledge-base-procedure#step-3-derive-page-tags) derives tags this way, checks that the model agrees with itself, and has a person review a sample.
 
 ## Follow-up
 

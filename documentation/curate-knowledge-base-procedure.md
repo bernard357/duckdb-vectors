@@ -21,19 +21,19 @@ A page keeps its own front matter. The scripts add two reserved keys and touch n
 ---
 title: Retry policy
 owner: platform
-llm:                       # page tags derived by kb-tags
+retrieval:                 # page tags derived by kb-tags
   framework_or_tool: CDK
   language_or_runtime: Python
 sections:                  # per-section metadata, keyed by section path
   retry-policy/backoff:
-    llm:
+    retrieval:
       context: The backoff settings of the Cedar deployment runbook, which ...
 ---
 ```
 
 `sections` maps a section path to metadata for the chunks of that section only. The Markdown chunker merges each entry into the chunks whose `section_path` matches, and never copies the `sections` key itself into chunk metadata. A section path is the chain of heading slugs, as the chunker reports it in each chunk's `section_path`. An entry that matches no section is logged as a warning, so a renamed heading does not fail silently. The key works for any per-section metadata, not only contexts.
 
-Derived values go under `llm`, so they never mix with tags people wrote. The scripts never commit: review the diff before you do.
+Derived values go under `retrieval`, which says what they are for: they serve retrieval, in the embedding and the keyword index alike, and they never mix with tags people wrote. Pages curated before the key was renamed keep their values under `llm`; running `apply` again moves the fields it wrote there, from its cache, with no model call. The scripts never commit: review the diff before you do.
 
 ## What do you need?
 
@@ -100,24 +100,24 @@ $ make kb-tags KB=pages STEP=tag
 $ make kb-tags KB=pages STEP=apply KB_ARGS="--keep framework_or_tool language_or_runtime"
 ```
 
-`discover` shows the model a sample of pages, stratified by folder and length, and the dev questions, and writes the proposed fields to `WORK/schema.json`. `tag` tags every page twice, the second time with the fields in reverse order, drops fields whose two passes agree on under 80% of pages, and writes `WORK/review.yaml`: 30 pages per field for you to mark `correct` yes or no. `apply` writes the fields you keep under `llm`. Choose which to keep on the dev split (next step), not on how plausible they look.
+`discover` shows the model a sample of pages, stratified by folder and length, and the dev questions, and writes the proposed fields to `WORK/schema.json`. `tag` tags every page twice, the second time with the fields in reverse order, drops fields whose two passes agree on under 80% of pages, and writes `WORK/review.yaml`: 30 pages per field for you to mark `correct` yes or no. `apply` writes the fields you keep under `retrieval`. Choose which to keep on the dev split (next step), not on how plausible they look.
 
 ## Step 4: measure, then index
 
 `kb-evaluate` indexes the same chunks once per condition, the baseline without tags and each tag set in the embedding, the keyword index, or both, and compares each with the baseline, per stratum, with a 95% paired bootstrap interval:
 
 ```shell
-$ make kb-evaluate KB=pages TAGS="context=context: \$.llm.context" KB_ARGS="--split dev"
+$ make kb-evaluate KB=pages TAGS="context=context: \$.retrieval.context" KB_ARGS="--split dev"
 $ make kb-evaluate KB=pages KB_ARGS="--split dev \
-    --tags 'context=context: \$.llm.context' \
-    --tags 'derived=tool: \$.llm.framework_or_tool;language: \$.llm.language_or_runtime'"
+    --tags 'context=context: \$.retrieval.context' \
+    --tags 'derived=tool: \$.retrieval.framework_or_tool;language: \$.retrieval.language_or_runtime'"
 ```
 
 A tag set is `NAME=label: $.path;label: $.path`. Results go to `WORK/results/`. Iterate on dev; when the choice is made, run `--split test` once and report that. Then index with the chosen tags, as in the [tagged retrieval guide](tagged-retrieval-guide#how-to-turn-tags-on):
 
 ```shell
 $ duckdb-vectors index ./pages --recursive \
-    --tag-fields "context: $.llm.context" --tag-bm25
+    --tag-fields "context: $.retrieval.context" --tag-bm25
 ```
 
 ## How to use batch inference?

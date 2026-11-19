@@ -11,7 +11,7 @@ chunks:
 * ``<set>:both``: the tag set in the embedding and the keyword index.
 
 A tag set is ``NAME=label: $.path;label: $.path``, for example
-``context=context: $.llm.context``. Each condition is searched vector-only and
+``context=context: $.retrieval.context``. Each condition is searched vector-only and
 hybrid; one search at the largest ``k`` gives every smaller ``k``. Scores per
 query: Pass@k (share of golden chunks found, as in the Anthropic cookbook),
 failure@k, all-found, MRR and graded nDCG@k. Every condition is compared with
@@ -19,7 +19,7 @@ the baseline by a paired bootstrap interval and a sign-flip test, over all
 queries and per stratum. The run writes one JSON file keyed by git SHA.
 
     $ make kb-evaluate KB=path/to/pages WORK=tmp/kb/work \\
-        TAGS="context=context: $.llm.context"
+        TAGS="context=context: $.retrieval.context"
 """
 
 import argparse

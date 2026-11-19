@@ -50,7 +50,7 @@ Each hypothesis is falsifiable and each has a verdict slot in the performance wo
 | H4 | Tags recover at least 50% of the gain of LLM contextual headers at near-zero index cost | Optional cached LLM-header run on the codebase set |
 | H5 | Corpus statistics (coverage, entropy, separation lift) predict which tags help | Statistics from the `tags` report against leave-one-tag-out results |
 
-Constraints on reading the results. The codebase set has native tags only through a join on the evaluation file (repository, path). The `engineering-brain` corpus has one frontmatter key per page, `topic`, which is nearly an identifier, so its useful tags are derived with an LLM and live in a separate `llm` namespace. Under fastembed 0.9.1 every model truncates input at 512 tokens, the static default included, so a long prefix can push chunk text out of the window. The report warns about that case.
+Constraints on reading the results. The codebase set has native tags only through a join on the evaluation file (repository, path). The `engineering-brain` corpus has one frontmatter key per page, `topic`, which is nearly an identifier, so its useful tags are derived with an LLM and live under their own front matter key. Under fastembed 0.9.1 every model truncates input at 512 tokens, the static default included, so a long prefix can push chunk text out of the window. The report warns about that case.
 
 ## What did the runs find?
 
