@@ -99,6 +99,8 @@ copied between stages.
 ```dockerfile
 FROM python:3.12-slim AS builder
 WORKDIR /build
+# OpenCV, used by the PDF chunker's OCR, needs these system libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 COPY fixtures/containerized-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

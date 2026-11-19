@@ -6,6 +6,9 @@
 
 FROM python:3.12-slim AS builder
 WORKDIR /build
+# The PDF chunker, part of the base install, runs OCR through OpenCV, which
+# needs these system libraries; the slim image lacks them.
+RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 COPY . /build
 RUN pip install --no-cache-dir "."
 # docs/ is your markdown corpus; adjust the path to your project.

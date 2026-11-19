@@ -14,6 +14,9 @@
 
 FROM python:3.12-slim AS builder
 WORKDIR /build
+# The PDF chunker, part of the base install, runs OCR through OpenCV, which
+# needs these system libraries; the slim image lacks them.
+RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 # Pin the fastembed model cache to a known path so it can be copied forward.
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 COPY fixtures/containerized-agent/requirements.txt .

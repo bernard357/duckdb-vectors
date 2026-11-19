@@ -335,6 +335,8 @@ index in a builder stage and copy only the frozen file into the runtime stage, t
 ```dockerfile
 FROM python:3.12-slim AS builder
 WORKDIR /build
+# OpenCV, used by the PDF chunker's OCR, needs these system libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 RUN pip install duckdb-vectors
 COPY documentation/ ./documentation/
 RUN duckdb-vectors index ./documentation --recursive --backend fastembed:minishlab/potion-multilingual-128M --db /build/vectors.duckdb

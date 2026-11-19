@@ -42,6 +42,11 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   with `--folder` (#59).
 
 ### Fixed
+- __The example images build again.__ Since the PDF chunker joined the base
+  install, indexing in a `python:3.12-slim` image stopped at its OCR import,
+  for want of the system libraries OpenCV loads. The build stages of the
+  example Dockerfiles, and the Dockerfiles shown in the guides, now install
+  `libxcb1`, `libgl1` and `libglib2.0-0` (#67).
 - __Markdown pages with a date in their front matter now index.__ `Chunk`
   normalizes its metadata to its JSON form: dates and datetimes become ISO 8601
   text, other non-JSON values become their `str()`, and keys become strings.

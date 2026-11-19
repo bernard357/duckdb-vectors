@@ -15,8 +15,10 @@ FROM python:3.12-slim AS builder
 WORKDIR /build
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 ENV HF_HOME=/opt/hf_cache
-# llama-cpp-python compiles native code; provide a C/C++ toolchain.
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake && rm -rf /var/lib/apt/lists/*
+# llama-cpp-python compiles native code; provide a C/C++ toolchain. The PDF
+# chunker, part of the base install, runs OCR through OpenCV, which needs the
+# last three system libraries; the slim image lacks them.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 COPY fixtures/docker-rag-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # duckdb-vectors is not yet on PyPI; install it from the locally built wheel.
