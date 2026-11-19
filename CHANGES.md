@@ -6,6 +6,10 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 ## Unreleased
 
 ### Added
+- __Skill `transcode-to-markdown`.__ An agent skill that converts `.docx`, `.odt`,
+  `.pptx` and `.odp` files into Markdown with markitdown, run with `uvx`, ready
+  to be indexed. Known limits are listed in the skill and in a new procedure
+  page. PDF files are not converted, since they are indexed directly.
 - __Tagged retrieval.__ Chunks are embedded with a prefix of tags projected from
   their document's frontmatter with JSONPath (`tag_fields`, `--tag-fields`),
   optionally matched in the keyword index too (`tag_bm25`, `--tag-bm25`). The

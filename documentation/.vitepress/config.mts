@@ -76,6 +76,10 @@ export default withMermaid(
               link: '/setup-skills-search-procedure',
             },
             {
+              text: 'Transcode office documents',
+              link: '/transcode-to-markdown-procedure',
+            },
+            {
               text: 'Knowledge base in Kilo Code',
               link: '/setup-kilo-code-knowledge-base-procedure',
             },
