@@ -148,6 +148,7 @@ module = [
     "pypdfium2.*",
     "rapidocr_onnxruntime",
     "rapidocr_onnxruntime.*",
+    "tiktoken",
     "tokenizers",
     "yaml",
 ]
