@@ -245,7 +245,7 @@ Because we are frugal.
 
 - We won't externalize a read-only vector database or knowledge store for some thousands of items. This should be baked into the file system of the agent itself. DuckDB just needs a single database file, this is just what we need.
 
-- We won't introduce separate baking for the code and for data, since modern agents rely on Docker images anyway. See [`fixtures/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/Dockerfile).
+- We won't introduce separate baking for the code and for data, since modern agents rely on Docker images anyway. See [`fixtures/docker-template/Dockerfile`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/docker-template/Dockerfile).
 
 - We won't invest on non-differentiating features. Trusted harnessing will come from [boring technologies](https://mcfunley.com/choose-boring-technology).
 
