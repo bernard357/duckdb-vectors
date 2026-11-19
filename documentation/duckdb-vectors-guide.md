@@ -126,7 +126,7 @@ Each setting resolves with the precedence explicit argument > `DUCKDB_VECTORS_*`
 | Match tags in keyword search | `tag_bm25` | `DUCKDB_VECTORS_TAG_BM25` | `false` |
 | Results returned per search | `top_k` | `DUCKDB_VECTORS_TOP_K` | `20` |
 
-`top_k` is the number of results a search returns. It is 20 for the SDK, the CLI and the MCP `search` tool, and any call can pass its own value. A client that pays prompt tokens for every returned chunk, such as an agent harness, may lower it per call. `tag_fields` and `tag_bm25` control [tagged retrieval](tagged-retrieval-guide): `tag_fields` is an ordered list of `label: $.path` pairs read from each document's frontmatter, and `tag_bm25` also matches those tags in keyword search.
+`top_k` is the number of results a search returns. It is 20 for the SDK, the CLI and the MCP `search` tool, and any call can pass its own value. A client that pays prompt tokens for every returned chunk, such as an agent harness, may lower it per call. `tag_fields` and `tag_bm25` control [tagged retrieval](tagged-retrieval-workbook): `tag_fields` is an ordered list of `label: $.path` pairs read from each document's frontmatter, and `tag_bm25` also matches those tags in keyword search.
 
 Several processes can share one database file, for example one MCP server per editor window. DuckDB lets one process hold the file at a time, so the store connects lazily, on first use, and when another process holds the file it retries for up to `lock_timeout` seconds before raising `DatabaseLockedError`. Each search holds the file only for the call, and re-indexing an unchanged folder holds it for a moment, so in practice sessions wait milliseconds rather than fail.
 
@@ -200,7 +200,7 @@ Custom chunkers subclass `FilesystemChunker` and implement only the `mimetypes` 
 | PdfChunker | `application/pdf` | per-page text with local OCR for scanned pages |
 | CompositeChunker | dispatches by MIME type | default; dispatches a mixed folder to the matching chunker per file in one pass |
 
-The markdown chunker copies a page's front matter into each chunk's metadata, except the reserved `sections` key: a mapping from a `section_path` to metadata for that section's chunks only, merged into them key by key. An entry that matches no section is logged as a warning. The [tagged retrieval guide](tagged-retrieval-guide#how-to-give-each-section-its-own-context) shows how to index it as a tag.
+The markdown chunker copies a page's front matter into each chunk's metadata, except the reserved `sections` key: a mapping from a `section_path` to metadata for that section's chunks only, merged into them key by key. An entry that matches no section is logged as a warning. The [tagged retrieval guide](tagged-retrieval-workbook#how-to-give-each-section-its-own-context) shows how to index it as a tag.
 
 ### Indexing a mixed folder in one pass
 
@@ -289,7 +289,7 @@ $ duckdb-vectors search "how do retries work?"             # JSON by default
 $ duckdb-vectors search "how do retries work?" --output yaml   # or YAML
 ```
 
-To embed chunks with tags from their frontmatter, index with `--tag-field "label: $.path"` (repeat the option for each tag), add `--tag-bm25` to match the tags in keyword search too, and run `duckdb-vectors tags --queries FILE` to see which tags your queries actually use. The [tagged retrieval guide](tagged-retrieval-guide) explains each step and the [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) shows when tags help.
+To embed chunks with tags from their frontmatter, index with `--tag-field "label: $.path"` (repeat the option for each tag), add `--tag-bm25` to match the tags in keyword search too, and run `duckdb-vectors tags --queries FILE` to see which tags your queries actually use. The [tagged retrieval workbook](tagged-retrieval-workbook) explains each step and the [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) shows when tags help.
 
 The `mcp` verb serves the same retrieval as a Model Context Protocol server over stdio, so any MCP client can spawn `duckdb-vectors mcp` and call its `search` and `report` tools. See the [Docker Agent guide](docker-agent-guide.md) for a complete integration.
 

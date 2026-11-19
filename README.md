@@ -95,7 +95,7 @@ The default configuration of `duckdb-vectors` makes it workable out of the box. 
 
 - Frontmatter headers of Markdown pages are injected as JSON objects. Each attribute can be considered in SELECT statements in addition to semantic search. Metadata is returned along with each chunk.
 
-- Embed chunks together with tags projected out of the frontmatter of their document, so that a chunk keeps the context chunking removes, with no language model involved at index time. The `tags` verb reports which tags help and which only add noise. See the [tagged retrieval guide](https://bernard357.github.io/duckdb-vectors/tagged-retrieval-guide).
+- Embed chunks together with tags projected out of the frontmatter of their document, so that a chunk keeps the context chunking removes, with no language model involved at index time. The `tags` verb reports which tags help and which only add noise. See the [tagged retrieval workbook](https://bernard357.github.io/duckdb-vectors/tagged-retrieval-workbook), and the [build procedure](https://bernard357.github.io/duckdb-vectors/build-knowledge-base-procedure) for the whole path.
 - Choose your embedding model by string. The default is a compact 256-dimension multilingual model; step up the `fastembed:` dimension ladder (384 / 768 / 1024) for more relevance, load any Hugging Face ONNX repo with `hf:<repo-id>`, or embed in the cloud with `bedrock:titan`. See [Embedding backends](#embedding-backends) below.
 
 - Implement your own chunking class, that is fully adapted to your knowledge base. We have focused on Markdown and PDF files. You may have other kinds of documents to ingest.
@@ -174,7 +174,7 @@ that format.
 A Markdown page's front matter is copied into the metadata of each of its chunks.
 Under the reserved `sections` key, a page can also give metadata to one section
 only, keyed by its `section_path`; the chunker merges it into that section's
-chunks. The [curation procedure](https://bernard357.github.io/duckdb-vectors/curate-knowledge-base-procedure)
+chunks. The [tagging procedure](https://bernard357.github.io/duckdb-vectors/tag-knowledge-base-procedure)
 uses it to store a context per section, written offline by a language model.
 
 ## Metadata-aware search (injectable ranking SQL)

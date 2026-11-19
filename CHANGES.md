@@ -11,6 +11,11 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   their licences and checksums, and `kb_context --from-pack` writes them into
   freshly prepared pages with no model call. A pack that names a page or a
   section the folder does not have is refused.
+- __Knowledge base procedures.__ A build procedure ties together transcoding,
+  tagging, indexing and inspection. The tagged retrieval guide and research note
+  became one tagged retrieval workbook, the curation procedure became the
+  tagging procedure, and a new inspection procedure reviews tags, their
+  distribution and search results.
 - __Skill `transcode-to-markdown`.__ An agent skill that converts `.docx`, `.odt`,
   `.pptx` and `.odp` files into Markdown with markitdown, run with `uvx`, ready
   to be indexed. Known limits are listed in the skill and in a new procedure
@@ -23,7 +28,7 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   tag's coverage, entropy and documents per value, and with `--queries FILE`
   the share of queries that mention its values, to tell effective tags from
   decorative ones. Measured gains and their limits are in the performance
-  workbook, and the [tagged retrieval guide](documentation/tagged-retrieval-guide.md)
+  workbook, and the [tagged retrieval guide](documentation/tagged-retrieval-workbook.md)
   explains how to use it.
 - __`scripts/benchmark_tagged.py`.__ A resumable benchmark of the tagged
   retrieval conditions over four datasets and five embedders, with paired
@@ -43,7 +48,7 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Derived values sit under a `retrieval` key, in the page and in each section,
   apart from tags people write (#66). `--model fake` runs the whole path
   offline, at no cost. The
-  [curation procedure](documentation/curate-knowledge-base-procedure.md) walks
+  [tagging procedure](documentation/tag-knowledge-base-procedure.md) walks
   through them (#65).
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,

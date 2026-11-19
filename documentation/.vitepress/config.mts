@@ -52,14 +52,21 @@ export default withMermaid(
               link: '/register-package-procedure',
             },
             { text: 'Performance workbook', link: '/performance-workbook' },
-            { text: 'Tagged retrieval guide', link: '/tagged-retrieval-guide' },
             {
-              text: 'Curate a knowledge base',
-              link: '/curate-knowledge-base-procedure',
+              text: 'Tagged retrieval workbook',
+              link: '/tagged-retrieval-workbook',
             },
             {
-              text: 'Tagged retrieval research',
-              link: '/tagged-retrieval-research',
+              text: 'Build a knowledge base',
+              link: '/build-knowledge-base-procedure',
+            },
+            {
+              text: 'Tag a knowledge base',
+              link: '/tag-knowledge-base-procedure',
+            },
+            {
+              text: 'Inspect a knowledge base',
+              link: '/inspect-knowledge-base-procedure',
             },
           ],
         },

@@ -146,7 +146,7 @@ One change is worth a note, because the projection behind it was wrong. Rebuildi
 
 ## How much do tags improve retrieval?
 
-__A context written offline for each section helps on every corpus; page tags help only where they carry what queries ask for.__ A language model, Claude Haiku 4.5, read each page once and wrote, for every section, the short context that situates it in its page, with Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) prompt word for word. The contexts went into the pages' front matter, under the [`sections` key](tagged-retrieval-guide#how-to-give-each-section-its-own-context), and were indexed as an ordinary tag, `context: $.retrieval.context`, in the embedding and the keyword index. No model ran at indexing or search time. The [curation procedure](curate-knowledge-base-procedure) does the same on any folder of Markdown pages.
+__A context written offline for each section helps on every corpus; page tags help only where they carry what queries ask for.__ A language model, Claude Haiku 4.5, read each page once and wrote, for every section, the short context that situates it in its page, with Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) prompt word for word. The contexts went into the pages' front matter, under the [`sections` key](tagged-retrieval-workbook#how-to-give-each-section-its-own-context), and were indexed as an ordinary tag, `context: $.retrieval.context`, in the embedding and the keyword index. No model ran at indexing or search time. The [tagging procedure](tag-knowledge-base-procedure) does the same on any folder of Markdown pages.
 
 The test was recorded in [issue #65](https://github.com/bernard357/duckdb-vectors/issues/65) before any test split was scored: context in both the embedding and the keyword index (`context:both`) against the same index without it, hybrid search, Pass@20, on the test split, in the stratum where page context should matter, for three embedders on three corpora. It "helps" when the 95% paired bootstrap interval excludes zero and the sign-flip p-value survives a Holm correction over the nine tests. Seven of nine help:
 
@@ -164,6 +164,8 @@ The test was recorded in [issue #65](https://github.com/bernard357/duckdb-vector
 
 The default static model gains least, and on the two public corpora its gain does not survive the correction, although both intervals exclude zero. It averages token vectors, so a 50-word context moves its embedding less than a transformer's; this is a hypothesis, not something these runs test.
 
+## Does it reproduce Anthropic's result?
+
 __It reproduces Anthropic's result.__ On the Anthropic cookbook's code set, 248 questions over 737 chunks, converted to Markdown pages with a baseline equal to the published one, the offline context cut failure@20 by as much as Anthropic reports for contexts written at chunking time. That comparison was the bar set for the work, not one of the nine tests:
 
 | | Anthropic's report | potion-256 | MiniLM-384 | bge-small-384 |
@@ -173,6 +175,8 @@ __It reproduces Anthropic's result.__ On the Anthropic cookbook's code set, 248 
 
 Anthropic used other embedders and Claude 3 Haiku, so the match is in size, not in detail. Against the reference run of the first benchmark, where the same contexts were prepended in code at indexing time, every interval spans zero except bge-small in hybrid search, which is better by +0.013 [+0.001, +0.028]: moving the context into the front matter loses nothing.
 
+## What else do the runs show?
+
 __What else the runs show__ (secondary conditions, from the same runs):
 
 - __Context matters most where the question needs the page.__ On engineering pages, questions answerable from a passage alone gained less: +0.060 [+0.035, +0.085] with potion, +0.022 [-0.006, +0.049] with MiniLM, +0.046 [+0.020, +0.072] with bge-small.
@@ -181,7 +185,9 @@ __What else the runs show__ (secondary conditions, from the same runs):
 - __Native tags and the context add up.__ Together they gave the best result on LegalBench (+0.104, +0.232 and +0.183) and on FinanceBench with potion and MiniLM (+0.068 and +0.247).
 - __Derived page tags did not help.__ On engineering pages, the two fields kept on the dev split, `framework_or_tool` and `language_or_runtime`, changed Pass@20 by -0.002 to +0.002 with potion and bge-small and by -0.023 [-0.037, -0.009] with MiniLM, and added nothing on top of the context.
 
-__How the questions were made.__ The engineering pages, 252 pages in 5,293 chunks, carry 617 generated questions in two strata: 362 written from one passage, and 255 written for one of two near-identical passages from different pages (median cosine 0.81), so that only the page tells them apart. The pages are split once, by page, into dev (199 questions) and test (418), and the split was frozen before any context or tag was written. Golden passages come from pooling the top 20 of several systems, 37,063 pairs, graded 0, 1 or 2 by the model without seeing any tag or context; a passage graded 1 or more is golden, a median of 5 per question. A person graded 176 of those passages, over 60 questions, blind: on golden or not, Cohen's κ with the judge is 0.736 (0.789 on local questions, 0.687 on context-dependent ones), above the 0.6 bar, and all 60 questions were rated realistic. On the 0 to 2 scale κ is 0.437, because the judge gives 2 where the person gave 1, so graded nDCG on these pages is exploratory. That the bar applies to golden or not was decided after the audit. The public sets keep their human golden passages: LegalBench answer spans mapped to 250-word sections, and FinanceBench evidence pages, 188 of 189 matched exactly. FinanceBench's 110 test questions make its intervals wide. No baseline was above 0.9 Pass@20, so no stratum needed another metric. The corpus of engineering pages is private: only its results are published.
+## How were the questions made?
+
+The engineering pages, 252 pages in 5,293 chunks, carry 617 generated questions in two strata: 362 written from one passage, and 255 written for one of two near-identical passages from different pages (median cosine 0.81), so that only the page tells them apart. The pages are split once, by page, into dev (199 questions) and test (418), and the split was frozen before any context or tag was written. Golden passages come from pooling the top 20 of several systems, 37,063 pairs, graded 0, 1 or 2 by the model without seeing any tag or context; a passage graded 1 or more is golden, a median of 5 per question. A person graded 176 of those passages, over 60 questions, blind: on golden or not, Cohen's κ with the judge is 0.736 (0.789 on local questions, 0.687 on context-dependent ones), above the 0.6 bar, and all 60 questions were rated realistic. On the 0 to 2 scale κ is 0.437, because the judge gives 2 where the person gave 1, so graded nDCG on these pages is exploratory. That the bar applies to golden or not was decided after the audit. The public sets keep their human golden passages: LegalBench answer spans mapped to 250-word sections, and FinanceBench evidence pages, 188 of 189 matched exactly. FinanceBench's 110 test questions make its intervals wide. No baseline was above 0.9 Pass@20, so no stratum needed another metric. The corpus of engineering pages is private: only its results are published.
 
 __What the first runs got wrong.__ An earlier version of this section reported gains of tags on four datasets ([issue #64](https://github.com/bernard357/duckdb-vectors/issues/64)). Its engineering-page questions were written from one passage alone and had one golden chunk each, so no tag could help them, and the baseline was already at 0.87 to 0.96. Its derived tags were chosen by a statistic that turned out not to predict benefit, and its query-mention rule was fitted on the tags it was checked against. Those figures are in the git history and should not be cited.
 
@@ -191,7 +197,7 @@ __The ones that restore what a passage loses when cut from its page, in the word
 
 Derived page tags are harder to get right. On the engineering pages, schema discovery proposed six fields from a sample of pages and the dev questions. Tagging every page twice, with the fields in reverse order the second time, three reached the 80% agreement bar. Leaving each out in turn on the dev split dropped `aws_service`, whose removal raised the context-dependent score. A person checked 30 pages per field: `aws_service` was right on 30, `language_or_runtime` on 27 and `framework_or_tool` on 23. The two kept fields still did not help on the test split. Agreement and precision show a tag is consistent, not that it is useful. Only a run on your own questions shows that.
 
-The `tags` report's query-mention rule, which marks a tag decorative when fewer than 20% of queries name one of its values, was not re-tested here and stays [provisional](tagged-retrieval-guide#how-to-read-the-tags-report). Its threshold will change only on dev-split evidence.
+The `tags` report's query-mention rule, which marks a tag decorative when fewer than 20% of queries name one of its values, was not re-tested here and stays [provisional](inspect-knowledge-base-procedure#step-4-read-the-tags-report). Its threshold will change only on dev-split evidence.
 
 ## What does tagging cost?
 
@@ -233,7 +239,7 @@ $ .venv/bin/python scripts/benchmark_embedders.py                  # the model c
 $ make bench-tagged BENCH_ARGS="--dataset multihop --sample-queries 500 --ablate --suffix"  # tagged retrieval
 $ .venv/bin/python -m scripts.benchmark_kb_datasets legalbench \
     --folder tmp/kb/legalbench/pages --work tmp/kb/legalbench       # a public set as Markdown pages
-$ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the curation procedure)
+$ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the tagging procedure)
 $ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
     KB_ARGS="--from-pack fixtures/benchmarks/legalbench-contexts.json.gz"  # or our contexts, no model
 $ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
@@ -241,13 +247,13 @@ $ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
 $ .venv/bin/python -m scripts.benchmark_kb_analyze tmp/kb/*/results/test-*.json  # tables and decision
 ```
 
-The [curation procedure](curate-knowledge-base-procedure) explains each `kb-` step. The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/scripts/benchmark_tagged.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
+The [tagging procedure](tag-knowledge-base-procedure) explains each `kb-` step. The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/scripts/benchmark_tagged.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
 
 ## Follow-up
 
 - [User guide](duckdb-vectors-guide): the API, indexing, and configuration, including `lock_timeout`.
-- [Tagged retrieval guide](tagged-retrieval-guide): how to choose and check tags.
-- [Curate a knowledge base](curate-knowledge-base-procedure): write section contexts and page tags offline, and measure them.
-- [Tagged retrieval research note](tagged-retrieval-research): the evidence behind the feature.
+- [Tagged retrieval workbook](tagged-retrieval-workbook): questions and answers on tags, and the evidence behind them.
+- [Tag a knowledge base](tag-knowledge-base-procedure): write section contexts and page tags offline, and measure them.
+- [Inspect a knowledge base](inspect-knowledge-base-procedure): review tags, their distribution, and search results.
 - [Technical design](duckdb-vectors-primitive): the schema, the keyword index marker, and the internals.
 - [Knowledge base in Kiro](setup-kiro-knowledge-base-procedure): one index shared by every Kiro workspace over MCP.

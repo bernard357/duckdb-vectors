@@ -1,15 +1,15 @@
-# Curate a knowledge base for tagged retrieval
+# Tag a knowledge base
 
-Here a knowledge manager prepares a folder of Markdown pages so that `duckdb-vectors` finds more of the right passages. A language model reads each page once, offline, and writes two kinds of metadata into the pages' front matter: a short context for each section, as in Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval), and a few page-level tags. A validation set, built before any of that, tells you whether either one helps on your own pages. Nothing changes at indexing or search time: the package reads the new front matter like any other tag, and no model runs while you index.
+This sub-procedure details [step 3 of the build procedure](build-knowledge-base-procedure#step-3-tag-markdown-pages-and-sections). A knowledge manager prepares a folder of Markdown pages so that `duckdb-vectors` finds more of the right passages. A language model reads each page once, offline, and writes two kinds of metadata into the pages' front matter: a short context for each section, as in Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval), and a few page-level tags. A validation set, built before any of that, tells you whether either one helps on your own pages. Nothing changes at indexing or search time: the package reads the new front matter like any other tag, and no model runs while you index.
 
-The scripts live in `scripts/kb_*.py` and run through `make` targets from a clone of the repository. The [tagged retrieval guide](tagged-retrieval-guide) explains tags themselves, and the [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) gives the measured gains.
+The scripts live in `scripts/kb_*.py` and run through `make` targets from a clone of the repository. The [tagged retrieval workbook](tagged-retrieval-workbook) explains tags themselves, and the [performance workbook](performance-workbook#how-much-do-tags-improve-retrieval) gives the measured gains.
 
 - [What does it change in the pages?](#what-does-it-change-in-the-pages)
 - [What do you need?](#what-do-you-need)
 - [Step 1: build a validation set](#step-1-build-a-validation-set)
 - [Step 2: write the section contexts](#step-2-write-the-section-contexts)
 - [Step 3: derive page tags](#step-3-derive-page-tags)
-- [Step 4: measure, then index](#step-4-measure-then-index)
+- [Step 4: measure the tags](#step-4-measure-the-tags)
 - [How to use batch inference?](#how-to-use-batch-inference)
 - [What does it cost?](#what-does-it-cost)
 
@@ -79,7 +79,7 @@ $ make kb-validation KB=pages STEP=audit KB_ARGS="--size 60"
 $ make kb-validation KB=pages STEP=kappa
 ```
 
-`kappa` reports Cohen's κ between you and the judge, on the 0 to 2 grades and on golden or not. Golden or not is what Pass@k uses; if its κ is below 0.6, revise the judge prompt (`scripts/prompts/relevance-judge.v*.md`) and judge again before trusting any number.
+`kappa` reports Cohen's κ between you and the judge, on the 0 to 2 grades and on golden or not. Golden or not is what Pass@k uses; if its κ is below 0.6, revise the judge prompt (`fixtures/prompts/relevance-judge.v*.md`) and judge again before trusting any number.
 
 ## Step 2: write the section contexts
 
@@ -102,7 +102,7 @@ $ make kb-tags KB=pages STEP=apply KB_ARGS="--keep framework_or_tool language_or
 
 `discover` shows the model a sample of pages, stratified by folder and length, and the dev questions, and writes the proposed fields to `WORK/schema.json`. `tag` tags every page twice, the second time with the fields in reverse order, drops fields whose two passes agree on under 80% of pages, and writes `WORK/review.yaml`: 30 pages per field for you to mark `correct` yes or no. `apply` writes the fields you keep under `retrieval`. Choose which to keep on the dev split (next step), not on how plausible they look.
 
-## Step 4: measure, then index
+## Step 4: measure the tags
 
 `kb-evaluate` indexes the same chunks once per condition, the baseline without tags and each tag set in the embedding, the keyword index, or both, and compares each with the baseline, per stratum, with a 95% paired bootstrap interval:
 
@@ -113,12 +113,7 @@ $ make kb-evaluate KB=pages KB_ARGS="--split dev \
     --tags 'derived=tool: \$.retrieval.framework_or_tool;language: \$.retrieval.language_or_runtime'"
 ```
 
-A tag set is `NAME=label: $.path;label: $.path`. Results go to `WORK/results/`. Iterate on dev; when the choice is made, run `--split test` once and report that. Then index with the chosen tags, as in the [tagged retrieval guide](tagged-retrieval-guide#how-to-turn-tags-on):
-
-```shell
-$ duckdb-vectors index ./pages --recursive \
-    --tag-fields "context: $.retrieval.context" --tag-bm25
-```
+A tag set is `NAME=label: $.path;label: $.path`. Results go to `WORK/results/`. Iterate on dev; when the choice is made, run `--split test` once and report that. Then go back to [step 4 of the build procedure](build-knowledge-base-procedure#step-4-prefix-chunks-with-tags-before-embedding) and index with the chosen tags, for example `--tag-field "context: $.retrieval.context" --tag-bm25`. To look at the tags that you kept, use the [inspection procedure](inspect-knowledge-base-procedure).
 
 ## How to use batch inference?
 
@@ -147,6 +142,8 @@ The model cost grows with the number of sections times the length of their pages
 
 ## Follow-up
 
-- [Tagged retrieval guide](tagged-retrieval-guide): how tags reach the embedding and the keyword index.
+- [Build a knowledge base](build-knowledge-base-procedure): the parent procedure, which indexes the tagged pages.
+- [Inspect a knowledge base](inspect-knowledge-base-procedure): check the tags, their distribution and the search results.
+- [Tagged retrieval workbook](tagged-retrieval-workbook): questions and answers on tags, section contexts and the evidence behind them.
 - [Performance workbook](performance-workbook): the measured gains and costs.
 - [Issue #65](https://github.com/bernard357/duckdb-vectors/issues/65): the method and its pre-registration.
