@@ -1,6 +1,6 @@
 """Validate a ping result read as JSON on stdin.
 
-The shell ping snippets (fixtures/shell/ping-*.sh) pipe the agent's
+The shell ping snippets (scripts/ping_*.sh) pipe the agent's
 ``{"answer": ..., "sources": [...]}`` output to this validator, which owns the
 assertions so the shell does not have to parse JSON or reason about relevance.
 

@@ -38,7 +38,7 @@ DUCKDB_VECTORS_DB_PATH ?= vectors.duckdb
 # default Python path for imports
 PYTHONPATH ?= .
 # source locations for static analysis
-PYTHON_PATHS := src/ tests/ fixtures/ scripts/
+PYTHON_PATHS := src/ tests/ scripts/
 # markdown files for static analysis
 MARKDOWN_FILES := README.md CONTRIBUTING.md AGENTS.md $(shell find scripts fixtures/prompts -name '*.md') $(shell find documentation -name '*.md')
 # Dockerfiles for static analysis
@@ -190,7 +190,7 @@ build:
 	@echo "Building wheel and sdist..."
 	uv build
 
-# End-to-end ping tests. Each runs a shell snippet from fixtures/shell/ that
+# End-to-end ping tests. Each runs a shell snippet from scripts/ (ping_*.sh) that
 # builds a search agent from documentation/, runs the fixed query, and pipes
 # the result to the shared Python validator. The AWS pings create real,
 # billable resources and leave them running; use AWS_PROFILE to select the
@@ -198,13 +198,13 @@ build:
 PING_ENV := PATH="$(PWD)/.venv/bin:$$PATH"
 
 ping-docker:
-	$(PING_ENV) bash fixtures/shell/ping-docker.sh
+	$(PING_ENV) bash scripts/ping_docker.sh
 
 ping-lambda:
-	$(PING_ENV) bash fixtures/shell/ping-lambda.sh
+	$(PING_ENV) bash scripts/ping_lambda.sh
 
 ping-agentcore:
-	$(PING_ENV) bash fixtures/shell/ping-agentcore.sh
+	$(PING_ENV) bash scripts/ping_agentcore.sh
 
 # Documentation site (VitePress). Node-only targets, namespaced to avoid any
 # collision with the Python toolbox above. The site sources live in

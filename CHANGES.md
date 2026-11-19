@@ -53,10 +53,13 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
-- __Repository layout (#67).__ Every input sits under `fixtures/`: the
+- __Repository layout (#67).__ `fixtures/` holds passive data only: the
   versioned prompts (`fixtures/prompts/`), the sample pages
-  (`fixtures/markdown/`) and the runnable example agents, which were in
-  `examples/`. Every command sits under `scripts/`: the tagged retrieval
+  (`fixtures/markdown/`), PDFs and configuration templates. The runnable
+  example agents, which were in `examples/`, each sit in their own folder
+  under `src/` (`src/docker-rag-agent/`, `src/lambda-rag-agent/`, ...), and
+  the `ping_*.sh` end-to-end checks in `scripts/`. Every command sits under
+  `scripts/`: the tagged retrieval
   benchmark is now `scripts/benchmark_tagged*.py` and
   `scripts/benchmark_kb_*.py`, and `benchmarks/` is gone. Helpers shared by
   tests, benchmarks and scripts are in `src/development/`, which the wheel does

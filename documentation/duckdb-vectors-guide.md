@@ -355,7 +355,7 @@ CMD ["what is duckdb-vectors?"]
 Once the `Dockerfile` has been built, it contains both the database and the agent to query it in-process:
 
 ```shell
-$ docker build -f fixtures/containerized-agent/Dockerfile -t duckdb-vectors-agent .
+$ docker build -f src/containerized-agent/Dockerfile -t duckdb-vectors-agent .
 $ docker run --rm duckdb-vectors-agent "how is a search answered?"
 ```
 

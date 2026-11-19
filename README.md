@@ -238,7 +238,7 @@ Because we are frugal.
 
 - We won't embrace a fat framework, but limit our code base and dependencies to the strict minimum. We just want to install and import a dedicated PyPI package that does one thing well.
 
-- We won't delegate via the network a search across some thousands of items. A local function call is by far the fastest path to relevant answers. DuckDB is a perfect fit for such in-process use case. See [`fixtures/skill_registry.py`](https://github.com/bernard357/duckdb-vectors/blob/main/fixtures/skill_registry.py).
+- We won't delegate via the network a search across some thousands of items. A local function call is by far the fastest path to relevant answers. DuckDB is a perfect fit for such in-process use case. See [`src/skill-registry/skill_registry.py`](https://github.com/bernard357/duckdb-vectors/blob/main/src/skill-registry/skill_registry.py).
 
 - We won't use stemming search at all. Semantic search for sentences and exact matches for keywords cover our needs.
 

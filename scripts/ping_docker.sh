@@ -10,7 +10,7 @@ IMAGE_TAG="duckdb-vectors-rag-ping"
 QUERY="how is a search answered?"
 
 echo "[docker] building ${IMAGE_TAG} (bakes the embedding + generation models)..."
-docker build -f fixtures/docker-rag-agent/Dockerfile -t "${IMAGE_TAG}" .
+docker build -f src/docker-rag-agent/Dockerfile -t "${IMAGE_TAG}" .
 
 echo "[docker] running the query in a container..."
 docker run --rm "${IMAGE_TAG}" "${QUERY}" | python scripts/ping_validate.py docker

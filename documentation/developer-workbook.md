@@ -15,7 +15,7 @@ You do not need to understand the whole codebase to help:
 - __Add a chunker__ — for a format not covered well yet; see
   [below](#how-do-i-add-a-chunker).
 - __Improve the docs__ — clarify a page, add a worked example agent under
-  `fixtures/`, or document a pattern.
+  `src/`, or document a pattern.
 - __Share a ranking recipe__ — a neat injectable `vector_sql` / `text_sql` for
   scoping or decay.
 - __Report a rough edge__ — a clear issue with a minimal reproduction.
@@ -163,9 +163,10 @@ The `Makefile` consolidates the most frequent commands used throughout this proj
 | --- | --- | --- |
 | `src/duckdb_vectors/` | the package | the only code shipped in the wheel |
 | `src/development/` | helpers shared by tests, benchmarks and scripts: paths, metrics, dataset loaders, curation helpers, the fake model | importable everywhere through the editable install, never imported by the package |
+| `src/<example>/` | runnable example agents, one folder each with its code, `requirements.txt` and `Dockerfile`: `docker-rag-agent`, `containerized-agent`, `lambda-rag-agent`, `agentcore-rag-agent`, `huggingface-embedder`, `pdf-index`, `skill-registry` | hyphenated names, so they never shadow an importable package; not shipped in the wheel |
 | `tests/` | the pytest suite and its own small fixtures | |
-| `scripts/` | every runnable command: `benchmark_*.py`, the `kb_*.py` curation steps, maintenance utilities | run from the repository root with `python -m scripts.<name>` or a `make` target |
-| `fixtures/` | every input: sample pages (`markdown/`, `tagged/`), PDFs, versioned prompts (`prompts/`), and the runnable example agents | one place for the prompts used anywhere in the system |
+| `scripts/` | every runnable command: `benchmark_*.py`, the `kb_*.py` curation steps, the `ping_*` end-to-end checks, maintenance utilities | run from the repository root with `python -m scripts.<name>` or a `make` target |
+| `fixtures/` | passive data only: sample pages (`markdown/`, `tagged/`), PDFs, versioned prompts (`prompts/`), CloudFormation templates, the Docker Agent config, a template `Dockerfile` | no code: a `.py` or `.sh` file belongs in `src/` or `scripts/` |
 | `documentation/` | the VitePress site | |
 | `tmp/` | local outputs: downloaded datasets, benchmark results, curation work folders | ignored by git |
 

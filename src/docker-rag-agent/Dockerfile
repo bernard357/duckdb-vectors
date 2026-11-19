@@ -7,7 +7,7 @@
 # container retrieves and assembles a grounded answer with no network.
 #
 # Build from the repository root:
-#   docker build -f fixtures/docker-rag-agent/Dockerfile -t duckdb-vectors-rag .
+#   docker build -f src/docker-rag-agent/Dockerfile -t duckdb-vectors-rag .
 # Run a query (prints JSON {answer, sources}):
 #   docker run --rm duckdb-vectors-rag "how is a search answered?"
 
@@ -19,13 +19,13 @@ ENV HF_HOME=/opt/hf_cache
 # chunker, part of the base install, runs OCR through OpenCV, which needs the
 # last three system libraries; the slim image lacks them.
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libxcb1 libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
-COPY fixtures/docker-rag-agent/requirements.txt .
+COPY src/docker-rag-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # duckdb-vectors is not yet on PyPI; install it from the locally built wheel.
 # Build it first with `uv build`, then build this image from the repo root.
 COPY dist/ ./dist/
 RUN pip install --no-cache-dir "$(echo ./dist/*.whl)"
-COPY fixtures/docker-rag-agent/agent.py .
+COPY src/docker-rag-agent/agent.py .
 COPY documentation/ ./documentation/
 RUN python agent.py --index ./documentation --db /build/vectors.duckdb
 RUN python agent.py --warm
@@ -37,11 +37,11 @@ ENV HF_HOME=/opt/hf_cache
 # llama-cpp-python compiles native code at install time; the toolchain is
 # needed in the runtime image too (a test container, not a slim production one).
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake && rm -rf /var/lib/apt/lists/*
-COPY fixtures/docker-rag-agent/requirements.txt .
+COPY src/docker-rag-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY dist/ ./dist/
 RUN pip install --no-cache-dir "$(echo ./dist/*.whl)" && rm -rf ./dist
-COPY fixtures/docker-rag-agent/agent.py .
+COPY src/docker-rag-agent/agent.py .
 COPY --from=builder /build/vectors.duckdb /app/vectors.duckdb
 COPY --from=builder /opt/fastembed_cache /opt/fastembed_cache
 COPY --from=builder /opt/hf_cache /opt/hf_cache
