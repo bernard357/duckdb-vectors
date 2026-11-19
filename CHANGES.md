@@ -3,7 +3,12 @@
 All notable changes to `duckdb-vectors` are recorded here. Versions are
 tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
 
-## Unreleased
+## v261119
+
+Tagged retrieval: chunks embedded with tags and section contexts read from the
+front matter, measured with a pre-registered test on four corpora, with the
+curation scripts, the procedures to build a knowledge base, and context packs
+to reproduce the public results. The default `top_k` becomes 20.
 
 ### Added
 - __Context packs for reproduction.__ `fixtures/benchmarks/` holds the section
