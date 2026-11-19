@@ -1,5 +1,6 @@
 """Shared fixtures."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -33,3 +34,11 @@ def tagged_store(tmp_path, tagged_folder):
     index_folder(store, tagged_folder)
     yield store
     store.close()
+
+
+@pytest.fixture
+def kb(tmp_path) -> Path:
+    """A writable copy of the tagged corpus, for the curation scripts to edit."""
+    folder = tmp_path / "kb"
+    shutil.copytree(TAGGED, folder)
+    return folder

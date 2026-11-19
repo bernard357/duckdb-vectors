@@ -53,6 +53,11 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   Before, an unquoted `started: 2026-05-30` stopped the whole `index_folder`
   run with a `TypeError` (#63).
 ### Changed
+- __Test modules are named after the code they test (#68).__ For example,
+  `tests/test_duckdb_vectors_config.py` tests `src/duckdb_vectors/config.py`
+  and `tests/test_scripts_kb_tags.py` tests `scripts/kb_tags.py`. The tests of
+  the curation scripts are split by module, and the helpers they share are in
+  `src/development/kb_testing.py`.
 - __Repository layout (#67).__ `fixtures/` holds passive data only: the
   versioned prompts (`fixtures/prompts/`), the sample pages
   (`fixtures/markdown/`), PDFs and configuration templates. The runnable

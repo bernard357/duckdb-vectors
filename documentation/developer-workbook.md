@@ -203,6 +203,16 @@ download and no network and runs in a few seconds. Add a test for any behavior
 you change or add; the suite under `tests/` shows the patterns (temp-file
 DuckDB fixtures, deterministic embeddings).
 
+A test module is named after the location of the code it tests: the path under
+`src/`, or from the repository root for `scripts/`, with `/` replaced by `_` and
+`.py` dropped. `tests/test_duckdb_vectors_config.py` tests
+`src/duckdb_vectors/config.py`, `tests/test_duckdb_vectors_chunkers.py` the
+`chunkers/` package as a whole, and `tests/test_scripts_kb_tags.py` tests
+`scripts/kb_tags.py`. A second module for the same file adds a suffix, as in
+`test_duckdb_vectors_store_ranking_sql.py`. Put the tests of a new module in the
+test module of that name, and helpers several test modules share in
+`src/development/` (pytest fixtures in `tests/conftest.py`).
+
 One test is held out of this default run by the `model` marker: an opt-in
 end-to-end test that downloads the real `onnx-community/Qwen3-Embedding-0.6B-ONNX`
 export through the `hf:` backend and embeds text (external-data + decoder graph,

@@ -1,8 +1,9 @@
 """Transcode each fixture PDF to a companion markdown baseline.
 
 Run once (and again whenever the PDF fixtures change) to freeze the expected
-extraction for the non-regression test in ``tests/test_pdf_fixtures.py``. For
-every ``fixtures/pdf/*.pdf`` this runs the real :class:`PdfChunker` and writes a
+extraction for the non-regression test in
+``tests/test_duckdb_vectors_chunkers_pdf_fixtures.py``. For every
+``fixtures/pdf/*.pdf`` this runs the real :class:`PdfChunker` and writes a
 sibling ``*.md`` holding the chunker's output per page: one ``## Page N``
 section per page, followed by that page's chunk windows in order. The test
 re-runs the chunker and asserts the reconstruction still equals the committed
@@ -11,7 +12,8 @@ caught.
 
 The fixtures shipped here are born-digital (every page has an extractable text
 layer), so this exercises the text path deterministically; the OCR fallback is
-covered separately by the stubbed unit tests in ``tests/test_pdf_chunker.py``.
+covered separately by the stubbed unit tests in
+``tests/test_duckdb_vectors_chunkers_pdf.py``.
 
 Usage (from the repo root, with the PDF deps installed):
 

@@ -6,7 +6,7 @@ Each test re-runs the real :class:`PdfChunker` and asserts its output still
 reconstructs the committed markdown, so any drift in text extraction,
 windowing, or page handling is caught. OCR is not exercised here (these pages
 all carry a text layer); the OCR fallback is covered by the stubbed unit tests
-in ``tests/test_pdf_chunker.py``.
+in ``tests/test_duckdb_vectors_chunkers_pdf.py``.
 
 The suite skips cleanly when the PDF dependencies are not installed.
 """

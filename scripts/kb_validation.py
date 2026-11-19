@@ -532,6 +532,7 @@ def judge(
     if deferred:
         return {"judged": len(tasks) - deferred, "deferred": deferred}
     for (item, chunk_id), grade in zip(tasks, grades, strict=True):
+        assert grade is not None  # deferred grades returned above
         item.grades[chunk_id] = grade
     invalid = 0
     for item in validation.items:

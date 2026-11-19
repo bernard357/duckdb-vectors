@@ -1,5 +1,7 @@
 """Embedder registry, the hashing backend, and the fastembed/hf loaders."""
 
+import importlib.util
+
 import numpy as np
 import pytest
 
@@ -448,3 +450,15 @@ def test_hf_embedder_loads_real_embeddinggemma_pooled_output():
     lengths = {len(vector) for vector in vectors}
     assert len(lengths) == 1
     assert lengths.pop() == embedder.dimensions == 768
+
+
+_HAS_FASTEMBED = importlib.util.find_spec("fastembed") is not None
+
+
+@pytest.mark.skipif(not _HAS_FASTEMBED, reason="fastembed not installed")
+@pytest.mark.slow
+def test_fastembed_backend_embeds_when_installed():
+    # The default fastembed model is the 256-dim multilingual potion model.
+    embedder = resolve_embedder("fastembed")
+    vectors = embedder.embed(["semantic search over markdown"])
+    assert len(vectors[0]) == 256

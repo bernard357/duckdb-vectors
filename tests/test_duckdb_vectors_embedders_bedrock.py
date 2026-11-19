@@ -1,18 +1,9 @@
-"""Real embedding backends: Bedrock (stubbed) and fastembed (skipped if absent).
+"""The Bedrock embedder, with a stubbed client: no live network calls."""
 
-No live network calls: the Bedrock client is a stub, and the fastembed backend
-is skipped unless fastembed is installed.
-"""
-
-import importlib.util
 import json
-
-import pytest
 
 from duckdb_vectors.embedders.bedrock import BedrockEmbedder
 from duckdb_vectors.embedders.registry import resolve_embedder
-
-_HAS_FASTEMBED = importlib.util.find_spec("fastembed") is not None
 
 
 class _StubBody:
@@ -66,12 +57,3 @@ def test_bedrock_model_identifier_folds_model_id():
 def test_registry_resolves_bedrock():
     embedder = resolve_embedder("bedrock:titan")
     assert isinstance(embedder, BedrockEmbedder)
-
-
-@pytest.mark.skipif(not _HAS_FASTEMBED, reason="fastembed not installed")
-@pytest.mark.slow
-def test_fastembed_backend_embeds_when_installed():
-    # The default fastembed model is the 256-dim multilingual potion model.
-    embedder = resolve_embedder("fastembed")
-    vectors = embedder.embed(["semantic search over markdown"])
-    assert len(vectors[0]) == 256
