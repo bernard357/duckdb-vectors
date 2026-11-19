@@ -31,7 +31,8 @@ tag-driven (`vYYMMDD`); pushing a tag publishes the release to PyPI.
   golden passages and a human audit; write Anthropic's contextual header for
   every section offline, into the `sections` key; derive page tags under
   `llm`; run the model requests as Bedrock batch jobs; and measure each tag
-  set per stratum. The [curation procedure](documentation/curate-knowledge-base-procedure.md)
+  set per stratum. `--model fake` runs the whole path offline, at no cost.
+  The [curation procedure](documentation/curate-knowledge-base-procedure.md)
   walks through them (#65).
 - __`scripts/benchmark_indexing.py`.__ Measures a first index, an unchanged
   re-index, and a one-file edit, with the time the database file stays locked,

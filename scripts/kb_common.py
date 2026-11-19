@@ -172,7 +172,8 @@ class BatchQueue:
 class Model:
     """A language model behind :data:`Invoke`, with usage accounting.
 
-    ``invoke`` defaults to Bedrock; tests pass a fake. With ``batch``, requests
+    ``invoke`` defaults to Bedrock, or to :mod:`scripts.kb_fake` when
+    ``model_id`` is ``"fake"``; tests pass their own. With ``batch``, requests
     go to a :class:`BatchQueue` instead: answered ones are returned, others
     raise :class:`Deferred`. Thread safe.
     """
@@ -193,6 +194,10 @@ class Model:
             self._invoke = lambda system, blocks, max_tokens: batch.ask(
                 model_id, system, blocks, max_tokens
             )
+        elif invoke is None and model_id == "fake":
+            from scripts.kb_fake import fake_invoke
+
+            self._invoke = fake_invoke
         else:
             self._invoke = invoke or self._bedrock(model_id, region, session)
 

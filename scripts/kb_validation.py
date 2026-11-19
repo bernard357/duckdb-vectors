@@ -62,7 +62,7 @@ DEFAULT_BACKENDS = (
     "fastembed:minishlab/potion-multilingual-128M",
     "fastembed:BAAI/bge-small-en-v1.5",
 )
-MIN_WORDS = 60
+MIN_WORDS = 60  # shorter passages make poor questions; --min-words changes it
 MAX_COPIED_RUN = 4
 OPENING_CHARS = 800
 POOL_DEPTH = 20
@@ -718,6 +718,7 @@ def agreement(rows: list[dict]) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global MIN_WORDS
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "step",
@@ -736,6 +737,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--work", type=Path, default=Path("tmp/kb"))
     parser.add_argument("--size", type=int, default=200)
     parser.add_argument("--per-chunk", type=int, default=2)
+    parser.add_argument(
+        "--min-words",
+        type=int,
+        default=MIN_WORDS,
+        help="shortest passage to write a question from (local, contextual)",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--queries", type=Path, help="text file for import")
     parser.add_argument("--dev-share", type=float, default=DEV_SHARE)
@@ -753,6 +760,7 @@ def main(argv: list[str] | None = None) -> int:
         help="queue model requests for a Bedrock batch job (scripts/kb_batch.py)",
     )
     args = parser.parse_args(argv)
+    MIN_WORDS = args.min_words
     if args.batch and args.step != "judge":
         parser.error("--batch applies to the judge step only")
     work = args.work

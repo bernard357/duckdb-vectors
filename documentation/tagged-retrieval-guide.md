@@ -134,6 +134,8 @@ A tag is __decorative__ when its coverage is below 50%, when it has a single val
 
 The queries rule exists because the separation measures did not predict benefit. In the first benchmark, over 17 tags in four corpora, the rank correlation between a tag's separation lift and the retrieval gain it brought was close to zero, while the share of queries that mention a tag's values correlated at 0.62. The 20% threshold was fitted to those same 17 tags, so treat it as a starting point. The [performance workbook](performance-workbook#which-tags-help) says which tags helped in the later runs.
 
+The report judges page tags. A section context such as `$.llm.context` is a sentence that no query contains, and it differs from section to section, so the report counts one value per page and always calls it decorative. Ignore the verdict for contexts, and judge them on your own questions, as the [curation procedure](curate-knowledge-base-procedure#step-4-measure-then-index) does.
+
 The report cannot tell you whether a tag helps your searchers. It tells you which tags to try and which to drop first.
 
 ## How long can the prefix be?

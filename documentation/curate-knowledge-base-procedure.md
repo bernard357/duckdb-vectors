@@ -41,6 +41,8 @@ Derived values go under `llm`, so they never mix with tags people wrote. The scr
 - AWS credentials allowed to call Claude Haiku 4.5 on Amazon Bedrock. The scripts use the `eu.anthropic.claude-haiku-4-5-20251001-v1:0` inference profile from `eu-central-1` by default; `--model` and `--region` change it.
 - A copy of the pages to work on. The scripts rewrite front matter in place, so run them on a working copy or a branch.
 
+To try the whole path first, without AWS and at no cost, add `--model fake` to `KB_ARGS` of every step that calls the model. A deterministic stand-in then answers each prompt in the expected shape, from the text it is given. Its answers are only meant to exercise the scripts, so do not read anything into the numbers they produce. With `--backends hashing` for `pool` and `contextual`, and `--backend hashing` for `kb-evaluate`, nothing is downloaded either. On the eight pages of `fixtures/tagged/`, every step below completes in seconds.
+
 Each target takes `KB`, the folder of pages, and `WORK`, a folder for caches, the validation set and results (default `tmp/kb/<folder name>`). Extra options go through `KB_ARGS`. Every model answer is cached on disk by content, so a re-run costs nothing and an edited page costs only that page.
 
 ## Step 1: build a validation set
@@ -53,6 +55,8 @@ $ make kb-validation KB=pages STEP=contextual KB_ARGS="--size 150"
 $ make kb-validation KB=pages STEP=import KB_ARGS="--queries real-queries.txt"
 $ make kb-validation KB=pages STEP=split
 ```
+
+Questions are only written from passages of at least 60 words; for a knowledge base of short sections, lower it with `KB_ARGS="--min-words 30"` on `local` and `contextual`.
 
 `split` assigns whole pages to a dev split (about 30%) and a test split, and freezes the assignment with a digest. Choose prompts, fields and thresholds on dev only, and score test once. A later `split` refuses to change a frozen split unless you pass `--force`, which voids earlier test results.
 

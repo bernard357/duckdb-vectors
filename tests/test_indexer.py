@@ -341,3 +341,107 @@ def test_dated_page_is_found_by_its_date_text(tmp_path):
     assert hits
     assert all(hit.chunk.source.endswith("run.md") for hit in hits)
     store.close()
+
+
+SECTIONED_PAGE = """---
+title: Guide
+sections:
+  guide/setup:
+    llm:
+      context: {setup}
+  guide/usage:
+    llm:
+      context: How to call the Cedar API once it is set up.
+---
+# Guide
+
+## Setup
+
+Install the package and set the key.
+
+## Usage
+
+Call the endpoint with the key.
+"""
+
+
+def _tagged_store(tmp_path):
+    from duckdb_vectors.config import Settings
+
+    settings = Settings(
+        db_path=str(tmp_path / "idx.duckdb"),
+        backend="hashing",
+        tag_fields=["context: $.llm.context"],
+    )
+    return VectorStore(settings=settings)
+
+
+def test_editing_one_section_context_reembeds_only_that_section(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    page = docs / "guide.md"
+    page.write_text(SECTIONED_PAGE.format(setup="How to install Cedar."))
+    (docs / "other.md").write_text(DOC_B)
+    store = _tagged_store(tmp_path)
+    first = index_folder(store, docs)
+    assert first.embedded == first.chunks
+    page.write_text(SECTIONED_PAGE.format(setup="How to install Cedar on Linux."))
+    second = index_folder(store, docs)
+    # Only the setup section's chunk carries the edited context.
+    assert second.embedded == 1
+    assert second.written == 1
+    assert second.reused == second.chunks - 1
+    hit = store._con.execute(
+        "SELECT json_extract_string(metadata, '$.llm.context') FROM chunks "
+        "WHERE json_extract_string(metadata, '$.section_path') = 'guide/setup'"
+    ).fetchone()
+    assert hit == ("How to install Cedar on Linux.",)
+    store.close()
+
+
+def test_section_context_edit_without_tags_rewrites_metadata_only(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    page = docs / "guide.md"
+    page.write_text(SECTIONED_PAGE.format(setup="How to install Cedar."))
+    store = _store(tmp_path)
+    index_folder(store, docs)
+    page.write_text(SECTIONED_PAGE.format(setup="How to install Cedar on Linux."))
+    report = index_folder(store, docs)
+    assert report.embedded == 0
+    assert report.written == 1
+    store.close()
+
+
+def _rows(store):
+    columns = [
+        row[0]
+        for row in store._con.execute("DESCRIBE chunks").fetchall()
+        if row[0] != "stamped_at"
+    ]
+    return store._con.execute(
+        f"SELECT {', '.join(columns)} FROM chunks ORDER BY chunk_id"
+    ).fetchall()
+
+
+def test_empty_sections_map_indexes_like_a_page_without_it(tmp_path):
+    """The ``sections`` key adds nothing when it holds nothing.
+
+    Checked once against the code before ``sections`` existed (commit 3ebf8a3):
+    the rows of ``fixtures/tagged``, ``tests/fixtures/chunker_tree`` and
+    ``documentation`` were identical, vectors included.
+    """
+    body = "---\ntitle: Guide\n{extra}---\n# Guide\n\n## Setup\n\nInstall it.\n"
+    rows = []
+    for name, extra in (("plain", ""), ("empty", "sections: {}\n")):
+        docs = tmp_path / name / "docs"
+        docs.mkdir(parents=True)
+        (docs / "guide.md").write_text(body.format(extra=extra))
+        shutil.copy(FIXTURES / "with_frontmatter.md", docs / "policy.md")
+        store = VectorStore(
+            db_path=str(tmp_path / name / "i.duckdb"), backend="hashing"
+        )
+        index_folder(store, docs)
+        rows.append(_rows(store))
+        store.close()
+    assert rows[0] == rows[1]

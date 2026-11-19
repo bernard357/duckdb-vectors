@@ -500,3 +500,43 @@ def test_batch_jobs_respect_the_record_limit(monkeypatch):
 
     monkeypatch.setattr(kb_batch, "MAX_RECORDS", 3)
     assert [len(job) for job in kb_batch.split_jobs(["{}"] * 7)] == [3, 3, 1]
+
+
+def test_curation_chain_runs_offline_with_the_fake_model(kb, tmp_path):
+    """What ``make kb-validation``, ``kb-context``, ``kb-tags`` and
+    ``kb-evaluate`` run, with ``--model fake``: no AWS, no cost."""
+    from benchmarks.tagged_retrieval import kb_analyze
+
+    work = str(tmp_path / "work")
+    fake = ["--model", "fake"]
+    common = [str(kb), "--work", work]
+    steps = [
+        (kb_validation, ["local", *common, *fake, "--size", "20", "--min-words", "10"]),
+        (
+            kb_validation,
+            ["contextual", *common, *fake, "--size", "10", "--min-words", "10"]
+            + ["--backends", HASHING],
+        ),
+        (kb_validation, ["split", *common]),
+        (kb_validation, ["pool", *common, "--backends", HASHING]),
+        (kb_validation, ["judge", *common, *fake]),
+        (kb_validation, ["audit", *common, "--size", "6"]),
+        (kb_context, [*common, *fake]),
+        (kb_tags, ["discover", *common, *fake]),
+        (kb_tags, ["tag", *common, *fake]),
+        (kb_tags, ["apply", *common]),
+    ]
+    for module, argv in steps:
+        assert module.main(argv) == 0, argv[0]
+    validation = json.loads((tmp_path / "work" / "validation.json").read_text())
+    strata = {item["stratum"] for item in validation["items"]}
+    assert strata == {"local", "contextual"}
+    assert all(item["golden"] for item in validation["items"] if item["valid"])
+    assert (tmp_path / "work" / "audit.yaml").exists()
+    front = read_front_matter((kb / "refund-policy.md").read_text())
+    assert front["llm"]["subject"] and front["sections"]
+    output = tmp_path / "work" / "results" / "all.json"
+    argv = [*common, "--split", "all", "--backend", HASHING, "--output", str(output)]
+    argv += ["--tags", "context=context: $.llm.context"]
+    assert kb_evaluate.main(argv) == 0
+    assert kb_analyze.main([str(output)]) == 0

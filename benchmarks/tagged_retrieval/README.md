@@ -97,6 +97,17 @@ $ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets anthropic \
 | `legalbench` | privacy policies, NDAs and contracts from LegalBench-RAG (privacy_qa, contractnli, cuad; MAUD left out), 250-word sections | 194 seeded questions per subset; a section is golden when it overlaps an answer span |
 | `financebench` | one page per filing, one section per PDF page, pinned to one commit | 149 of the 150 questions of the public sample; evidence pages matched by text, 188 of 189 exactly |
 
+### Licences, sizes and sources
+
+| Dataset | Licence | Source and size | Republished here |
+| --- | --- | --- | --- |
+| FinanceBench open sample | CC BY-NC 4.0 (its [dataset card](https://huggingface.co/datasets/PatronusAI/financebench)); the filings are public SEC documents | downloaded on first use from `patronus-ai/financebench` on GitHub, pinned to commit `cc39aeb`; 84 PDFs and the questions, 159 MB | no: results only |
+| LegalBench-RAG | code MIT; data under its sources' terms: CUAD and ContractNLI CC BY 4.0, PrivacyQA MIT (MAUD, CC BY 4.0, is not used) | the authors' [Dropbox folder](https://github.com/zeroentropy-ai/legalbenchrag#download), downloaded by hand and unpacked into `.cache/legalbenchrag/data`; an 86 MB archive, 88 MB unpacked | no: results only |
+
+Both are used for local benchmarking only. The Markdown pages, contexts and
+validation sets derived from them stay in git-ignored work folders, and only
+results are published, with the datasets named, as their licences ask.
+
 Section contexts then come from `make kb-context`, and `make kb-evaluate` scores
 each condition. `kb_analyze.py` prints the tables and the pre-registered
 decision, Holm-corrected over every primary test given:
