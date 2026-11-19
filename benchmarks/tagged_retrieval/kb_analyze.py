@@ -90,8 +90,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     reports = [json.loads(path.read_text(encoding="utf-8")) for path in args.results]
     reports.sort(key=key)
-    print(table(reports))
-    print()
+    corpora: dict[str, list[dict]] = {}
+    for report in reports:  # each corpus has its own tag sets, so its own table
+        corpora.setdefault(report["corpus"], []).append(report)
+    for group in corpora.values():
+        print(table(group))
+        print()
     for name, helps in decisions(reports).items():
         print(f"- {name}: {'helps' if helps else 'not shown'}")
     return 0

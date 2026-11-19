@@ -146,67 +146,52 @@ One change is worth a note, because the projection behind it was wrong. Rebuildi
 
 ## How much do tags improve retrieval?
 
-> __Superseded, under revision.__ The figures in this section and the next come from validation sets that could not show what tags restore: questions written from one passage alone, a single golden chunk per question, an engineering-pages baseline already near its ceiling, and gains on public sets where the query names the tag value. They are kept for the record and are being redone in [issue #65](https://github.com/bernard357/duckdb-vectors/issues/65). Read the H1, H4 and H5 verdicts below as provisional.
+__A context written offline for each section helps on every corpus; page tags help only where they carry what queries ask for.__ A language model, Claude Haiku 4.5, read each page once and wrote, for every section, the short context that situates it in its page, with Anthropic's [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) prompt word for word. The contexts went into the pages' front matter, under the [`sections` key](tagged-retrieval-guide#how-to-give-each-section-its-own-context), and were indexed as an ordinary tag, `context: $.llm.context`, in the embedding and the keyword index. No model ran at indexing or search time. The [curation procedure](curate-knowledge-base-procedure) does the same on any folder of Markdown pages.
 
-__It depends on whether queries use the words the tags carry.__ Over four datasets and five embedders, tagged retrieval raised hybrid Pass@20 by up to +0.19 where queries name the tag values (SEC filings), by +0.01 to +0.05 on news articles and engineering pages with the default static model, and by nothing on code, where queries never name a repository. With two small transformer models it also lowered Pass@20 on two corpora, by 0.03 and 0.02. The table gives the gain of each condition over the same index without tags, with a 95% paired bootstrap interval, and a star when the interval excludes zero:
+The test was recorded in [issue #65](https://github.com/bernard357/duckdb-vectors/issues/65) before any test split was scored: context in both the embedding and the keyword index (`context:both`) against the same index without it, hybrid search, Pass@20, on the test split, in the stratum where page context should matter, for three embedders on three corpora. It "helps" when the 95% paired bootstrap interval excludes zero and the sign-flip p-value survives a Holm correction over the nine tests. Seven of nine help:
 
-| Dataset (queries) | Embedder | Baseline Pass@20 | Tags in the embedding | Tags in keyword search | Both |
+| Corpus (test questions) | Embedder | Baseline Pass@20 | Gain with the context | Failure@20 reduction | Decision |
 | --- | --- | --- | --- | --- | --- |
-| SEC filings, RAGMATE-10K (117) | potion-256 | 0.203 | +0.021 [+0.004, +0.045] * | +0.029 [+0.004, +0.058] * | +0.051 [+0.025, +0.081] * |
-| | MiniLM-384 | 0.158 | +0.142 [+0.097, +0.190] * | +0.010 [-0.015, +0.030] | +0.140 [+0.089, +0.191] * |
-| | bge-small-384 | 0.241 | +0.187 [+0.133, +0.246] * | +0.007 [-0.018, +0.033] | +0.177 [+0.117, +0.239] * |
-| News, MultiHop-RAG (500 of 2,255) | potion-256 | 0.667 | +0.022 [+0.008, +0.036] * | +0.022 [+0.011, +0.035] * | +0.047 [+0.030, +0.065] * |
-| | MiniLM-384 | 0.667 | -0.006 [-0.028, +0.016] | +0.018 [+0.005, +0.030] * | +0.009 [-0.013, +0.034] |
-| | bge-small-384 | 0.745 | -0.019 [-0.034, -0.005] * | +0.006 [-0.002, +0.013] | -0.009 [-0.025, +0.008] |
-| Engineering pages, private (500) | potion-256 | 0.870 | +0.018 [+0.006, +0.032] * | +0.004 [-0.004, +0.012] | +0.014 [+0.002, +0.028] * |
-| | MiniLM-384 | 0.942 | -0.028 [-0.052, -0.006] * | -0.002 [-0.010, +0.004] | -0.032 [-0.056, -0.010] * |
-| | bge-small-384 | 0.964 | +0.006 [-0.002, +0.016] | +0.004 [+0.000, +0.010] | +0.006 [-0.002, +0.016] |
-| Code, Anthropic cookbook (248) | potion-256 | 0.801 | -0.014 [-0.036, +0.006] | +0.007 [-0.003, +0.020] | -0.011 [-0.036, +0.010] |
-| | MiniLM-384 | 0.765 | -0.003 [-0.031, +0.025] | -0.001 [-0.013, +0.011] | -0.001 [-0.033, +0.030] |
-| | bge-small-384 | 0.876 | -0.006 [-0.037, +0.023] | +0.001 [-0.007, +0.011] | -0.006 [-0.036, +0.023] |
-| | e5-large-1024 | 0.854 | +0.021 [-0.007, +0.050] | -0.008 [-0.020, +0.000] | +0.019 [-0.009, +0.047] |
-| | bge-large-1024 | 0.890 | -0.003 [-0.024, +0.018] | -0.003 [-0.016, +0.008] | -0.016 [-0.042, +0.010] |
+| Engineering pages, private: context-dependent questions (180) | potion-256 | 0.632 | +0.088 [+0.064, +0.112] | 24% | helps |
+| | MiniLM-384 | 0.655 | +0.071 [+0.041, +0.101] | 21% | helps |
+| | bge-small-384 | 0.746 | +0.074 [+0.046, +0.103] | 29% | helps |
+| Contracts and policies, LegalBench-RAG (374) | potion-256 | 0.583 | +0.037 [+0.000, +0.074] | 9% | not shown (p = 0.047) |
+| | MiniLM-384 | 0.616 | +0.147 [+0.101, +0.192] | 38% | helps |
+| | bge-small-384 | 0.714 | +0.121 [+0.081, +0.162] | 42% | helps |
+| SEC filings, FinanceBench (110) | potion-256 | 0.209 | +0.050 [+0.014, +0.095] | 6% | not shown (p = 0.032) |
+| | MiniLM-384 | 0.262 | +0.242 [+0.150, +0.335] | 33% | helps |
+| | bge-small-384 | 0.380 | +0.124 [+0.032, +0.218] | 20% | helps |
 
-On the full MultiHop-RAG set of 2,255 questions the default model gains +0.034 [+0.027, +0.041] with both. The tags are `company`, `year` and `section` for the filings, `title`, `source`, `category` and `published` for the news, `topic` and six model-derived fields for the engineering pages, and `repo`, `directory` and `extension` for the code. The comparison has 42 cells and no correction for multiple comparisons, so a lone star on a small difference is weak evidence. The large gains and the losses on MiniLM and bge-small are not.
+The default static model gains least, and on the two public corpora its gain does not survive the correction, although both intervals exclude zero. It averages token vectors, so a 50-word context moves its embedding less than a transformer's; this is a hypothesis, not something these runs test.
 
-The five hypotheses of the [research note](tagged-retrieval-research), with what these runs show:
+__It reproduces Anthropic's result.__ On the Anthropic cookbook's code set, 248 questions over 737 chunks, converted to Markdown pages with a baseline equal to the published one, the offline context cut failure@20 by as much as Anthropic reports for contexts written at chunking time. That comparison was the bar set for the work, not one of the nine tests:
 
-| Hypothesis | Verdict | Evidence |
-| --- | --- | --- |
-| H1. Tags reduce failure at 20 on tag-rich corpora | Holds when queries use the tags' words, and can hurt when they do not | Gains on filings, news and engineering pages with the default model, none on code, losses of 0.02 to 0.03 for MiniLM on engineering pages and bge-small on news |
-| H2. Gains are larger for small static embedders | Not supported | Larger for the static model on news and engineering pages, but about a third as large on filings (+0.051 against +0.140 and +0.177). The two large embedders ran on the code set only, where nothing helps, so they say nothing |
-| H3. Tagged keyword search adds on top of tagged embeddings | Partly | Adds +0.011 to +0.025 on news with all three embedders and +0.029 on filings with the default model. Adds nothing on code, on engineering pages, or on filings with the transformers, where the embedding already carries the tags |
-| H4. Tags recover at least half of an LLM contextual header's gain at about zero cost | Not supported | See below. Native code tags recovered none of it |
-| H5. Corpus statistics predict which tags help | Not for embedding separation, yes for query mentions | See [Which tags help?](#which-tags-help) |
+| | Anthropic's report | potion-256 | MiniLM-384 | bge-small-384 |
+| --- | --- | --- | --- | --- |
+| Context in the embedding, vector search | 35% | 33% | 46% | 62% |
+| Context in the embedding and the keyword index, hybrid search | 49% | 33% | 58% | 56% |
 
-__H4 reference.__ Anthropic's Contextual Retrieval, with Claude Haiku 4.5 writing a context for each of the 737 code chunks from its whole file, raised hybrid Pass@20 on the code set by +0.078 [+0.041, +0.118] with the default model, +0.123 [+0.081, +0.166] with MiniLM and +0.056 [+0.030, +0.085] with bge-small. The `repo`, `directory` and `extension` tags, together, gained -0.011, -0.001 and -0.006 with the same three embedders on the same queries. They recover none of it, because the questions about code never name a repository or a path. The context went in as a `context:` line in front of the chunk, and in the keyword index in the last condition, so it follows the same path as a tag. The comparison says nothing about tags that queries do name, and the reference run did not use Claude 3 Haiku as the original did. It costs one model call per chunk, with the file in each prompt, where tags cost nothing at index time.
+Anthropic used other embedders and Claude 3 Haiku, so the match is in size, not in detail. Against the reference run of the first benchmark, where the same contexts were prepended in code at indexing time, every interval spans zero except bge-small in hybrid search, which is better by +0.013 [+0.001, +0.028]: moving the context into the front matter loses nothing.
 
-__Prefix or suffix?__ For a transformer, the order is decisive. With MiniLM, tags placed before the chunk moved vector-only Pass@20 by +0.208 [+0.155, +0.266] on filings, -0.102 [-0.140, -0.064] on engineering pages and -0.095 [-0.141, -0.053] on code. The same tags placed after the chunk moved it by -0.011, 0.000 and -0.004: that is, the suffix is almost ignored, which keeps the model from the losses and from the gain. In hybrid search the gap on filings is +0.142 against -0.002. MiniLM was trained on 128 tokens and may simply not read text that far into a 300-word chunk. The default static model averages token vectors, so order cannot matter for it, and its prefix and suffix runs differ only when truncation cuts the suffix: -0.005 [-0.014, +0.002] on news and nothing elsewhere. The prefix is what the benchmark tested for gains, so the prefix stays, as in the published work, and a user whose embedder loses with tags can check the suffix.
+__What else the runs show__ (secondary conditions, from the same runs):
 
-__What the datasets are.__ The code set is the Anthropic cookbook's 737 chunks and 248 questions, used as published. The filings are 25 SEC 10-K filings re-chunked like the dataset's own script into 4,490 chunks, with 117 questions whose ground truth is the chunks cited by a RAG pipeline's answer, so it is not a human judgement. The news set is 609 articles in 4,303 word-window chunks, with each quoted fact of a question mapped to the chunks that contain it. The engineering pages are 252 pages in 5,293 chunks, with two questions generated by Claude Haiku 4.5 from each of 400 passages, kept after dropping those that copy more than four consecutive words, and 500 sampled for the runs. Generated from the passage alone, those questions need no tag to be answered, which understates what tags give. That corpus is private: only its results are published. Runs are single and deterministic apart from timing. The large embedders took about 800 ms per chunk on this machine, which is why they ran on the code set alone.
+- __Context matters most where the question needs the page.__ On engineering pages, questions answerable from a passage alone gained less: +0.060 [+0.035, +0.085] with potion, +0.022 [-0.006, +0.049] with MiniLM, +0.046 [+0.020, +0.072] with bge-small.
+- __The keyword index carries a large share of the gain.__ With potion on context-dependent questions, the context in the embedding alone gains +0.048 and in both +0.088. Index it with `--tag-bm25`.
+- __Native page tags help when they carry what queries ask for.__ FinanceBench's company, document type, period and sector gained +0.105 and +0.127 in both indexes with MiniLM and bge-small, and nothing with potion (-0.009 [-0.055, +0.036]). LegalBench's collection and document names gained +0.055 to +0.141. The code set's repository, directory and extension gained nothing, and cost MiniLM -0.095 [-0.141, -0.052] in vector search.
+- __Native tags and the context add up.__ Together they gave the best result on LegalBench (+0.104, +0.232 and +0.183) and on FinanceBench with potion and MiniLM (+0.068 and +0.247).
+- __Derived page tags did not help.__ On engineering pages, the two fields kept on the dev split, `framework_or_tool` and `language_or_runtime`, changed Pass@20 by -0.002 to +0.002 with potion and bge-small and by -0.023 [-0.037, -0.009] with MiniLM, and added nothing on top of the context.
+
+__How the questions were made.__ The engineering pages, 252 pages in 5,293 chunks, carry 617 generated questions in two strata: 362 written from one passage, and 255 written for one of two near-identical passages from different pages (median cosine 0.81), so that only the page tells them apart. The pages are split once, by page, into dev (199 questions) and test (418), and the split was frozen before any context or tag was written. Golden passages come from pooling the top 20 of several systems, 37,063 pairs, graded 0, 1 or 2 by the model without seeing any tag or context; a passage graded 1 or more is golden, a median of 5 per question. A person graded 176 of those passages, over 60 questions, blind: on golden or not, Cohen's κ with the judge is 0.736 (0.789 on local questions, 0.687 on context-dependent ones), above the 0.6 bar, and all 60 questions were rated realistic. On the 0 to 2 scale κ is 0.437, because the judge gives 2 where the person gave 1, so graded nDCG on these pages is exploratory. That the bar applies to golden or not was decided after the audit. The public sets keep their human golden passages: LegalBench answer spans mapped to 250-word sections, and FinanceBench evidence pages, 188 of 189 matched exactly. FinanceBench's 110 test questions make its intervals wide. No baseline was above 0.9 Pass@20, so no stratum needed another metric. The corpus of engineering pages is private: only its results are published.
+
+__What the first runs got wrong.__ An earlier version of this section reported gains of tags on four datasets ([issue #64](https://github.com/bernard357/duckdb-vectors/issues/64)). Its engineering-page questions were written from one passage alone and had one golden chunk each, so no tag could help them, and the baseline was already at 0.87 to 0.96. Its derived tags were chosen by a statistic that turned out not to predict benefit, and its query-mention rule was fitted on the tags it was checked against. Those figures are in the git history and should not be cited.
 
 ## Which tags help?
 
-> __Superseded, under revision.__ See the note at the top of the previous section. The 20% query-mention threshold was fitted on the 17 tags it is compared with here, and nothing was held out.
+__The ones that restore what a passage loses when cut from its page, in the words people search with.__ A section's own context does that on every corpus here. Page tags do it when they name the company, the period or the contract a question is about, as on FinanceBench and LegalBench, and not when they name the form of a page, as with a repository and a file extension.
 
-__Not the ones that separate documents best, but the ones queries name.__ A leave-one-tag-out run (all tags, minus one) over 17 tags in four datasets, with the default model, gives each tag's contribution to hybrid Pass@20. Two tags carry most of the gain: the company name for filings (+0.040) and the news source (+0.031). The table lists them with the statistics of the `tags` report:
+Derived page tags are harder to get right. On the engineering pages, schema discovery proposed six fields from a sample of pages and the dev questions. Tagging every page twice, with the fields in reverse order the second time, three reached the 80% agreement bar. Leaving each out in turn on the dev split dropped `aws_service`, whose removal raised the context-dependent score. A person checked 30 pages per field: `aws_service` was right on 30, `language_or_runtime` on 27 and `framework_or_tool` on 23. The two kept fields still did not help on the test split. Agreement and precision show a tag is consistent, not that it is useful. Only a run on your own questions shows that.
 
-| Dataset | Tag | Queries mentioning | Document d lift | Verdict | Contribution to Pass@20 |
-| --- | --- | --- | --- | --- | --- |
-| Filings | company | 1.00 | +0.02 | effective | +0.040 [+0.016, +0.068] * |
-| | year | 0.93 | +0.03 | effective | +0.009 [+0.000, +0.019] |
-| | section | 0.00 | +0.01 | decorative | -0.001 [-0.012, +0.009] |
-| News | source | 0.99 | +0.03 | effective | +0.031 [+0.018, +0.044] * |
-| | published | 0.00 | +0.03 | decorative | +0.010 [+0.003, +0.018] * |
-| | title | 0.00 | +0.35 | decorative | +0.009 [-0.003, +0.021] |
-| | category | 0.22 | +0.02 | effective | +0.005 [-0.000, +0.011] |
-| Engineering | topic | 0.51 | +0.27 | effective | +0.012 [+0.000, +0.026] |
-| | six derived fields | 0.00 to 0.08 | +0.04 to +0.15 | decorative | -0.008 to +0.008 |
-| Code | repo, directory, extension | 0.00 to 0.01 | +0.01 to +0.06 | decorative | -0.015 to -0.004 |
-
-The embedding separation lift, which measures how much a tag pulls the chunks of one document together, has a rank correlation of -0.03 with the contribution over the 17 tags. A variant that groups chunks by tag value instead of by document gives -0.12. Both rate the company and the source as decorative, and the title, whose lift is +0.35, as the best tag. The share of queries that contain one of the tag's values has a rank correlation of 0.62. That is why `duckdb-vectors tags` decides on coverage, entropy and, given a file of queries, that share, and reports the separation without using it.
-
-The rule marks a tag decorative when under 20% of the queries mention a value. It agrees with the runs on 13 of 17 tags, counting a tag as helping when its interval excludes zero. It misses the news `published` date, which helps a little (+0.010) with no query naming a date, and it calls three tags effective whose gain is not significant (`topic`, `category`, `year`). The 20% threshold was set on these 17 tags, so it fits them by construction. The two tags written into the private engineering pages, `programming_language` and `operational_domain`, were chosen by the separation statistic and show no contribution here (-0.008 and 0.000), but the questions were generated from passages alone and cannot name a tag. A rule that fits its own calibration set proves little, and the next corpus is the test. Near-unique tags such as the title and the published date did no harm when left in, which is why a value shared by about one document each produces a note and not a verdict.
+The `tags` report's query-mention rule, which marks a tag decorative when fewer than 20% of queries name one of its values, was not re-tested here and stays [provisional](tagged-retrieval-guide#how-to-read-the-tags-report). Its threshold will change only on dev-split evidence.
 
 ## What does tagging cost?
 
@@ -222,6 +207,19 @@ __Nothing measurable at index time, and a few percent of file size.__ Embedding 
 
 Embedding times come from a fresh embedder on 100 chunks of each condition, because runs share vectors between conditions. The search time excludes the query embedding, which the table lists, and is the median of the hybrid search at top 5, 10 and 20. The index file grew by 0 to 9% with tags, up to 17.8 MB from 17.1 MB on the news set, and 17.1 MB from 15.7 MB for bge-small on engineering pages, since tags add a column and, with keyword matching, a longer keyword index. A set of tags whose words overflow the model's window costs relevance instead: the `tags` report warns when it estimates that prefix and chunk exceed it, and for 137 of the 5,293 engineering chunks it did with the default model.
 
+## What does curation cost?
+
+__About $128 of model calls for four corpora, once.__ Everything ran on Claude Haiku 4.5 through Amazon Bedrock's `eu.` inference profile, and Bedrock billed $128.24: $57.15 on demand and $71.10 in batch jobs. That covered a context for each of 25,005 sections in 658 pages, 617 generated questions, the schema and two tagging passes of 252 pages, and 37,063 relevance judgements. The Anthropic code set, run on demand with the page cached across its sections, cost $1.92 for 737 sections, about $0.0026 per section. Of the batch spend, about $50 went to section contexts, most of it for FinanceBench's filings even with each long filing cut to 12,000 characters of context per section, and the remaining $20 or so to the judge.
+
+| Corpus | Pages | Sections with a context | Chunks | Median context |
+| --- | --- | --- | --- | --- |
+| Anthropic code set | 90 | 737 | 737 | 50 words |
+| LegalBench-RAG | 232 | 7,199 | 7,199 | 62 words |
+| FinanceBench | 84 | 11,948 | 27,922 | 60 words |
+| Engineering pages, private | 252 | 5,121 | 5,293 | 51 words |
+
+The cost grows with sections times page length, because each section's prompt carries its page. Prompt caching removes most of the repeated page on demand, and batch jobs cost half the on-demand price, with their own quotas: on demand, the curation hit Bedrock's daily token quota, while the batch jobs, the largest with 37,063 requests, all finished within about 30 minutes. Answers are cached by content, so curating again after an edit costs only the pages that changed. The context makes each embedded text about 50 words longer; the timings of these runs are not reported, because two runs shared the machine.
+
 ## How to reproduce these numbers?
 
 Run the benchmark scripts from the repository root with the project venv. Each prints a table in the format used on this page and can write raw results with `--json`.
@@ -233,15 +231,21 @@ $ .venv/bin/python scripts/benchmark_indexing.py                   # first index
 $ .venv/bin/python scripts/benchmark_indexing.py --folder /path/to/your/docs
 $ .venv/bin/python scripts/benchmark_embedders.py                  # the model comparison
 $ make bench-tagged BENCH_ARGS="--dataset multihop --sample-queries 500 --ablate --suffix"  # tagged retrieval
-$ .venv/bin/python -m benchmarks.tagged_retrieval.analyze          # the tables of the tagged retrieval sections
+$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_datasets legalbench \
+    --folder tmp/kb/legalbench/pages --work tmp/kb/legalbench       # a public set as Markdown pages
+$ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the curation procedure)
+$ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
+    TAGS="context=context: \$.llm.context"                           # one test run
+$ .venv/bin/python -m benchmarks.tagged_retrieval.kb_analyze tmp/kb/*/results/test-*.json  # tables and decision
 ```
 
-The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/benchmarks/tagged_retrieval/README.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
+The [curation procedure](curate-knowledge-base-procedure) explains each `kb-` step. The tagged retrieval benchmark downloads its public data on first use, writes one JSON file per run keyed by git SHA, and is described in [its README](https://github.com/bernard357/duckdb-vectors/blob/main/benchmarks/tagged_retrieval/README.md). `benchmark_queries.py` builds synthetic indexes of ~300-word chunks drawn from a letter-only vocabulary, so the keyword index holds real tokens. `benchmark_indexing.py` generates its Markdown folder from a fixed seed. The MCP and multi-session figures come from the server's own tests and stdio probes against the real corpus.
 
 ## Follow-up
 
 - [User guide](duckdb-vectors-guide): the API, indexing, and configuration, including `lock_timeout`.
 - [Tagged retrieval guide](tagged-retrieval-guide): how to choose and check tags.
+- [Curate a knowledge base](curate-knowledge-base-procedure): write section contexts and page tags offline, and measure them.
 - [Tagged retrieval research note](tagged-retrieval-research): the evidence behind the feature.
 - [Technical design](duckdb-vectors-primitive): the schema, the keyword index marker, and the internals.
 - [Knowledge base in Kiro](setup-kiro-knowledge-base-procedure): one index shared by every Kiro workspace over MCP.
