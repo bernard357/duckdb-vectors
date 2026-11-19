@@ -15,7 +15,7 @@ exact McNemar test on "all golden chunks found".
 Run from the repository root:
 
     $ .venv/bin/python -m scripts.benchmark_tagged \\
-        --tag-fields "repo: $.repo_name" --tag-fields "directory: $.directory"
+        --tag-field "repo: $.repo_name" --tag-field "directory: $.directory"
 """
 
 import argparse
@@ -335,7 +335,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--dataset", choices=sorted(LOADERS), default="anthropic")
     parser.add_argument("--backend", default=DEFAULT_BACKEND)
-    parser.add_argument("--tag-fields", action="append", default=[])
+    parser.add_argument("--tag-field", dest="tag_fields", action="append", default=[])
     parser.add_argument("--conditions", nargs="+", default=list(CONDITIONS))
     parser.add_argument("--top-k", nargs="+", type=int, default=list(DEFAULT_KS))
     parser.add_argument("--limit-queries", type=int, default=None)

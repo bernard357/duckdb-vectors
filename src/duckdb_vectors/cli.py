@@ -38,7 +38,7 @@ _OUTPUT_OPTION = typer.Option(
 
 _TAG_FIELDS_OPTION = typer.Option(
     None,
-    "--tag-fields",
+    "--tag-field",
     help=(
         "Tag to embed with each chunk, as 'label: $.path' read from the "
         "frontmatter. Repeat for several tags."
@@ -163,7 +163,7 @@ def tags(
     Reports, for each tag, its coverage, cardinality, entropy, documents per
     value and embedding separation, with an effective or decorative verdict.
     With ``--queries`` the verdict also checks that queries use the tag's values.
-    Tags come from ``--tag-fields`` or ``DUCKDB_VECTORS_TAG_FIELDS``.
+    Tags come from ``--tag-field`` or ``DUCKDB_VECTORS_TAG_FIELDS``.
     """
     sample = None
     if queries is not None:

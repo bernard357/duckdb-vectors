@@ -749,7 +749,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dev-share", type=float, default=DEV_SHARE)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--backends", nargs="+", default=list(DEFAULT_BACKENDS))
-    parser.add_argument("--tag-fields", action="append", default=[])
+    parser.add_argument("--tag-field", dest="tag_fields", action="append", default=[])
     parser.add_argument("--depth", type=int, default=POOL_DEPTH)
     parser.add_argument("--sheet", type=Path, help="audit sheet (audit, kappa)")
     parser.add_argument("--model", default=DEFAULT_MODEL)

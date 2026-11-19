@@ -102,7 +102,7 @@ def test_index_with_tag_fields_shows_the_projection_in_the_report(tmp_path):
     db = str(tmp_path / "idx.duckdb")
     base = ["--db", db, "--backend", "hashing"]
     indexed = runner.invoke(
-        app, ["index", str(docs), *base, "--tag-fields", "product: $.product"]
+        app, ["index", str(docs), *base, "--tag-field", "product: $.product"]
     )
     assert indexed.exit_code == 0, indexed.output
     plain = json.loads(runner.invoke(app, ["report", *base]).output)
@@ -110,7 +110,7 @@ def test_index_with_tag_fields_shows_the_projection_in_the_report(tmp_path):
     env = {"DUCKDB_VECTORS_TAG_FIELDS": "product: $.product"}
     tagged = runner.invoke(app, ["report", *base], env=env)
     assert json.loads(tagged.output)["tag_fields"] == ["product: $.product"]
-    bad = runner.invoke(app, ["index", str(docs), *base, "--tag-fields", "nonsense"])
+    bad = runner.invoke(app, ["index", str(docs), *base, "--tag-field", "nonsense"])
     assert bad.exit_code != 0
 
 
@@ -119,7 +119,7 @@ def test_index_tag_bm25_flag_makes_tags_searchable_by_keyword(tmp_path):
     docs.mkdir()
     (docs / "a.md").write_text("---\nproduct: Zyxwv\n---\n# A\n\nplain words here\n")
     base = ["--db", str(tmp_path / "idx.duckdb"), "--backend", "hashing"]
-    tag = ["--tag-fields", "product: $.product"]
+    tag = ["--tag-field", "product: $.product"]
     done = runner.invoke(app, ["index", str(docs), *base, *tag, "--tag-bm25"])
     assert done.exit_code == 0, done.output
     hits = json.loads(runner.invoke(app, ["search", "zyxwv", *base]).output)

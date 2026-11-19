@@ -12,7 +12,7 @@ The contexts are stored in the page's own front matter, under the reserved
           context: The retry settings of the Cedar deployment runbook ...
 
 The Markdown chunker merges each entry into that section's chunks, so the
-context is indexed like any other tag, with ``--tag-fields "context:
+context is indexed like any other tag, with ``--tag-field "context:
 $.retrieval.context"`` (and ``--tag-bm25`` for the keyword index). No model runs at
 chunking or indexing time. The page is sent once as a cached prompt prefix and
 then read from the cache for its other sections. Answers are cached on disk by
@@ -20,12 +20,15 @@ content, so a re-run costs nothing and an edited page costs one page.
 
     $ make kb-context KB=path/to/pages WORK=tmp/kb/work
     $ .venv/bin/python -m scripts.kb_context FOLDER --work DIR [--dry-run]
+    $ make kb-context KB=path/to/pages KB_ARGS="--from-pack PACK"  # no model
 
 The script rewrites the ``sections`` key of the pages it is given and nothing
 else; it never commits. Review the change before committing it.
 """
 
 import argparse
+import gzip
+import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -199,6 +202,48 @@ def apply_contexts(folder: Path, contexts: dict[str, dict[str, str]]) -> int:
     return changed
 
 
+def load_pack(path: Path) -> dict:
+    """Read a context pack: a ``contexts.json`` from an earlier run, maybe gzipped."""
+    raw = path.read_bytes()
+    if path.suffix == ".gz":
+        raw = gzip.decompress(raw)
+    return json.loads(raw)
+
+
+def apply_pack(folder: Path, work: Path, pack_path: Path, dry_run: bool) -> int:
+    """Write the contexts of a pack into the pages, with no model call.
+
+    Every page and section of the pack has to exist in ``folder``, else nothing
+    is written: a pack applied to other pages would index stale contexts.
+    """
+    pack = load_pack(pack_path)
+    contexts: dict[str, dict[str, str]] = pack["contexts"]
+    chunker = MarkdownChunker()
+    missing = []
+    for name, page_contexts in contexts.items():
+        path = folder / name
+        if not path.is_file():
+            missing.append(name)
+            continue
+        known = page_sections(chunker, path.read_text(encoding="utf-8"))
+        missing += [f"{name}#{s}" for s in page_contexts if s not in known]
+    if missing:
+        print(
+            f"{len(missing)} pages or sections of {pack_path} are not in {folder}, "
+            f"for example {missing[0]}; nothing written",
+            file=sys.stderr,
+        )
+        return 1
+    report = {key: value for key, value in pack.items() if key != "contexts"}
+    report["pack"] = str(pack_path)
+    write_json(work / "contexts.json", pack)
+    if not dry_run:
+        report["pages_changed"] = apply_contexts(folder, contexts)
+    write_json(work / "context-report.json", report)
+    print(report, file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("folder", type=Path)
@@ -224,7 +269,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="write the contexts to WORK/contexts.json only, not into the pages",
     )
+    parser.add_argument(
+        "--from-pack",
+        type=Path,
+        default=None,
+        metavar="PACK",
+        help="apply the contexts of an earlier run (a contexts.json, maybe "
+        "gzipped, e.g. fixtures/benchmarks/) instead of calling the model",
+    )
     args = parser.parse_args(argv)
+    if args.from_pack is not None:
+        return apply_pack(args.folder, args.work, args.from_pack, args.dry_run)
     queue = BatchQueue(args.work / "batch") if args.batch else None
     model = Model(args.model, args.region, batch=queue)
     cache = AnswerCache(args.work / "cache" / "context", model.usage)

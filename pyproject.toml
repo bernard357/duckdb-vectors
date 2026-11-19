@@ -71,6 +71,11 @@ source = "vcs"
 [tool.hatch.build.targets.wheel]
 packages = ["src/duckdb_vectors"]
 
+# The sdist carries what the wheel needs and nothing else: no fixtures, tests,
+# scripts or documentation, so no derived benchmark data is redistributed on PyPI.
+[tool.hatch.build.targets.sdist]
+only-include = ["src/duckdb_vectors", "README.md", "CHANGES.md", "LICENSE"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py312"

@@ -234,6 +234,8 @@ $ make bench-tagged BENCH_ARGS="--dataset multihop --sample-queries 500 --ablate
 $ .venv/bin/python -m scripts.benchmark_kb_datasets legalbench \
     --folder tmp/kb/legalbench/pages --work tmp/kb/legalbench       # a public set as Markdown pages
 $ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench  # contexts (see the curation procedure)
+$ make kb-context KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
+    KB_ARGS="--from-pack fixtures/benchmarks/legalbench-contexts.json.gz"  # or our contexts, no model
 $ make kb-evaluate KB=tmp/kb/legalbench/pages WORK=tmp/kb/legalbench \
     TAGS="context=context: \$.retrieval.context"                           # one test run
 $ .venv/bin/python -m scripts.benchmark_kb_analyze tmp/kb/*/results/test-*.json  # tables and decision

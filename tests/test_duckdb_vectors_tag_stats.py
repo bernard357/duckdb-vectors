@@ -151,8 +151,8 @@ def test_tags_verb_prints_the_report(tmp_path, tagged_folder):
     db = str(tmp_path / "cli.duckdb")
     base = ["--db", db, "--backend", "hashing"]
     runner.invoke(app, ["index", str(tagged_folder), *base])
-    args = ["tags", *base, "--tag-fields", "kind: $.kind"]
-    args += ["--tag-fields", "product: $.product.name"]
+    args = ["tags", *base, "--tag-field", "kind: $.kind"]
+    args += ["--tag-field", "product: $.product.name"]
     result = runner.invoke(app, args)
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
@@ -227,8 +227,8 @@ def test_tags_verb_takes_a_file_of_queries(tmp_path, tagged_folder):
     queries = tmp_path / "queries.txt"
     queries.write_text("refund window for Atlas\n\nkeys at Beacon\n")
     args = ["tags", *base, "--queries", str(queries)]
-    args += ["--tag-fields", "product: $.product.name"]
-    args += ["--tag-fields", "doc_id: $.doc_id"]
+    args += ["--tag-field", "product: $.product.name"]
+    args += ["--tag-field", "doc_id: $.doc_id"]
     payload = json.loads(runner.invoke(app, args).output)
     verdicts = {tag["label"]: tag["verdict"] for tag in payload["tags"]}
     assert verdicts == {"product": "effective", "doc_id": "decorative"}

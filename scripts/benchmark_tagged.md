@@ -3,7 +3,7 @@
 Measures whether embedding frontmatter-projected tags with each chunk, or
 matching them in the keyword index, changes retrieval quality. The design and
 the hypotheses H1 to H5 are in
-[the research note](../documentation/tagged-retrieval-research.md).
+[the tagged retrieval workbook](../documentation/tagged-retrieval-workbook.md).
 
 ## Run it
 
@@ -45,7 +45,7 @@ interval and an exact McNemar test on "every golden chunk found".
 
 Tags default to a preset per dataset (`repo`, `directory` and `extension` for the
 cookbook set; `company`, `year` and `section` for RAGMATE-10K), and
-`--tag-fields` replaces it. MultiHop-RAG uses `title`, `source`, `category` and
+`--tag-field` replaces it. MultiHop-RAG uses `title`, `source`, `category` and
 `published`.
 
 ### RAGMATE-10K data quality
@@ -82,7 +82,7 @@ harness reproduces the cookbook.
 
 The runs that replace the first results treat every corpus as a folder of
 Markdown pages, the way a knowledge manager's corpus is, and go through the
-[curation scripts](../documentation/curate-knowledge-base-procedure.md).
+[curation scripts](../documentation/tag-knowledge-base-procedure.md).
 `benchmark_kb_datasets.py` writes a public dataset out as such a folder, with its
 questions as a validation set whose golden chunks are the folder's own chunk
 ids, split once into dev and test:
@@ -103,13 +103,18 @@ $ .venv/bin/python -m scripts.benchmark_kb_datasets anthropic \
 | Dataset | Licence | Source and size | Republished here |
 | --- | --- | --- | --- |
 | FinanceBench open sample | CC BY-NC 4.0 (its [dataset card](https://huggingface.co/datasets/PatronusAI/financebench)); the filings are public SEC documents | downloaded on first use from `patronus-ai/financebench` on GitHub, pinned to commit `cc39aeb`; 84 PDFs and the questions, 159 MB | no: results only |
-| LegalBench-RAG | code MIT; data under its sources' terms: CUAD and ContractNLI CC BY 4.0, PrivacyQA MIT (MAUD, CC BY 4.0, is not used) | the authors' [Dropbox folder](https://github.com/zeroentropy-ai/legalbenchrag#download), downloaded by hand and unpacked into `tmp/benchmarks/cache/legalbenchrag/data`; an 86 MB archive, 88 MB unpacked | no: results only |
+| LegalBench-RAG | code MIT; data under its sources' terms: CUAD and ContractNLI CC BY 4.0, PrivacyQA MIT (MAUD, CC BY 4.0, is not used) | the authors' [Dropbox folder](https://github.com/zeroentropy-ai/legalbenchrag#download), downloaded by hand and unpacked into `tmp/benchmarks/cache/legalbenchrag/data`; an 86 MB archive, 88 MB unpacked | the section contexts only, in `fixtures/benchmarks/` |
+| Anthropic code set | MIT (the Anthropic cookbook) | downloaded on first use from the cookbook, pinned to commit `ce8b262` | the section contexts only, in `fixtures/benchmarks/` |
 
-Both are used for local benchmarking only. The Markdown pages, contexts and
-validation sets derived from them stay in git-ignored work folders, and only
-results are published, with the datasets named, as their licences ask.
+The source texts are used for local benchmarking only. The Markdown pages and
+validation sets derived from them stay in git-ignored work folders. The section
+contexts of the two permissively licensed sets are published in
+[`fixtures/benchmarks/`](../fixtures/benchmarks/README.md), with attribution, so
+that their results can be reproduced with no model call. FinanceBench keeps
+results only.
 
-Section contexts then come from `make kb-context`, and `make kb-evaluate` scores
+Section contexts then come from `make kb-context`, or from a pack with
+`KB_ARGS="--from-pack fixtures/benchmarks/<corpus>-contexts.json.gz"`, and `make kb-evaluate` scores
 each condition. `benchmark_kb_analyze.py` prints the tables and the pre-registered
 decision, Holm-corrected over every primary test given:
 

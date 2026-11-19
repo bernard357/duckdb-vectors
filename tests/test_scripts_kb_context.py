@@ -1,5 +1,8 @@
 """Offline section contexts (scripts/kb_context.py), with a scripted model."""
 
+import gzip
+import json
+
 from development.curation import (
     AnswerCache,
     chunk_folder,
@@ -72,3 +75,25 @@ def test_kb_context_moves_a_legacy_llm_context_to_retrieval():
         "a": {"retrieval": {"context": "new"}},
         "b": {"llm": {"note": "kept"}, "retrieval": {"context": "new"}},
     }
+
+
+def test_kb_context_applies_a_pack_without_a_model(kb, tmp_path):
+    model = fake_model()
+    cache = AnswerCache(tmp_path / "cache", model.usage)
+    contexts = kb_context.contextualize_folder(kb, model, cache, workers=2)
+    pack = tmp_path / "pack.json.gz"
+    pack.write_bytes(gzip.compress(json.dumps({"contexts": contexts}).encode()))
+    work = tmp_path / "work"
+    args = [str(kb), "--work", str(work), "--from-pack", str(pack)]
+    assert kb_context.main(args) == 0
+    assert json.loads((work / "context-report.json").read_text())["pages_changed"]
+    tags = project_many(
+        [c.metadata for c in chunk_folder(kb)],
+        parse_tag_fields(["context: $.retrieval.context"]),
+    )
+    assert all(t and t[0][1].startswith("Context about") for t in tags)
+    # A pack that names a section the pages do not have writes nothing.
+    page = next(iter(contexts))
+    contexts[page]["no-such-section"] = "stale"
+    pack.write_bytes(gzip.compress(json.dumps({"contexts": contexts}).encode()))
+    assert kb_context.main(args) == 1

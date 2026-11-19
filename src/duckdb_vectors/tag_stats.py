@@ -326,7 +326,7 @@ def compute_tag_report(
     parsed = parse_tag_fields(store.settings.tag_fields if fields is None else fields)
     if not parsed:
         raise ValueError(
-            "No tags declared: pass --tag-fields or set DUCKDB_VECTORS_TAG_FIELDS."
+            "No tags declared: pass --tag-field or set DUCKDB_VECTORS_TAG_FIELDS."
         )
     chunks = store.list_vectors()
     documents, tags = _document_values(chunks, parsed)
